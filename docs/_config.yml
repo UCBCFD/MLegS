@@ -3,3 +3,14 @@ description: Modernized and Parallelized Mapped Legendre Spectral Method Code
 theme: just-the-docs
 
 url: https://ucbcfd.github.io/MLegS
+
+# Color scheme supports "light" (default) and "dark"
+color_scheme: dark
+
+# Aux links for the upper right navigation
+aux_links:
+  "Powered by Just the Docs":
+    - "//github.com/just-the-docs/just-the-docs"
+
+# Makes Aux links open in a new tab. Default is false
+aux_links_new_tab: false
