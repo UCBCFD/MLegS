@@ -1,0 +1,46 @@
+# build directories
+build/**
+
+# executables
+*.exe
+*.app
+*.nix
+
+# prerequisites
+*.d
+
+# compiled objects
+*.slo
+*.lo
+*.o
+*.obj
+*.aps
+*.idb
+*.pdb
+
+# compiled libs
+*.so
+*.dylib
+*.dll
+*.lai
+*.la
+*.a
+*.lib
+
+# modules
+*.mod
+*.smod
+
+# outputs
+*.out
+output/**
+
+# any intermediate directories
+obj/**
+lib/**
+
+# Ignore OS-generated files
+Thumbs.db
+ehthumbs.db
+.DS_Store
+._*
