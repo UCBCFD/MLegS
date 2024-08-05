@@ -1,0 +1,3 @@
+$(OBJ_DIR)/mlegs_base.o : src/modules/mlegs_base.f90 
+$(OBJ_DIR)/mlegs_misc.o : src/modules/mlegs_misc.f90 $(OBJ_DIR)/mlegs_base.o 
+$(OBJ_DIR)/mlegs_misc_time.o : src/submodules/mlegs_misc_time.f90 $(OBJ_DIR)/mlegs_misc.o 

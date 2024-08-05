@@ -1,5 +1,5 @@
 # build directories
-build/**
+build
 
 # executables
 *.exe
@@ -27,19 +27,19 @@ build/**
 *.a
 *.lib
 
-# modules
+# Fortran modules
 *.mod
 *.smod
 
 # outputs
 *.out
-output/**
+output
 
-# any intermediate directories
-obj/**
-lib/**
+# any temporary directories
+test*
+temp*
 
-# Ignore OS-generated files
+# irrelevant OS-generated files
 Thumbs.db
 ehthumbs.db
 .DS_Store

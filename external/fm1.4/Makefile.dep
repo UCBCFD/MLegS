@@ -1,0 +1,3 @@
+$(OBJ_DIR)/fm.o : fm.f90 $(OBJ_DIR)/fmsave.o 
+$(OBJ_DIR)/fmzm90.o : fmzm90.f90 $(OBJ_DIR)/fmsave.o
+$(LIB) : $(OBJ_DIR)/fmsave.o $(OBJ_DIR)/fm.o $(OBJ_DIR)/fmzm90.o
