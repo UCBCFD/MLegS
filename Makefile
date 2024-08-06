@@ -1,8 +1,18 @@
-# Compiler
-FC = mpifort
+# Compiler (ifx or gfortran)
 OMPI_FC = gfortran
+
 # Compiler flags
-FFLAGS = -O3 -fdefault-real-8 -mcmodel=medium -g -fopenmp -J$(MOD_DIR) -L$(LIB_DIR) -lfm -lffte
+ifeq ($(OMPI_FC), ifx)
+  FC = mpiifx
+  FFLAGS = -O3 -r8 -mcmodel=medium -g -qopenmp -module $(MOD_DIR) -L$(LIB_DIR) $(EXTLIBS)
+else ifeq ($(OMPI_FC), gfortran)
+  FC = mpifort
+  FFLAGS = -O3 -fdefault-real-8 -mcmodel=medium -g -fopenmp -J$(MOD_DIR) -L$(LIB_DIR) $(EXTLIBS)
+else
+  $(error Untested compiler: $(FC). Tested compilers are gfortran <v11.2 or later> and ifx <v2024.1.0 or later>)
+endif
+
+EXTLIBS = -lffte -lfm -lblas -llapack
 
 # Source and build directories
 MODULE_DIR = src/modules
@@ -46,10 +56,10 @@ $(OBJ_DIR)/%.o: $(SUBMODULE_DIR)/%.f90
 	$(FC) $(FFLAGS) -c -o $@ $<
 
 # Compile only modules
-mod: $(MODULE_OBJECTS) $(SUBMODULE_OBJECTS)
+mods: $(MODULE_OBJECTS) $(SUBMODULE_OBJECTS)
 
 # Clean up build files
 clean:
 	rm -rf $(BUILD_DIR)
 
-.PHONY: all clean mod
+.PHONY: all clean mods

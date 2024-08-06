@@ -1,7 +1,14 @@
-# Compiler
-FC = gfortran
+# Compiler (ifx or gfortran)
+FC = ifx
+
 # Compiler flags
-FFLAGS = -O3 -g -fopenmp -fomit-frame-pointer -std=legacy
+ifeq ($(FC), ifx)
+  FFLAGS = -O3 -g -qopenmp -fomit-frame-pointer -f77rtl
+else ifeq ($(FC), gfortran)
+  FFLAGS = -O3 -g -fopenmp -fomit-frame-pointer -std=legacy
+else
+  $(error Untested compiler: $(FC). Tested compilers are gfortran <v11.2 or later> and ifx <v2024.1.0 or later>)
+endif
 
 # Source and build directories
 BUILD_DIR = build
@@ -15,13 +22,15 @@ HEADERS = $(wildcard *.h)
 OBJECTS = $(patsubst %.f,$(OBJ_DIR)/%.o,$(SOURCES))
 
 # Target static library
-LIB = libffte.a
+LIB_DIR = $(BUILD_DIR)/lib
+LIB = $(LIB_DIR)/libffte.a
 
 # Default target
 all: $(OBJECTS) $(LIB)
 
 # Create static library from object files
 $(LIB) : $(OBJECTS)
+	@mkdir -p $(LIB_DIR)
 	ar rcs $@ $^
 
 # Compile objects
@@ -31,6 +40,6 @@ $(OBJ_DIR)/%.o: %.f $(HEADERS)
 
 # Clean up build files
 clean:
-	rm -rf $(LIB) $(BUILD_DIR)
+	rm -rf $(BUILD_DIR)
 
 .PHONY: all clean
