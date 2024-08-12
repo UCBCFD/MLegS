@@ -115,4 +115,39 @@ module mlegs_misc
   end interface
   public :: mload
 
+  !> view a matrix in an organized way
+  interface mcat
+    module subroutine mcatdr(a, width, precision)
+      implicit none
+      real(p8), dimension(:,:) :: a
+      integer(i4), optional :: width, precision
+    end subroutine
+    module subroutine mcatdc(a, width, precision)
+      implicit none
+      complex(p8), dimension(:,:) :: a
+      integer(i4), optional :: width, precision
+    end subroutine
+    module subroutine mcat1r(a, width, precision)
+      implicit none
+      real(p8), dimension(:) :: a
+      integer(i4), optional :: width, precision
+    end subroutine
+    module subroutine mcat1c(a, width, precision)
+      implicit none
+      complex(p8), dimension(:) :: a
+      integer(i4), optional :: width, precision
+    end subroutine
+    module subroutine mcat3r(a, width, precision)
+      implicit none
+      real(p8), dimension(:,:,:) :: a
+      integer(i4), optional :: width, precision
+    end subroutine
+    module subroutine mcat3c(a, width, precision)
+      implicit none
+      complex(p8), dimension(:,:,:) :: a
+      integer(i4), optional :: width, precision
+    end subroutine
+  end interface
+  public :: mcat
+
 end module

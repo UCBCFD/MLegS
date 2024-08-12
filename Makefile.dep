@@ -1,3 +1,19 @@
 $(OBJ_DIR)/mlegs_base.o : $(MODULE_DIR)/mlegs_base.f90 
+
+$(OBJ_DIR)/mlegs_mpi.o : $(MODULE_DIR)/mlegs_mpi.f90 $(OBJ_DIR)/mlegs_base.o
+$(OBJ_DIR)/mlegs_mpi_utils.o : $(SUBMODULE_DIR)/mlegs_mpi_utils.f90 $(OBJ_DIR)/mlegs_mpi.o
+
 $(OBJ_DIR)/mlegs_misc.o : $(MODULE_DIR)/mlegs_misc.f90 $(OBJ_DIR)/mlegs_base.o 
 $(OBJ_DIR)/mlegs_misc_time.o : $(SUBMODULE_DIR)/mlegs_misc_time.f90 $(OBJ_DIR)/mlegs_misc.o 
+$(OBJ_DIR)/mlegs_misc_io.o : $(SUBMODULE_DIR)/mlegs_misc_io.f90 $(OBJ_DIR)/mlegs_misc.o
+
+$(OBJ_DIR)/mlegs_genmat.o : $(MODULE_DIR)/mlegs_genmat.f90 $(OBJ_DIR)/mlegs_base.o
+$(OBJ_DIR)/mlegs_genmat_ops.o : $(SUBMODULE_DIR)/mlegs_genmat_ops.f90 $(OBJ_DIR)/mlegs_genmat.o
+
+$(OBJ_DIR)/mlegs_bndmat.o : $(MODULE_DIR)/mlegs_bndmat.f90 $(OBJ_DIR)/mlegs_base.o
+$(OBJ_DIR)/mlegs_bndmat_cvrt.o : $(SUBMODULE_DIR)/mlegs_bndmat_cvrt.f90 $(OBJ_DIR)/mlegs_bndmat.o
+$(OBJ_DIR)/mlegs_bndmat_ops.o : $(SUBMODULE_DIR)/mlegs_bndmat_ops.f90 $(OBJ_DIR)/mlegs_bndmat.o
+$(OBJ_DIR)/mlegs_bndmat_tbp.o : $(SUBMODULE_DIR)/mlegs_bndmat_tbp.f90 $(OBJ_DIR)/mlegs_bndmat.o
+
+$(OBJ_DIR)/mlegs_spectfm.o : $(MODULE_DIR)/mlegs_spectfm.f90 $(OBJ_DIR)/mlegs_base.o $(OBJ_DIR)/mlegs_genmat.o $(OBJ_DIR)/mlegs_bndmat.o
+$(OBJ_DIR)/mlegs_spectfm_tbp.o : $(SUBMODULE_DIR)/mlegs_spectfm_tbp.f90 $(OBJ_DIR)/mlegs_spectfm.o

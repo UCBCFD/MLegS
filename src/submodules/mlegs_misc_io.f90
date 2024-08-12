@@ -1,4 +1,4 @@
-submodule (mlegs_misc) mlegs_misc_matgen
+submodule (mlegs_misc) mlegs_misc_io
   implicit none
 
   !> file i/o parameters
@@ -180,7 +180,175 @@ contains
   102 format(I6, ' x ', I6, ' x ', I6, ' complex 3D array data loaded from ', A)
   end procedure
 
+  module procedure mcatdr
+    implicit none
+    integer(i4) :: width_, precision_
+    if (present(precision) .eqv. .false.) then
+      precision_ = 3
+    else
+      precision_ = max(precision, 0)
+    endif
+    if (present(width) .eqv. .false.) then
+      width_ = 8
+    else
+      width_ = max(width, 1)
+    endif
+    call mcatr(reshape(a, (/ size(a,1), size(a,2), 1 /)), width_, precision_)
+  end procedure
+
+  module procedure mcatdc
+    implicit none
+    integer(i4) :: width_, precision_
+    if (present(precision) .eqv. .false.) then
+      precision_ = 3
+    else
+      precision_ = max(precision, 0)
+    endif
+    if (present(width) .eqv. .false.) then
+      width_ = 4
+    else
+      width_ = max(width, 1)
+    endif
+    call mcatc(reshape(a, (/ size(a,1), size(a,2), 1 /)), width_, precision_)
+  end procedure
+
+  module procedure mcat1r
+    implicit none
+    integer(i4) :: width_, precision_
+    if (present(precision) .eqv. .false.) then
+      precision_ = 3
+    else
+      precision_ = max(precision, 0)
+    endif
+    if (present(width) .eqv. .false.) then
+      width_ = 8
+    else
+      width_ = max(width, 1)
+    endif
+    call mcatr(reshape(a, (/ size(a), 1, 1 /)), width_, precision_)
+  end procedure
+
+  module procedure mcat1c
+    implicit none
+    integer(i4) :: width_, precision_
+    if (present(precision) .eqv. .false.) then
+      precision_ = 3
+    else
+      precision_ = max(precision, 0)
+    endif
+    if (present(width) .eqv. .false.) then
+      width_ = 4
+    else
+      width_ = max(width, 1)
+    endif
+    call mcatc(reshape(a, (/ size(a), 1, 1 /)), width_, precision_)
+  end procedure
+
+  module procedure mcat3r
+    implicit none
+    integer(i4) :: width_, precision_
+    if (present(precision) .eqv. .false.) then
+      precision_ = 3
+    else
+      precision_ = max(precision, 0)
+    endif
+    if (present(width) .eqv. .false.) then
+      width_ = 8
+    else
+      width_ = max(width, 1)
+    endif
+    call mcatr(a, width_, precision_)
+  end procedure
+
+  module procedure mcat3c
+    implicit none
+    integer(i4) :: width_, precision_
+    if (present(precision) .eqv. .false.) then
+      precision_ = 3
+    else
+      precision_ = max(precision, 0)
+    endif
+    if (present(width) .eqv. .false.) then
+      width_ = 4
+    else
+      width_ = max(width, 1)
+    endif
+    call mcatc(a, width_, precision_)
+  end procedure
+
+! ======================================================================================================== !
 ! VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV INTERNAL (PRIVATE) SUBROUTINES/FUNCTIONS VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV !
+! ======================================================================================================== !
+
+  subroutine mcatr(a, width, precision)
+    implicit none
+    real(p8), dimension(:,:,:) :: a
+    integer(i4) :: width, precision
+
+    integer(i4) :: ni, nj ,nk, i, j, k
+    integer(i4) :: i, j, jb, je, jj
+    character(len=72) :: fmt1, fmt2, fmt3
+
+    ni = size(a,1)
+    nj = size(a,2)
+    nk = size(a,3)
+
+    fmt1 = '(I4, A)'
+    fmt2 = '(5X, '//trim(itoa(width))//'I'//trim(itoa(precision+9))//')'
+    fmt3 = '(I4, ":", 1P'//trim(itoa(width))//'E'//trim(itoa(precision+9))//'.'//trim(itoa(precision))&
+                                                                                                     //'E3)'
+
+    do k = 1, nk
+    if (nk .gt. 1) write(*, fmt1) k, ' (Axis 3): '
+      do j = 1, (nj+(width-1))/width
+        jb = width*j - (width-1)
+        je = min(width*j, nj)
+        write(*,*) ''
+        write(*, fmt2) (jj, jj = jb, je)
+        do i = 1, ni
+          write(*, fmt3) i, (a(i,jj,k), jj = jb, je)
+        enddo
+      enddo
+    write(*,*) ''
+    enddo
+  end subroutine
+
+! ======================================================================================================== !
+
+  subroutine mcatc(a, width, precision)
+    implicit none
+    complex(p8), dimension(:,:,:) :: a
+    integer(i4) :: width, precision
+
+    integer(i4) :: ni, nj ,nk, i, j, k
+    integer(i4) :: i, j, jb, je, jj
+    character(len=72) :: fmt1, fmt2, fmt3
+
+    ni = size(a,1)
+    nj = size(a,2)
+    nk = size(a,3)
+
+    fmt1 = '(I4, A)'
+    fmt2 = '(5X, '//trim(itoa(2*width))//'I'//trim(itoa(2*precision+9+8+1))//')'
+    fmt3 = '(I4, ":", 1P'//trim(itoa(2*width))//'(S,E'//trim(itoa(precision+9))//'.'//trim(itoa(precision))&
+                                //'E3,SP,E'//trim(itoa(precision+8))//'.'//trim(itoa(precision))//'E3,"i"))'
+
+    do k = 1, nk
+    if (nk .gt. 1) write(*, fmt1) k, ' (Axis 3): '
+      do j = 1, (nj+(width-1))/width
+        jb = width*j - (width-1)
+        je = min(width*j, nj)
+        write(*,*) ''
+        write(*, fmt2) (jj, jj = jb, je)
+        do i = 1, ni
+          write(*, fmt3) i, (a(i,jj,k), jj = jb, je)
+        enddo
+      enddo
+    write(*,*) ''
+    enddo
+  end subroutine
+
+! ======================================================================================================== !
 
   subroutine msaver(fn, a, ni, nj, nk, is_binary)
     implicit none
@@ -190,10 +358,10 @@ contains
     logical :: is_binary
 
     integer(i4) :: i, j, k, fo = 11
-    character(len=72) :: dum1, dum2, bsstr
+    character(:), allocatable :: dum1, dum2, bsstr
 
-    write(dum1, *) formatted_num_str_len
-    write(dum2, *) formatted_num_str_len - 8
+    dum1 = itoa(formatted_num_str_len)
+    dum2 = itoa(formatted_num_str_len - 8)
     bsstr = '(1PE' // trim(adjustl(dum1)) // '.' // trim(adjustl(dum2)) // 'E3)'
 
     if (is_binary) then
@@ -230,11 +398,11 @@ contains
 
     integer(i4) :: ni, nj, nk
     integer(i4) :: i, j, k, is, fo = 11
-    character(len=72) :: dum1, dum2, dum3, bsstr
+    character(:), allocatable :: dum1, dum2, dum3, bsstr
 
-    write(dum1, *) formatted_num_str_len
-    write(dum2, *) formatted_num_str_len - 8
-    write(dum3, *) nj
+    dum1 = itoa(formatted_num_str_len)
+    dum2 = itoa(formatted_num_str_len - 8)
+    dum3 = itoa(nj)
     bsstr = '('//trim(adjustl(dum1))//'(1PE'//trim(adjustl(dum1))//'.'//trim(adjustl(dum2))//'E3))'
 
     ni = size(a,1)
@@ -289,10 +457,10 @@ contains
     logical :: is_binary
 
     integer(i4) :: i, j, k, fo = 11
-    character(len=72) :: dum1, dum2, bsstr
+    character(:), allocatable :: dum1, dum2, bsstr
 
-    write(dum1, *) formatted_num_str_len
-    write(dum2, *) formatted_num_str_len - 8
+    dum1 = itoa(formatted_num_str_len)
+    dum2 = itoa(formatted_num_str_len - 8)
     bsstr = '(1PE' // trim(adjustl(dum1)) // '.' // trim(adjustl(dum2)) // 'E3)'
 
     if (is_binary) then
@@ -330,12 +498,12 @@ contains
 
     integer(i4) :: ni, nj, nk
     integer(i4) :: i, j, k, is, fo = 11
-    character(len=72) :: dum1, dum2, dum3, bsstr
+    character(:), allocatable :: dum1, dum2, dum3, bsstr
     real(p8), dimension(:), allocatable :: real_imag_pairs
 
-    write(dum1, *) formatted_num_str_len
-    write(dum2, *) formatted_num_str_len - 8
-    write(dum3, *) 2*nj
+    dum1 = itoa(formatted_num_str_len)
+    dum2 = itoa(formatted_num_str_len - 8)
+    dum3 = itoa(2*nj)
     bsstr = '('//trim(adjustl(dum1))//'(1PE'//trim(adjustl(dum1))//'.'//trim(adjustl(dum2))//'E3))'
 
     ni = size(a,1)
@@ -384,5 +552,16 @@ contains
   104 format('axis 2 (data): ', I6, '   ', 'axis 2 (array): ', I6)
   105 format('axis 3 (data): ', I6, '   ', 'axis 3 (array): ', I6)
   end subroutine
+
+! ======================================================================================================== !
+
+  function itoa(i) result(a)
+    implicit none
+    integer(i4) :: i
+    character(len=36) :: a
+
+    write(a, '(i36)') i
+    a = trim(adjustl(a))
+  end function
 
 end submodule

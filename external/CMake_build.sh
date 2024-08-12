@@ -6,13 +6,17 @@ if [ -d ./lib ]; then
 	rm -rf ./lib
 fi
 mkdir -p ./lib
+if [ -d ./inc ]; then
+	rm -rf ./inc
+fi
+mkdir -p ./inc
 
 # Some packages require both the Fortran and C compilers, requiring interoperability to each other.
 # Thus, it is recommended to explicitly specify what compilers you want to use in case your system
 # possesses multiple compilers from different distributors (e.g., GNU and Intel).
 # Change the COMPILER pair e.g., FC=ifx && CC=icx, FC=gfortran && CC=gcc, etc.
-FC="ifx"
-CC="icx"
+FC="gfortran"
+CC="gcc"
 
 ###  generate the ffte library
 cd ./ffte-7.0
@@ -46,9 +50,9 @@ cmake -DCMAKE_Fortran_COMPILER=${FC} -DCMAKE_C_COMPILER=${CC} ..
 
 # run the build
 cmake --build . -j
-cmake --build . --target clean_mod_files
 
 ln -s $(pwd)/lib/libfm.a ../../lib/libfm.a
+ln -s $(pwd)/inc/* ../../inc/
 cd ../../
 
 ### generate the lapack library
