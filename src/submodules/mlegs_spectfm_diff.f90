@@ -8,7 +8,7 @@ contains
     real(p8), dimension(:,:), allocatable :: genm_xxdx
 
     select type(tfm_kit)
-      type is (tfm_kit_1d)
+      type is (tfm_kit_base)
         if (mval .ne. 0) then
           stop 'leg_xxdx_with_tfm_kit: m out of the transformation kit'
         endif
@@ -48,7 +48,7 @@ contains
     real(p8), dimension(:,:), allocatable :: genm_del2h
 
     select type(tfm_kit)
-      type is (tfm_kit_1d)
+      type is (tfm_kit_base)
         if (mval .ne. 0) then
           stop 'leg_del2h_with_tfm_kit: m out of the transformation kit'
         endif
@@ -101,7 +101,7 @@ contains
     real(p8), dimension(:,:), allocatable :: genm_del2
 
     select type(tfm_kit)
-      type is (tfm_kit_1d)
+      type is (tfm_kit_base)
         if (mval .ne. 0) then
           stop 'leg_del2_with_tfm_kit: m out of the transformation kit'
         endif

@@ -17,7 +17,7 @@ contains
                                      // ' (either 1D, 2D or 3D) is permitted while an app run'
 
     select type(this)
-      type is (tfm_kit_1d)
+      type is (tfm_kit_base)
         if ((np .ne. 1) .or. (npchop .ne. 1) .or. (nz .ne. 1) .or. (nzchop .ne. 1)) then
           write(*,*) '1D kit is set... azimuthal, axial discretizations (np, nz) are forcefully set to 1'
         endif
@@ -71,7 +71,7 @@ contains
     this%ln = -log(1.D0 - this%x)
 
     select type(this)
-      type is (tfm_kit_1d)
+      type is (tfm_kit_base)
         allocate( this%chops(npchop) )
         this%chops = (/ (max(nrchop - i, 0), i = 0, npchop-1) /)
         

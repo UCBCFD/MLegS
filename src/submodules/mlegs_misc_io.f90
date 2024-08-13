@@ -286,7 +286,7 @@ contains
     integer(i4) :: width, precision
 
     integer(i4) :: ni, nj ,nk, i, j, k
-    integer(i4) :: i, j, jb, je, jj
+    integer(i4) :: jb, je, jj
     character(len=72) :: fmt1, fmt2, fmt3
 
     ni = size(a,1)
@@ -321,7 +321,7 @@ contains
     integer(i4) :: width, precision
 
     integer(i4) :: ni, nj ,nk, i, j, k
-    integer(i4) :: i, j, jb, je, jj
+    integer(i4) :: jb, je, jj
     character(len=72) :: fmt1, fmt2, fmt3
 
     ni = size(a,1)

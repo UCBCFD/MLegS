@@ -7,7 +7,7 @@ module mlegs_spectfm
   integer(i4), public :: tfm_kit_counter = 0
 
   !> base transformation kit (r; m=0) for f(r)==sum_(n=0~N) a_n*P^0_L_n(r)
-  type, public :: tfm_kit_1d
+  type, public :: tfm_kit_base
     !> check if intialized (by default false)
     logical :: is_set = .false.
     !> gauss-legendre abscissa before mapping (-1 ~ 1)
@@ -34,7 +34,7 @@ module mlegs_spectfm
   end type
 
   !> 2d spectral transformation kit (r, p; ak=0) for f(r,p)==[sum_(n=|m|~|m|+N)a_n*P^m_L_n(r)]e^(i*m*p)
-  type, extends(tfm_kit_1d), public :: tfm_kit_2d
+  type, extends(tfm_kit_base), public :: tfm_kit_2d
     !> equispaced collocation points in p (0 ~ 2pi)
     real(p8), dimension(:), allocatable :: p
     !> accessible azimuthal wavenumbers 0 ~ npchop - 1
@@ -57,43 +57,43 @@ module mlegs_spectfm
   interface
     module subroutine tfm_kit_set(this)
       implicit none
-      class(tfm_kit_1d), intent(inout) :: this
+      class(tfm_kit_base), intent(inout) :: this
     end subroutine
     module subroutine tfm_kit_dealloc(this)
       implicit none
-      class(tfm_kit_1d), intent(inout) :: this
+      class(tfm_kit_base), intent(inout) :: this
     end subroutine
   end interface
 
-  !> spectral operators -- (1-x**2)d/dx (r*d/dr) 
+  !> spectral differential operators -- (1-x**2)d/dx (r*d/dr) 
   interface leg_xxdx
     module function leg_xxdx_with_tfm_kit(mval, n_input, n_output, tfm_kit) result(xxdx)
       implicit none
       integer(i4), intent(in) :: mval, n_input, n_output
-      class(tfm_kit_1d), intent(in) :: tfm_kit
+      class(tfm_kit_base), intent(in) :: tfm_kit
       type(real_bndm) :: xxdx
     end function
   end interface
   public :: leg_xxdx
 
-  !> spectral operators -- Del^2_H (Horizontal laplacian) (1/r*d/dr(r*d/dr) - m^2/r^2)
+  !> spectral differential operators -- Del^2_H (Horizontal laplacian) (1/r*d/dr(r*d/dr) - m^2/r^2)
   interface leg_del2h
     module function leg_del2h_with_tfm_kit(mval, n_input, n_output, tfm_kit) result(del2h)
       implicit none
       integer(i4), intent(in) :: mval, n_input, n_output
-      class(tfm_kit_1d), intent(in) :: tfm_kit
+      class(tfm_kit_base), intent(in) :: tfm_kit
       type(real_bndm) :: del2h
     end function
   end interface
   public :: leg_del2h
 
-  !> spectral operators -- Del^2 (Laplacian)  (1/r*d/dr(r*d/dr) - m^2/r^2 - ak^2)
+  !> spectral differential operators -- Del^2 (Laplacian)  (1/r*d/dr(r*d/dr) - m^2/r^2 - ak^2)
   interface leg_del2
     module function leg_del2_with_tfm_kit(mval, akval, n_input, n_output, tfm_kit) result(del2)
       implicit none
       integer(i4), intent(in) :: mval, n_input, n_output
       real(p8), intent(in) :: akval
-      class(tfm_kit_1d), intent(in) :: tfm_kit
+      class(tfm_kit_base), intent(in) :: tfm_kit
       type(real_bndm) :: del2
     end function
   end interface
