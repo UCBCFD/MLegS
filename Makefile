@@ -12,7 +12,7 @@ else
   $(error Untested compiler: $(FC). Tested compilers are gfortran <v11.2 or later> and ifx <v2024.1.0 or later>)
 endif
 
-EXTLIBS = -llapack -lblas -lfm -lffte
+EXTLIBS = -llapack -lblas -lfm -lffte -ldecomp2d
 
 # Source and build directories
 MODULE_DIR = src/modules

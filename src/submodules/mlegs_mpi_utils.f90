@@ -5,8 +5,8 @@ contains
 
   module procedure m_initialize
     use MPI
-    integer(i4) :: i, world_group, world_nprocs, active_group, cart_rank
-    integer(i4), dimension(:), allocatable :: rks
+    integer(i4) :: i, world_group, world_nprocs, active_group
+    integer(i4), dimension(:), allocatable :: rks, tmp
 
     call MPI_Init(m_err)
     call MPI_Comm_group(MPI_Comm_world, world_group, m_err)
@@ -24,9 +24,23 @@ contains
     if (m_comm .ne. MPI_Comm_null) then
       call MPI_Dims_create(m_nprocs, 2, m_cart_nprocs, m_err)
       call MPI_Comm_rank(m_comm, m_rank, m_err)
-      call MPI_Cart_create(m_comm, 2, m_cart_nprocs, (/.false.,.false./), .true., m_cart_comm, m_err)
-      call MPI_Comm_rank(m_cart_comm, cart_rank, m_err)
-      call MPI_Cart_coords(m_cart_comm, cart_rank, 2, m_cart_ranks, m_err)
+      call MPI_Cart_create(m_comm, 2, m_cart_nprocs, (/.false.,.false./), .false., m_cart_comm, m_err)
+      allocate( m_map_row(0:m_nprocs-1), m_map_col(0:m_nprocs-1), tmp(2) )
+      allocate( m_map_rank(0:m_cart_nprocs(1)-1, 0:m_cart_nprocs(2)-1))
+      do i = 0, m_nprocs-1
+        call MPI_Cart_coords(m_cart_comm, i, 2, tmp, m_err)
+        m_map_row(i) = tmp(1)
+        m_map_col(i) = tmp(2)
+        m_map_rank(tmp(1),tmp(2)) = i
+      enddo
+      deallocate( tmp )
+      call MPI_Cart_coords(m_cart_comm, m_rank, 2, m_cart_coords, m_err)
+      call MPI_Comm_split(m_cart_comm, m_cart_coords(2), m_cart_coords(1), m_row_comm, m_err)
+      call MPI_Comm_split(m_cart_comm, m_cart_coords(1), m_cart_coords(2), m_col_comm, m_err)
+      call MPI_Comm_rank(m_row_comm, m_row_rank, m_err)
+      call MPI_Comm_rank(m_col_comm, m_col_rank, m_err)
+      call MPI_Comm_size(m_row_comm, m_row_nprocs, m_err)
+      call MPI_Comm_size(m_col_comm, m_col_nprocs, m_err)
     else
       m_rank = -1
       m_nprocs = 0
@@ -98,7 +112,6 @@ contains
     integer(i4) :: chunk_(3), start_idx_(3), final_idx_(3)
     integer(i4) :: nprocs_, rank_
     character(len=1) :: decomp_dir = 'X'
-
     nprocs_ = merge(nprocs, m_nprocs, present(nprocs))
     rank_ = merge(rank, m_rank, present(rank))
     call m_3dsize_1ddecomp(size_1, 1, 1, decomp_dir, &
@@ -110,12 +123,12 @@ contains
 
   module procedure m_3dsize_2ddecomp
     integer(i4) :: sze(3), cart_comm
-    integer(i4) :: decomp_dir(2), cart_procs(2), subrank, coords(2)
-    integer(i4) :: nprocs_(2), ranks_(2)
+    integer(i4) :: decomp_dir(2), cart_procs(2)
+    integer(i4) :: ncartprocs_(2), coords_(2)
     character(len=6) :: xyz = 'XYZxyz'
 
-    nprocs_ = merge(nprocs, m_cart_nprocs, present(nprocs))
-    ranks_ = merge(ranks, m_cart_ranks, present(ranks))
+    ncartprocs_ = merge(ncartprocs, m_cart_nprocs, present(ncartprocs))
+    coords_ = merge(coords, m_cart_coords, present(coords))
     sze = (/ size_1, size_2, size_3 /)
     if (decomp_dir_1(1:1) .eq. decomp_dir_2(1:1)) then
       stop 'm_3dsize_2ddecomp: invalid 2d decompition direction inputs'
@@ -131,69 +144,107 @@ contains
                     max(mod(index(xyz,decomp_dir_1(1:1))-1,3)+1, mod(index(xyz,decomp_dir_2(1:1))-1,3)+1) /)
     if ((decomp_dir(1) .eq. 1) .and. (decomp_dir(2) .eq. 2)) then ! r- and p- decompositions
       call m_1dsize_1ddecomp(sze(1), &
-                             chunk(1), start_idx(1), final_idx(1), nprocs(1), ranks(1))     
+                             chunk(1), start_idx(1), final_idx(1), ncartprocs_(1), coords_(1))     
       call m_2dsize_1ddecomp(sze(2), sze(3), 'X', &
-                             chunk(2:3), start_idx(2:3), final_idx(2:3), nprocs(2), ranks(2))
+                             chunk(2:3), start_idx(2:3), final_idx(2:3), ncartprocs_(2), coords_(2))
     elseif ((decomp_dir(1) .eq. 1) .and. (decomp_dir(2) .eq. 3)) then ! r- and z- decompositions
       call m_1dsize_1ddecomp(sze(1), &
-                             chunk(1), start_idx(1), final_idx(1), nprocs(1), ranks(1))     
+                             chunk(1), start_idx(1), final_idx(1), ncartprocs_(1), coords_(1))     
       call m_2dsize_1ddecomp(sze(2), sze(3), 'Y', &
-                             chunk(2:3), start_idx(2:3), final_idx(2:3), nprocs(2), ranks(2))
+                             chunk(2:3), start_idx(2:3), final_idx(2:3), ncartprocs_(2), coords_(2))
     else ! p- and z- decompositions
       call m_2dsize_1ddecomp(sze(1), sze(2), 'Y', &
-                             chunk(1:2), start_idx(1:2), final_idx(1:2), nprocs(1), ranks(1))
+                             chunk(1:2), start_idx(1:2), final_idx(1:2), ncartprocs_(1), coords_(1))
       call m_1dsize_1ddecomp(sze(3), &
-                             chunk(3), start_idx(3), final_idx(3), nprocs(2), ranks(2))
+                             chunk(3), start_idx(3), final_idx(3), ncartprocs_(2), coords_(2))
     endif
   end procedure
 
   module procedure m_2dsize_2ddecomp
     integer(i4) :: chunk_(3), start_idx_(3), final_idx_(3)
-    integer(i4) :: nprocs_(2), ranks_(2)
+    integer(i4) :: ncartprocs_(2), coords_(2)
     character(len=2) :: decomp_dir = 'XY'
 
-    nprocs_ = merge(nprocs, m_cart_nprocs, present(nprocs))
-    ranks_ = merge(ranks, m_cart_ranks, present(ranks))
+    ncartprocs_ = merge(ncartprocs, m_cart_nprocs, present(ncartprocs))
+    coords_ = merge(coords, m_cart_coords, present(coords))
     call m_3dsize_2ddecomp(size_1, size_2, 1, decomp_dir(1:1), decomp_dir(2:2), &
-                           chunk_, start_idx_, final_idx_, nprocs_, ranks_)
+                           chunk_, start_idx_, final_idx_, ncartprocs_, coords_)
     chunk = chunk_(1:2)
     start_idx = start_idx_(1:2)
     final_idx = final_idx_(1:2)
   end procedure
 
+  module procedure m_exchange_init_2d
+    use MPI
+    integer(i4) :: chunk(2), start_idx(2), final_idx(2)
+
+    m_garr_nx = nx
+    m_garr_ny = ny
+    call m_decompose(m_garr_nx, m_garr_ny, 'Y', chunk, start_idx, final_idx)
+    m_slab_x = create_new_type(2, m_row_comm, chunk, 1, MPI_Double_complex)
+    call m_decompose(m_garr_nx, m_garr_ny, 'X', chunk, start_idx, final_idx)
+    m_slab_y = create_new_type(2, m_row_comm, chunk, 2, MPI_Double_complex)
+
+  end procedure
+
+  module procedure m_exchange_init_3d
+    use MPI
+    integer(i4) :: chunk(3), start_idx(3), final_idx(3)
+
+    m_garr_nx = nx
+    m_garr_ny = ny
+    m_garr_nz = nz
+    call m_decompose(m_garr_nx, m_garr_ny, m_garr_nz, 'Y', 'Z', chunk, start_idx, final_idx)
+    m_pencil_x = create_new_type(3, m_row_comm, chunk, 1, MPI_Double_complex)
+    call m_decompose(m_garr_nx, m_garr_ny, m_garr_nz, 'X', 'Z', chunk, start_idx, final_idx)
+    m_pencil_y = create_new_type(3, m_row_comm, chunk, 2, MPI_Double_complex)
+    call m_decompose(m_garr_nx, m_garr_ny, m_garr_nz, 'X', 'Y', chunk, start_idx, final_idx)
+    m_pencil_z = create_new_type(3, m_row_comm, chunk, 3, MPI_Double_complex)
+  end procedure
 
 ! ======================================================================================================== !
 ! VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV INTERNAL (PRIVATE) SUBROUTINES/FUNCTIONS VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV !
 ! ======================================================================================================== !
 
-  subroutine find_best_proc_dims_2d(nx, ny, nprocs, proc_dims)
-    implicit none
-    integer(i4), intent(in) :: nx, ny        ! Global grid dimensions
-    integer(i4), intent(in) :: nprocs        ! Total number of processors
-    integer(i4), intent(out) :: proc_dims(2) ! Best processor grid dimensions (px, py)
+    function create_new_type(ndim, comm, data_size_proc_old, dim_old, data_type) result(dtype)
+      use MPI
+      integer(i4) :: ndim
+      integer(i4) :: comm, dim_old, data_type
+      integer(i4), dimension(ndim) :: data_size_proc_old, subdsize_proc, substarts_proc
+      integer(i4), dimension(:), allocatable :: dtype
 
-    integer(i4) :: i, px, py, best_px, best_py
-    real(p8) :: aspect_ratio, current_ratio, best_ratio
+      integer(i4) :: i, nproc_comm
 
-    ! Initialize
-    best_px = 1
-    best_py = nprocs
-    best_ratio = real(best_px) / real(best_py)
+      call MPI_Comm_size(comm, nproc_comm, m_err)
+      allocate( dtype(0:m_nprocs-1) )
+      ! old local array: array_old of size_old is decomposed into subarray along dim_old
+      call subarray(data_type, ndim, data_size_proc_old, dim_old, nproc_comm, dtype)
+    end function
 
-    aspect_ratio = real(nx) / real(ny) ! Aspect ratio of the grid (nx/ny)
-    do px = 1, nprocs ! Loop over all possible decompositions
-      if (mod(nprocs, px) == 0) then
-        py = nprocs / px
-        current_ratio = real(px) / real(py)
-        if (abs(current_ratio - aspect_ratio) .lt. abs(best_ratio - aspect_ratio)) then
-          best_ratio = current_ratio
-          best_px = px
-          best_py = py
-        endif
-      endif
-    enddo
-    proc_dims(1) = best_px
-    proc_dims(2) = best_py
-  end subroutine
+    subroutine subarray(element_data_type, ndim, datasize_proc, dim, nprocs, new_data_type)
+      use MPI
+      integer:: element_data_type, ndim, dim, nprocs
+      integer,dimension(ndim):: datasize_proc, subdsize_proc, substarts_proc, subends_proc
+      integer,dimension(0:nprocs-1):: new_data_type
+
+      integer:: i
+
+      do i = 1, ndim
+          subdsize_proc(i) = datasize_proc(i)
+          substarts_proc(i) = 0
+          subends_proc(i) = 0
+      enddo
+
+      ! along that dim
+      do i = 0,nprocs-1
+          call m_decompose(datasize_proc(dim), subdsize_proc(dim), substarts_proc(dim), &
+                           subends_proc(dim), nprocs, i)
+          call MPI_Type_create_subarray(ndim, datasize_proc, subdsize_proc, substarts_proc, & 
+                                        MPI_Order_fortran, element_data_type, new_data_type(i), m_err)
+          call MPI_Type_commit(new_data_type(i), m_err)
+      enddo
+
+      return
+    end subroutine subarray
 
 end submodule
