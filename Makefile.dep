@@ -15,5 +15,8 @@ $(OBJ_DIR)/mlegs_bndmat_cvrt.o : $(SUBMODULE_DIR)/mlegs_bndmat_cvrt.f90 $(OBJ_DI
 $(OBJ_DIR)/mlegs_bndmat_ops.o : $(SUBMODULE_DIR)/mlegs_bndmat_ops.f90 $(OBJ_DIR)/mlegs_bndmat.o
 $(OBJ_DIR)/mlegs_bndmat_tbp.o : $(SUBMODULE_DIR)/mlegs_bndmat_tbp.f90 $(OBJ_DIR)/mlegs_bndmat.o
 
-$(OBJ_DIR)/mlegs_spectfm.o : $(MODULE_DIR)/mlegs_spectfm.f90 $(OBJ_DIR)/mlegs_base.o $(OBJ_DIR)/mlegs_genmat.o $(OBJ_DIR)/mlegs_bndmat.o
+$(OBJ_DIR)/mlegs_spectfm.o : $(MODULE_DIR)/mlegs_spectfm.f90 $(OBJ_DIR)/mlegs_base.o $(OBJ_DIR)/mlegs_mpi.o $(OBJ_DIR)/mlegs_genmat.o $(OBJ_DIR)/mlegs_bndmat.o
 $(OBJ_DIR)/mlegs_spectfm_tbp.o : $(SUBMODULE_DIR)/mlegs_spectfm_tbp.f90 $(OBJ_DIR)/mlegs_spectfm.o
+
+$(OBJ_DIR)/mlegs_scalarfun.o : $(MODULE_DIR)/mlegs_scalarfun.f90 $(OBJ_DIR)/mlegs_base.o $(OBJ_DIR)/mlegs_mpi.o $(OBJ_DIR)/mlegs_genmat.o $(OBJ_DIR)/mlegs_bndmat.o $(OBJ_DIR)/mlegs_spectfm.o
+$(OBJ_DIR)/mlegs_scalarfun_tbp.o : $(SUBMODULE_DIR)/mlegs_scalarfun_tbp.f90 $(OBJ_DIR)/mlegs_scalarfun.o

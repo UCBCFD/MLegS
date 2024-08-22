@@ -9,7 +9,7 @@ contains
     call date_and_time(dum, dum, dum, vals)
     write(*,101) vals(1), vals(2), vals(3), vals(5), vals(6), vals(7)
     write(*,*) ''
-    101 format(' @ 'I0.4,'-',I0.2,'-',I0.2,' ',I0.2,':',I0.2,':',I0.2)
+    101 format(' @ ',I0.4,'-',I0.2,'-',I0.2,' ',I0.2,':',I0.2,':',I0.2)
   end procedure
 
   module procedure tic

@@ -17,7 +17,7 @@ contains
                                      // ' (either 1D, 2D or 3D) is permitted while an app run'
 
     select type(this)
-      type is (tfm_kit_base)
+      type is (tfm_kit_1d)
         if ((np .ne. 1) .or. (npchop .ne. 1) .or. (nz .ne. 1) .or. (nzchop .ne. 1)) then
           write(*,*) '1D kit is set... azimuthal, axial discretizations (np, nz) are forcefully set to 1'
         endif
@@ -56,31 +56,42 @@ contains
     endif
     if (nrchop .gt. nr) stop 'tfm_kit_set: nrchop must be smaller than or equal to nr'
     if (np .ne. 1) then
-      if (npchop*2 .gt. np) stop 'tfm_kit_set: npchop <= np/2 must be satisfied'
+      if (npchop*2 .gt. np + 2) stop 'tfm_kit_set: npchop <= np/2 + 1 must be satisfied'
     endif
     if (nz .ne. 1) then
-      if (nzchop*2 .gt. nz) stop 'tfm_kit_set: nzchop <= nz/2 must be satisfied'
+      if (nzchop*2 .gt. nz + 2) stop 'tfm_kit_set: nzchop <= nz/2 + 1 must be satisfied'
     endif
 
-    allocate( this%x(nr), this%w(nr), this%r(nr) )
-    call find_gauleg_zeros( this%x, this%w, this%r, ell )
-
-    this%nrdim = nr + max(3, hyperpow)
+    allocate( this%x(nr), this%w(nr) )
+    call find_gauleg_zeros( this%x, this%w)
 
     allocate( this%ln(nr) )
     this%ln = -log(1.D0 - this%x)
 
     select type(this)
-      type is (tfm_kit_base)
+      type is (tfm_kit_1d)
+        allocate( this%r(nr) )
+        this%r = ell * sqrt((1.D0+this%x)/(1.D0-this%x))
+
         allocate( this%chops(npchop) )
         this%chops = (/ (max(nrchop - i, 0), i = 0, npchop-1) /)
-        
+
+        this%nrdim = nr + max(3, hyperpow)
+            
         allocate( this%lognorm(nrchop + 14, npchop) )
         this%lognorm = leg_lognorm( nrchop + 14, (/ 0 /) )
         
         allocate( this%pf(nr/2, nrchop+14, npchop) )
         this%pf = leg_tbl(this%x(:nr/2), nrchop+14, (/ 0 /), this%lognorm)
       type is (tfm_kit_2d)
+        allocate( this%r(nr) )
+        this%r = ell * sqrt((1.D0+this%x)/(1.D0-this%x))
+
+        allocate( this%chops(npchop) )
+        this%chops = (/ (max(nrchop - i, 0), i = 0, npchop-1) /)
+
+        this%nrdim = nr + max(3, hyperpow)
+
         allocate( this%p(np+1) )
         this%p = (/ (2*pi/np*i, i = 0, np) /)
         
@@ -88,49 +99,52 @@ contains
         this%m = (/ (i, i = 0, npchop-1) /)
         
         this%npdim = np/2 + 1
-        
-        allocate( this%chops(npchop) )
-        this%chops = (/ (max(nrchop - i, 0), i = 0, npchop-1) /)
-        
+
+        this%chopp = npchop
+    
         allocate( this%lognorm(nrchop + 14, npchop) )
         this%lognorm = leg_lognorm( nrchop + 14, this%m )
         
         allocate( this%pf(nr/2, nrchop+14, npchop) )
         this%pf = leg_tbl(this%x(:nr/2), nrchop+14, this%m, this%lognorm)
+
       type is (tfm_kit_3d)
+        allocate( this%r(nr) )
+        this%r = ell * sqrt((1.D0+this%x)/(1.D0-this%x))
+
+        allocate( this%chops(npchop) )
+        this%chops = (/ (max(nrchop - i, 0), i = 0, npchop-1) /)
+
+        this%nrdim = nr + max(3, hyperpow)
+
         allocate( this%p(np+1) )
         this%p = (/ (2*pi/np*i, i = 0, np) /)
         
         allocate( this%m(npchop) )
         this%m = (/ (i, i = 0, npchop-1) /)
+        
         this%npdim = np/2 + 1
 
         allocate( this%z(nz) )
         this%z = (/ (zlen/i, i = 0, nz-1) /)
 
-        allocate( this%ak(this%nzdim) )
-        this%ak = (/ (2.D0*pi/zlen*i, i = -this%nzdim, -1) /)
-        this%ak(1:this%nzdim/2+1) = (/ (2.D0*pi/zlen*i, i = 0, this%nzdim/2) /) 
+        allocate( this%ak(nz) )
+        this%ak = (/ (2.D0*pi/zlen*i, i = -nz, -1) /)
+        this%ak(1:nz/2+1) = (/ (2.D0*pi/zlen*i, i = 0, nz/2) /) 
         
         this%nzdim = nz
 
-        this%zchopl = nzchop
-
-        this%zchopu = this%nzdim - nzchop + 2
-
-        allocate( this%chops(npchop) )
-        this%chops = (/ (max(nrchop - i, 0), i = 0, npchop-1) /)
-
+        this%chopzl = nzchop
+        this%chopzu = nz - nzchop + 2
+    
         allocate( this%lognorm(nrchop + 14, npchop) )
         this%lognorm = leg_lognorm( nrchop + 14, this%m )
-
+        
         allocate( this%pf(nr/2, nrchop+14, npchop) )
         this%pf = leg_tbl(this%x(:nr/2), nrchop+14, this%m, this%lognorm)
     end select
-
     allocate( this%at0(nrchop) )
     this%at0 = reshape(leg_tbl((/ -1.D0 /), nrchop, (/ 0 /), this%lognorm(1:nrchop,1:1)), (/nrchop/))
-
     allocate( this%at1(nrchop) )
     this%at1 = reshape(leg_tbl((/ 1.D0 /), nrchop, (/ 0 /), this%lognorm(1:nrchop,1:1)), (/nrchop/))
 
@@ -139,12 +153,14 @@ contains
   end procedure
 
   module procedure tfm_kit_dealloc
-      deallocate(this%x, this%w, this%r, this%ln, this%chops, this%lognorm, this%pf, this%at0, this%at1)
+      deallocate(this%x, this%w, this%ln, this%lognorm, this%pf, this%at0, this%at1)
       select type(this)
+        type is (tfm_kit_1d)
+          deallocate(this%r, this%chops)
         type is (tfm_kit_2d)
-          deallocate(this%p, this%m)
+          deallocate(this%r, this%chops, this%p, this%m)
         type is (tfm_kit_3d)
-          deallocate(this%z, this%ak)
+          deallocate(this%r, this%chops, this%p, this%m, this%z, this%ak)
       end select
   end procedure
 
@@ -152,13 +168,11 @@ contains
 ! VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV INTERNAL (PRIVATE) SUBROUTINES/FUNCTIONS VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV !
 ! ======================================================================================================== !
 
-  subroutine find_gauleg_zeros(x, w, r, l)
+  subroutine find_gauleg_zeros(x, w)
     implicit none
-    real(p8), dimension(:), intent(inout) :: w, x, r
-    real(p8), intent(in) :: l
+    real(p8), dimension(:), intent(inout) :: w, x
 
     call gauss_legendre(-1.D0, 1.D0, x, w, size(x))
-    r = l * sqrt((1.D0+x)/(1.D0-x))
   end subroutine
 
 ! ======================================================================================================== !
@@ -247,7 +261,7 @@ contains
 
     integer(i4) :: m, me, mm, nn, n, xx
     type(fm), allocatable, dimension(:,:) :: fm_tbl
-    integer(i4) :: m_chunk, m_sidx, m_eidx
+    integer(i4) :: m_chunk(2), m_sidx(2), m_eidx(2)
     real(p8), dimension(:,:,:), allocatable :: m_tbl
 
     tbl = 0.D0
@@ -257,27 +271,28 @@ contains
       stop
     endif
     allocate( fm_tbl(size(x), ne) )
-    call m_decompose(size(x), m_nprocs, m_rank, m_chunk, m_sidx, m_eidx)
-    if (m_chunk .gt. 0) then
-      do mm = 1, me
+    call m_decompose( size(x), me, m_chunk, m_sidx, m_eidx)
+    if (m_chunk(1)*m_chunk(2) .gt. 0) then
+      do mm = m_sidx(2), m_eidx(2)
         m = abs(ms(mm))
-        fm_tbl(m_sidx:m_eidx,1) = (/ ((to_fm(-1.D0)**m)*sqrt(to_fm(1.D0)-to_fm(x(xx))**2)**m, &
-                                    xx = 1, m_chunk) /)
-        fm_tbl(m_sidx:m_eidx,2) = to_fm(x(m_sidx:m_eidx))*fm_tbl(m_sidx:m_eidx,1)
+        fm_tbl(m_sidx(1):m_eidx(1),1) = (/ ((to_fm(-1.D0)**m)*sqrt(to_fm(1.D0)-to_fm(x(xx))**2)**m, &
+                                        xx = m_sidx(1), m_eidx(1)) /)
+        fm_tbl(m_sidx(1):m_eidx(1),2) = to_fm(x(m_sidx(1):m_eidx(1)))*fm_tbl(m_sidx(1):m_eidx(1),1)
         do nn = 3, ne
           n = m + nn - 1
-          fm_tbl(m_sidx:m_eidx,nn) = to_fm(1.D0)/(n-m)*(fm_tbl(m_sidx:m_eidx,nn-1)*to_fm(x(m_sidx:m_eidx)) &
-                                     -fm_tbl(m_sidx:m_eidx,nn-2)*(n+m-1)/(2*n-1)/(2*n-3))
+          fm_tbl(m_sidx(1):m_eidx(1),nn) = to_fm(1.D0)/(n-m)*(fm_tbl(m_sidx(1):m_eidx(1),nn-1)* &
+                                           to_fm(x(m_sidx(1):m_eidx(1)))-fm_tbl(m_sidx(1):m_eidx(1),nn-2)* &
+                                           (n+m-1)/(2*n-1)/(2*n-3))
         enddo
         do nn = 1, ne
           n = m + nn - 1
-          fm_tbl(m_sidx:m_eidx,nn) = fm_tbl(m_sidx:m_eidx,nn)*exp(to_fm(log_fact(n))+to_fm(lnrm(nn,mm)))
+          fm_tbl(m_sidx(1):m_eidx(1),nn) = fm_tbl(m_sidx(1):m_eidx(1),nn)*exp(to_fm(log_fact(n))+to_fm(lnrm(nn,mm)))
         enddo
-        tbl(m_sidx:m_eidx,:,mm) = to_dp(fm_tbl(m_sidx:m_eidx,:))
+        tbl(m_sidx(1):m_eidx(1),:,mm) = to_dp(fm_tbl(m_sidx(1):m_eidx(1),:))
       enddo
     endif
     allocate( m_tbl(size(x), ne, me) )
-    call MPI_ALLREDUCE(tbl, m_tbl, size(x)*ne*me, MPI_REAL8, MPI_SUM, MPI_COMM_WORLD, m_err)
+    call MPI_Allreduce(tbl, m_tbl, size(x)*ne*me, MPI_Real8, MPI_Sum, m_comm, m_err)
     tbl = m_tbl
     deallocate( fm_tbl, m_tbl )
   end function
