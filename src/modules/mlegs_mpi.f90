@@ -14,10 +14,6 @@ module mlegs_mpi
   integer(i4), public, dimension(:), allocatable :: m_map_row, m_map_col
   !> rank map. m_map_* (i,j) gives the processor rank of * for cart. coord (i, j)
   integer(i4), public, dimension(:,:), allocatable :: m_map_rank
-  !> global array size to be decomposed & transposed
-  integer(i4), public :: m_garr_nx, m_garr_ny, m_garr_nz
-  !> local (sub-) MPI data type for data exchange
-  integer(i4), public, dimension(:), allocatable :: m_slab_x, m_slab_y, m_pencil_x, m_pencil_y, m_pencil_z
 
   !> MPI initilaizer
   interface m_initialize
@@ -79,18 +75,91 @@ module mlegs_mpi
   end interface
   public :: m_decompose
 
-  !> initialization for MPI data exchange
+  !> initialization for MPI data exchange among distributed local arrays
   interface m_exchange_init
-    module subroutine m_exchange_init_2d(nx, ny)
+    module subroutine m_exchange_init_2dsize(nx, ny)
       implicit none
       integer(i4), intent(in) :: nx, ny
     end subroutine
-    module subroutine m_exchange_init_3d(nx, ny, nz)
+    module subroutine m_exchange_init_3dsize(nx, ny, nz)
       implicit none
       integer(i4), intent(in) :: nx, ny, nz
     end subroutine
   end interface
   public :: m_exchange_init
+
+  !> finalization for MPI data exchange
+  interface m_exchange_finalize
+    module subroutine m_exchange_finalize()
+      implicit none
+    end subroutine
+  end interface
+  public :: m_exchange_finalize
+
+  !> MPI data exchange for global transposition, from x-pencil/slab to y-pencil/slab
+  interface m_exchange_x2y
+    module subroutine m_exchange_x2y_2dsize_c(slab_x, slab_y)
+      implicit none
+      complex(p8), dimension(:,:), intent(in) :: slab_x 
+      complex(p8), dimension(:,:), intent(inout) :: slab_y
+    end subroutine
+    module subroutine m_exchange_x2y_3dsize_c(pencil_x, pencil_y)
+      implicit none
+      complex(p8), dimension(:,:,:), intent(in) :: pencil_x
+      complex(p8), dimension(:,:,:), intent(inout) :: pencil_y
+    end subroutine
+  end interface
+  public :: m_exchange_x2y
+
+  interface m_exchange_y2x
+    module subroutine m_exchange_y2x_2dsize_c(slab_y, slab_x)
+      implicit none
+      complex(p8), dimension(:,:), intent(in) :: slab_y
+      complex(p8), dimension(:,:), intent(inout) :: slab_x
+    end subroutine
+    module subroutine m_exchange_y2x_3dsize_c(pencil_y, pencil_x)
+      implicit none
+      complex(p8), dimension(:,:,:), intent(in) :: pencil_y
+      complex(p8), dimension(:,:,:), intent(inout) :: pencil_x
+    end subroutine
+  end interface
+  public :: m_exchange_y2x
+
+  interface m_exchange_y2z
+    module subroutine m_exchange_y2z_3dsize_c(pencil_y, pencil_z)
+      implicit none
+      complex(p8), dimension(:,:,:), intent(in) :: pencil_y
+      complex(p8), dimension(:,:,:), intent(inout) :: pencil_z
+    end subroutine
+  end interface
+  public :: m_exchange_y2z
+
+  interface m_exchange_z2y
+    module subroutine m_exchange_z2y_3dsize_c(pencil_z, pencil_y)
+      implicit none
+      complex(p8), dimension(:,:,:), intent(in) :: pencil_z
+      complex(p8), dimension(:,:,:), intent(inout) :: pencil_y
+    end subroutine
+  end interface
+  public :: m_exchange_z2y
+
+  interface m_exchange_x2z
+    module subroutine m_exchange_x2z_3dsize_c(pencil_x, pencil_z)
+      implicit none
+      complex(p8), dimension(:,:,:), intent(in) :: pencil_x
+      complex(p8), dimension(:,:,:), intent(inout) :: pencil_z
+    end subroutine
+  end interface
+  public :: m_exchange_x2z
+
+  interface m_exchange_z2x
+    module subroutine m_exchange_z2x_3dsize_c(pencil_z, pencil_x)
+      implicit none
+      complex(p8), dimension(:,:,:), intent(in) :: pencil_z
+      complex(p8), dimension(:,:,:), intent(inout) :: pencil_x
+    end subroutine
+  end interface
+  public :: m_exchange_z2x
 
   !> make an exchange between the decomposed dimension(s) and the locally residing dimension
   ! interface m_transpose_3d_x_y

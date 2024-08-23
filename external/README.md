@@ -21,7 +21,7 @@ MLegS includes the following copies of external open-source code packages for ne
  - Source: [https://2decomp-fft.github.io/](https://2decomp-fft.github.io/)
  - Description: General-purpose 2D pencil decomposition for data distribution
  - License: Refer to LICENSE in the directory (`./2decomp-fft/`)
- - Note: We do not make use of 2DECOMP&FFT's built-in FFT module; FFTE is our FFT engine.
+ - *Note: We do not make use of 2DECOMP&FFT's built-in FFT module; FFTE is our FFT engine.*
 
 Please refer to the license file in each directory for the full open-source license text of these packages.
 
@@ -29,7 +29,7 @@ Please refer to the license file in each directory for the full open-source lice
 
 As general Fortran is known to be non-ABI compatible, it is recommended to use the same Fortran compiler (as well as the corresponding C compiler, if necessary) that you intend to use to build and install MLegS when building these external libraries. Currently, GNU's gfortran (v11 or later) with OpenMPI (v4.1) and Intel's ifx (v2024 or later) with its companion MPI library have been tested and verified.
 
-In the provided bash file (`CMake_build.sh`), change the following two arguments if you want to switch the compiler; the default option is GNU.
+In the provided bash shell script (`CMake_build.sh`), change the following two arguments in the script if you want to switch the compiler; the default option is GNU.
 
 ```bash
 ...

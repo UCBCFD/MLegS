@@ -4,6 +4,8 @@ submodule (mlegs_scalarfun) mlegs_scalarfun_tbp
 contains
 
   module procedure scalar_set
+    use decomp_2d_constants; use decomp_2d_mpi; use decomp_2d
+
     if (kit%is_set .eqv. .false.) stop 'scalar_set: initialize the kit first -- run kit%set()'
     this%ln = 0.D0
     select type(this)
@@ -15,8 +17,12 @@ contains
             stop 'scalar_set: incompatible dimensionality between the kit and field(s) to be set'
           type is (tfm_kit_1d)
             this%local_chops = kit%chops
-            allocate( this%e(kit%nrdim) )
-            this%e = 0.D0 + 0.D0*iu
+            if (m_rank .eq. 0) then
+              allocate( this%e(1:kit%nrdim) )
+              this%e = 0.D0 + 0.D0*iu
+            else
+              allocate( this%e(0) )
+            endif
             this%space = 'P'
         end select
       type is (scalar_2d)
@@ -27,11 +33,11 @@ contains
             stop 'scalar_set: incompatible dimensionality between the kit and field(s) to be set'
           type is (tfm_kit_2d)
             this%local_chops = kit%chops
-            allocate( this%e(kit%nrdim, kit%npdim) )
+            allocate( this%e(xstart(1):xend(1), xstart(2):xend(2)) )
             this%e = 0.D0 + 0.D0*iu
             this%local_chopp = kit%chopp
             this%space = 'PP'
-            this%slab_dir = 2
+            this%slab_dir = 1
         end select
       type is (scalar_3d)
         select type (kit)
@@ -41,12 +47,12 @@ contains
             stop 'scalar_set: incompatible dimensionality between the kit and field(s) to be set'
           type is (tfm_kit_3d)
             this%local_chops = kit%chops
-            allocate( this%e(kit%nrdim, kit%npdim, kit%nzdim) )
+            allocate( this%e(xstart(1):xend(1), xstart(2):xend(2), xstart(3):xend(3)) )
             this%e = 0.D0 + 0.D0*iu
             this%local_chopzl = kit%chopzl
             this%local_chopzu = kit%chopzu
             this%space = 'PPP'
-            this%pencil_dir = 2
+            this%pencil_dir = 1
         end select
     end select
   end procedure
@@ -97,36 +103,36 @@ contains
           endif
         endif
       type is (scalar_2d)
-        if (this%space(2:2) .eq. 'F') then
-          if (lbound(this%e, 2) .le. this%local_chopp+1) then
-            this%e(:, this%local_chopp+1:) = 0.D0 + 0.D0*iu
+        if (this%space(1:1) .eq. 'F') then
+          if (lbound(this%e, 1) .le. this%local_chopp+1) then
+            this%e(this%local_chopp+1:,:) = 0.D0 + 0.D0*iu
           else
             this%e(:,:) = 0.D0 + 0.D0*iu
           endif
         endif
         if (this%space(1:1) .eq. 'F') then
-          do mm = lbound(this%e, 2), min(this%local_chopp, ubound(this%e, 2))
-            if (lbound(this%e, 1) .le. this%local_chops(mm)+1) then
-              this%e(this%local_chops(mm)+1:,mm) = 0.D0 + 0.D0*iu
+          do mm = lbound(this%e, 1), min(this%local_chopp, ubound(this%e, 1))
+            if (lbound(this%e, 2) .le. this%local_chops(mm)+1) then
+              this%e(mm,this%local_chops(mm)+1:) = 0.D0 + 0.D0*iu
             else
-              this%e(:, mm) = 0.D0 + 0.D0*iu
+              this%e(mm,:) = 0.D0 + 0.D0*iu
             endif
           enddo
         endif
       type is (scalar_3d)
-        if (this%space(2:2) .eq. 'F') then
-          if (lbound(this%e, 2) .le. this%local_chopp+1) then
-            this%e(:,this%local_chopp+1:,:) = 0.D0 + 0.D0*iu
+        if (this%space(1:1) .eq. 'F') then
+          if (lbound(this%e, 1) .le. this%local_chopp+1) then
+            this%e(this%local_chopp+1:,:,:) = 0.D0 + 0.D0*iu
           else
             this%e(:,:,:) = 0.D0 + 0.D0*iu
           endif
         endif
-        if (this%space(1:1) .eq. 'F') then
-          do mm = lbound(this%e, 2), min(this%local_chopp, ubound(this%e, 2))
-            if (lbound(this%e, 1) .le. this%local_chops(mm)+1) then
-              this%e(this%local_chops(mm)+1:,mm,:) = 0.D0 + 0.D0*iu
+        if (this%space(2:2) .eq. 'F') then
+          do mm = lbound(this%e, 1), min(this%local_chopp, ubound(this%e, 1))
+            if (lbound(this%e, 2) .le. this%local_chops(mm)+1) then
+              this%e(mm,this%local_chops(mm)+1:,:) = 0.D0 + 0.D0*iu
             else
-              this%e(:,mm,:) = 0.D0 + 0.D0*iu
+              this%e(mm,:,:) = 0.D0 + 0.D0*iu
             endif
           enddo
         endif
@@ -162,12 +168,141 @@ contains
   end procedure
 
   module procedure scalar_1d_tfm
+    integer(i4) :: i
+
+    if (.not. ((sp .eq. 'P') .or. (sp .eq. 'F'))) then
+      stop 'scalar_1d_tfm: (P) or (F) only allowed (rad-)'
+    endif
+    if ((this%space(1:1) .eq. 'P') .and. (sp(1:1) .eq. 'F')) then ! P to F
+      ! 
+      this%space(1:1) = 'F'
+      call this%chopdo()
+    endif
+    if ((this%space(1:1) .eq. 'F') .and. (sp(1:1) .eq. 'P')) then ! F to P
+      !
+      this%space(1:1) = 'P'
+      return
+    endif
   end procedure
 
   module procedure scalar_2d_tfm
+    integer(i4) :: i, j
+
+    if (.not. ((sp .eq. 'PP') .or. (sp .eq. 'FP') .or. (sp .eq. 'FF'))) then
+      stop 'scalar_2d_tfm: (P, P), (F, P) or (F, F) only allowed (azim-, rad-)'
+    endif
+    if ((this%space(1:1) .eq. 'P') .and. (sp(1:1) .eq. 'F')) then ! azim-P to azim-F
+      if (this%slab_dir.eq. 2) then
+        !
+      endif
+      !
+      this%space(1:1) = 'F'
+      call this%chopdo()
+      this%slab_dir = 1
+    endif
+    if ((this%space(2:2) .eq. 'P') .and. (sp(2:2) .eq. 'F')) then ! rad-P to rad-F
+      if (this%slab_dir .eq. 1) then ! under regular transform this if block should be run
+        !
+      endif
+      !
+      this%space(2:2) = 'F'
+      call this%chopdo()
+      this%slab_dir = 2
+    endif
+    if ((this%space(2:2) .eq. 'F') .and. (sp(2:2) .eq. 'P')) then ! rad-F to rad-P
+      if (this%slab_dir.eq. 1) then
+        !
+      endif
+      !
+      this%space(2:2) = 'P'
+      this%slab_dir = 2
+    endif
+    if ((this%space(1:1) .eq. 'F') .and. (sp(1:1) .eq. 'P')) then ! azim-P to azim-F
+      if (this%slab_dir.eq. 2) then ! under regular transform this if block should be run
+        !
+      endif
+      !
+      this%space(1:1) = 'P'
+      this%slab_dir = 1
+    endif
   end procedure
   
   module procedure scalar_3d_tfm
+    integer(i4) :: i, j, k
+
+    if (.not. ((sp .eq. 'PPP') .or. (sp .eq. 'FPP') .or. (sp .eq. 'FFP') .or. (sp .eq. 'FFF'))) then
+      stop 'scalar_3d_tfm: (P, P, P), (F, P, P), (F, F, P) or (F, F, F) only allowed (azim-, rad-, axi-)'
+    endif
+
+    if ((this%space(1:1) .eq. 'P') .and. (sp(1:1) .eq. 'F')) then ! azim-P to azim-F
+      if (this%pencil_dir .eq. 2) then
+        !
+      endif
+      if (this%pencil_dir .eq. 3) then
+        !
+      endif
+      !
+      this%space(1:1) = 'F'
+      call this%chopdo()
+      this%pencil_dir = 1
+    endif
+    if ((this%space(2:2) .eq. 'P') .and. (sp(2:2) .eq. 'F')) then ! rad-P to rad-F
+      if (this%pencil_dir .eq. 1) then ! under regular transform this if block should be run
+        !
+      endif
+      if (this%pencil_dir .eq. 3) then
+        !
+      endif
+      !
+      this%space(2:2) = 'F'
+      call this%chopdo()
+      this%pencil_dir = 2
+    endif
+    if ((this%space(3:3) .eq. 'P') .and. (sp(3:3) .eq. 'F')) then ! axi-P to axi-F
+      if (this%pencil_dir .eq. 1) then
+        !
+      endif
+      if (this%pencil_dir .eq. 2) then ! under regular transform this if block should be run
+        !
+      endif
+      !
+      this%space(3:3) = 'F'
+      call this%chopdo()
+      this%pencil_dir = 3
+    endif
+    if ((this%space(3:3) .eq. 'F') .and. (sp(3:3) .eq. 'P')) then ! axi-F to axi-P
+      if (this%pencil_dir .eq. 1) then
+        !
+      endif
+      if (this%pencil_dir .eq. 2) then
+        !
+      endif
+      !
+      this%space(3:3) = 'P'
+      this%pencil_dir = 3
+    endif
+    if ((this%space(2:2) .eq. 'F') .and. (sp(2:2) .eq. 'P')) then ! rad-F to rad-P
+      if (this%pencil_dir .eq. 1) then
+        !
+      endif
+      if (this%pencil_dir .eq. 3) then ! under regular transform this if block should be run
+        !
+      endif
+      !
+      this%space(2:2) = 'P'
+      this%pencil_dir = 2
+    endif
+    if ((this%space(1:1) .eq. 'F') .and. (sp(1:1) .eq. 'P')) then ! azim-P to azim-F
+      if (this%pencil_dir .eq. 2) then ! under regular transform this if block should be run
+        !
+      endif
+      if (this%pencil_dir .eq. 3) then
+        !
+      endif
+      !
+      this%space(1:1) = 'P'
+      this%pencil_dir = 1
+    endif
   end procedure
 
 end submodule

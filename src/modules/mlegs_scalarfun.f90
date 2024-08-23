@@ -29,15 +29,15 @@ module mlegs_scalarfun
 
   !> 2d scalar (slab decomposition for parallelism)
   type, extends(scalar), public :: scalar_2d
-    !> 2d scalar function value e(r,p) (Physical) <--> e(n,m) (Spectral)
+    !> 2d scalar function value e(p,r) (Physical) <--> e(m,n) (Spectral)
     complex(p8), dimension(:,:), allocatable :: e
-    !> space where the scalar is currently in - (radial, azimuthal) ('P' or 'F')
+    !> space where the scalar is currently in - (azimuthal, radial) ('P' or 'F')
     character(len=2) :: space
     !> local radial chopping info. (# or radial spectral elements per m)
     integer(i4), dimension(:), allocatable :: local_chops
     !> local azimuthal chopping info.
     integer(i4) :: local_chopp
-    !> direction of a slab (i.e., the dimension completely residing in local memory; 1: r, 2: p)
+    !> direction of a slab (i.e., the dimension completely residing in local memory; 1: p, 2: r)
     integer(i4) :: slab_dir
     contains
       procedure :: tfm => scalar_2d_tfm
@@ -45,15 +45,15 @@ module mlegs_scalarfun
 
   !> 3d scalar (pencil decomposition for parallelism)
   type, extends(scalar), public :: scalar_3d
-    !> 2d scalar function value e(r,p,z) (Physical) <--> e(n,m,k) (Spectral)
+    !> 2d scalar function value e(p,r,z) (Physical) <--> e(m,n,k) (Spectral)
     complex(p8), dimension(:,:,:), allocatable :: e
-    !> space where the scalar is currently in - (radial, azimuthal, axial) ('P' or 'F')
+    !> space where the scalar is currently in - (azimuthal, radial, axial) ('P' or 'F')
     character(len=3) :: space
     !> local radial chopping info. (# or radial spectral elements per m)
     integer(i4), dimension(:), allocatable :: local_chops
     !> local azimuthal/axial chopping info.
     integer(i4) :: local_chopp, local_chopzl, local_chopzu
-    !> direction of a pencil (i.e., the dimension completely residing in local memory; 1: r, 2: p, 3: z)
+    !> direction of a pencil (i.e., the dimension completely residing in local memory; 1: p, 2: r, 3: z)
     integer(i4) :: pencil_dir
     contains
       procedure :: tfm => scalar_3d_tfm
@@ -84,17 +84,17 @@ module mlegs_scalarfun
 
   !> 1-d/2-d/3-d spectral transformations
   interface
-    module subroutine scalar_1d_tfm(this, space)
+    module subroutine scalar_1d_tfm(this, sp)
       class(scalar_1d), intent(inout) :: this
-      character(len=1), intent(in) :: space
+      character(len=1), intent(in) :: sp
     end subroutine
-    module subroutine scalar_2d_tfm(this, space)
+    module subroutine scalar_2d_tfm(this, sp)
       class(scalar_2d), intent(inout) :: this
-      character(len=2), intent(in) :: space
+      character(len=2), intent(in) :: sp
     end subroutine
-    module subroutine scalar_3d_tfm(this, space)
+    module subroutine scalar_3d_tfm(this, sp)
       class(scalar_3d), intent(inout) :: this
-      character(len=3), intent(in) :: space
+      character(len=3), intent(in) :: sp
     end subroutine
   end interface
 

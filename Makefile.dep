@@ -2,6 +2,7 @@ $(OBJ_DIR)/mlegs_base.o : $(MODULE_DIR)/mlegs_base.f90
 
 $(OBJ_DIR)/mlegs_mpi.o : $(MODULE_DIR)/mlegs_mpi.f90 $(OBJ_DIR)/mlegs_base.o
 $(OBJ_DIR)/mlegs_mpi_utils.o : $(SUBMODULE_DIR)/mlegs_mpi_utils.f90 $(OBJ_DIR)/mlegs_mpi.o
+$(OBJ_DIR)/mlegs_mpi_pario.o : $(SUBMODULE_DIR)/mlegs_mpi_pario.f90 $(OBJ_DIR)/mlegs_mpi.o
 
 $(OBJ_DIR)/mlegs_misc.o : $(MODULE_DIR)/mlegs_misc.f90 $(OBJ_DIR)/mlegs_base.o 
 $(OBJ_DIR)/mlegs_misc_time.o : $(SUBMODULE_DIR)/mlegs_misc_time.f90 $(OBJ_DIR)/mlegs_misc.o 

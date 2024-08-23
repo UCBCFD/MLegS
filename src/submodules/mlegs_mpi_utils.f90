@@ -174,77 +174,133 @@ contains
     final_idx = final_idx_(1:2)
   end procedure
 
-  module procedure m_exchange_init_2d
-    use MPI
-    integer(i4) :: chunk(2), start_idx(2), final_idx(2)
+  module procedure m_exchange_init_2dsize
+    use decomp_2d_constants; use decomp_2d_mpi; use decomp_2d
+    integer(i4) :: p_row, p_col
 
-    m_garr_nx = nx
-    m_garr_ny = ny
-    call m_decompose(m_garr_nx, m_garr_ny, 'Y', chunk, start_idx, final_idx)
-    m_slab_x = create_new_type(2, m_row_comm, chunk, 1, MPI_Double_complex)
-    call m_decompose(m_garr_nx, m_garr_ny, 'X', chunk, start_idx, final_idx)
-    m_slab_y = create_new_type(2, m_row_comm, chunk, 2, MPI_Double_complex)
-
+    decomp_log = D2D_LOG_QUIET ! Change to D2D_LOG_TOFILE or D2D_LOG_STDOUT for debugging
+    p_row = m_nprocs
+    p_col = 1
+    call decomp_2d_init(nx, ny, 1, p_row, p_col, &
+                            (/ .false., .false., .false. /), m_comm)
   end procedure
 
-  module procedure m_exchange_init_3d
-    use MPI
-    integer(i4) :: chunk(3), start_idx(3), final_idx(3)
+  module procedure m_exchange_init_3dsize
+    use decomp_2d_constants; use decomp_2d_mpi; use decomp_2d
 
-    m_garr_nx = nx
-    m_garr_ny = ny
-    m_garr_nz = nz
-    call m_decompose(m_garr_nx, m_garr_ny, m_garr_nz, 'Y', 'Z', chunk, start_idx, final_idx)
-    m_pencil_x = create_new_type(3, m_row_comm, chunk, 1, MPI_Double_complex)
-    call m_decompose(m_garr_nx, m_garr_ny, m_garr_nz, 'X', 'Z', chunk, start_idx, final_idx)
-    m_pencil_y = create_new_type(3, m_row_comm, chunk, 2, MPI_Double_complex)
-    call m_decompose(m_garr_nx, m_garr_ny, m_garr_nz, 'X', 'Y', chunk, start_idx, final_idx)
-    m_pencil_z = create_new_type(3, m_row_comm, chunk, 3, MPI_Double_complex)
+    decomp_log = D2D_LOG_QUIET ! Change to D2D_LOG_TOFILE or D2D_LOG_STDOUT for debugging
+    call decomp_2d_init(nx, ny, nz, m_cart_nprocs(1), m_cart_nprocs(2), &
+                        (/ .false., .false., .false. /), m_comm)
   end procedure
 
-! ======================================================================================================== !
-! VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV INTERNAL (PRIVATE) SUBROUTINES/FUNCTIONS VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV !
-! ======================================================================================================== !
+  module procedure m_exchange_finalize
+    use decomp_2d_constants; use decomp_2d_mpi; use decomp_2d
 
-    function create_new_type(ndim, comm, data_size_proc_old, dim_old, data_type) result(dtype)
-      use MPI
-      integer(i4) :: ndim
-      integer(i4) :: comm, dim_old, data_type
-      integer(i4), dimension(ndim) :: data_size_proc_old, subdsize_proc, substarts_proc
-      integer(i4), dimension(:), allocatable :: dtype
+    call decomp_2d_finalize()
+  end procedure
 
-      integer(i4) :: i, nproc_comm
+  module procedure m_exchange_x2y_2dsize_c
+    use decomp_2d_constants; use decomp_2d_mpi; use decomp_2d
+    complex(p8), dimension(:,:,:), allocatable :: wk_in, wk_out
 
-      call MPI_Comm_size(comm, nproc_comm, m_err)
-      allocate( dtype(0:m_nprocs-1) )
-      ! old local array: array_old of size_old is decomposed into subarray along dim_old
-      call subarray(data_type, ndim, data_size_proc_old, dim_old, nproc_comm, dtype)
-    end function
+    if (size(slab_x,1) .ne. xsize(1)) stop 'm_exchange_x2y_2dsize_c: input x-slab 1st dim. incorrect'
+    if (size(slab_x,2) .ne. xsize(2)) stop 'm_exchange_x2y_2dsize_c: input x-slab 2nd dim. incorrect'
+    if (size(slab_y,1) .ne. ysize(1)) stop 'm_exchange_x2y_2dsize_c: output y-slab 1st dim. incorrect'
+    if (size(slab_y,2) .ne. ysize(2)) stop 'm_exchange_x2y_2dsize_c: output y-slab 2nd dim. incorrect'
+    call alloc_x(wk_in)
+    call alloc_y(wk_out)
+    wk_in = reshape(slab_x, (/ size(slab_x,1), size(slab_x,2), 1 /))
+    call transpose_x_to_y(wk_in, wk_out)
+    slab_y = reshape(wk_out, (/ size(wk_out,1), size(wk_out,2) /))
+    deallocate(wk_in, wk_out)
+  end procedure
 
-    subroutine subarray(element_data_type, ndim, datasize_proc, dim, nprocs, new_data_type)
-      use MPI
-      integer:: element_data_type, ndim, dim, nprocs
-      integer,dimension(ndim):: datasize_proc, subdsize_proc, substarts_proc, subends_proc
-      integer,dimension(0:nprocs-1):: new_data_type
+  module procedure m_exchange_x2y_3dsize_c
+    use decomp_2d_constants; use decomp_2d_mpi; use decomp_2d
+    complex(p8), dimension(:,:,:), allocatable :: wk_in, wk_out
 
-      integer:: i
+    if (size(pencil_x,1) .ne. xsize(1)) stop 'm_exchange_x2y_3dsize_c: input x-pencil 1st dim. incorrect'
+    if (size(pencil_x,2) .ne. xsize(2)) stop 'm_exchange_x2y_3dsize_c: input x-pencil 2nd dim. incorrect'
+    if (size(pencil_x,3) .ne. xsize(3)) stop 'm_exchange_x2y_3dsize_c: input x-pencil 3rd dim. incorrect'
+    if (size(pencil_y,1) .ne. ysize(1)) stop 'm_exchange_x2y_3dsize_c: output y-pencil 1st dim. incorrect'
+    if (size(pencil_y,2) .ne. ysize(2)) stop 'm_exchange_x2y_3dsize_c: output y-pencil 2nd dim. incorrect'
+    if (size(pencil_y,3) .ne. ysize(3)) stop 'm_exchange_x2y_3dsize_c: output y-pencil 3rd dim. incorrect'
+    call alloc_x(wk_in)
+    call alloc_y(wk_out)
+    wk_in = pencil_x
+    call transpose_x_to_y(wk_in, wk_out)
+    pencil_y = wk_out
+    deallocate(wk_in, wk_out)
+  end procedure
 
-      do i = 1, ndim
-          subdsize_proc(i) = datasize_proc(i)
-          substarts_proc(i) = 0
-          subends_proc(i) = 0
-      enddo
+  module procedure m_exchange_y2x_2dsize_c
+    use decomp_2d_constants; use decomp_2d_mpi; use decomp_2d
+    complex(p8), dimension(:,:,:), allocatable :: wk_in, wk_out
 
-      ! along that dim
-      do i = 0,nprocs-1
-          call m_decompose(datasize_proc(dim), subdsize_proc(dim), substarts_proc(dim), &
-                           subends_proc(dim), nprocs, i)
-          call MPI_Type_create_subarray(ndim, datasize_proc, subdsize_proc, substarts_proc, & 
-                                        MPI_Order_fortran, element_data_type, new_data_type(i), m_err)
-          call MPI_Type_commit(new_data_type(i), m_err)
-      enddo
+    if (size(slab_y,1) .ne. ysize(1)) stop 'm_exchange_y2x_2dsize_c: input y-slab 1st dim. incorrect'
+    if (size(slab_y,2) .ne. ysize(2)) stop 'm_exchange_y2x_2dsize_c: input y-slab 2nd dim. incorrect'
+    if (size(slab_x,1) .ne. xsize(1)) stop 'm_exchange_y2x_2dsize_c: output x-slab 1st dim. incorrect'
+    if (size(slab_x,2) .ne. xsize(2)) stop 'm_exchange_y2x_2dsize_c: output x-slab 2nd dim. incorrect'
+    call alloc_y(wk_in)
+    call alloc_x(wk_out)
+    wk_in = reshape(slab_y, (/ size(slab_y,1), size(slab_y,2), 1 /))
+    call transpose_y_to_x(wk_in, wk_out)
+    slab_x = reshape(wk_out, (/ size(wk_out,1), size(wk_out,2) /))
+    deallocate(wk_in, wk_out)
+  end procedure
 
-      return
-    end subroutine subarray
+  module procedure m_exchange_y2x_3dsize_c
+    use decomp_2d_constants; use decomp_2d_mpi; use decomp_2d
+    complex(p8), dimension(:,:,:), allocatable :: wk_in, wk_out
+
+    if (size(pencil_y,1) .ne. ysize(1)) stop 'm_exchange_y2x_3dsize_c: input y-pencil 1st dim. incorrect'
+    if (size(pencil_y,2) .ne. ysize(2)) stop 'm_exchange_y2x_3dsize_c: input y-pencil 2nd dim. incorrect'
+    if (size(pencil_y,3) .ne. ysize(3)) stop 'm_exchange_y2x_3dsize_c: input y-pencil 3rd dim. incorrect'
+    if (size(pencil_x,1) .ne. xsize(1)) stop 'm_exchange_y2x_3dsize_c: output x-pencil 1st dim. incorrect'
+    if (size(pencil_x,2) .ne. xsize(2)) stop 'm_exchange_y2x_3dsize_c: output x-pencil 2nd dim. incorrect'
+    if (size(pencil_x,3) .ne. xsize(3)) stop 'm_exchange_y2x_3dsize_c: output x-pencil 3rd dim. incorrect'
+    call alloc_y(wk_in)
+    call alloc_x(wk_out)
+    wk_in = pencil_y
+    call transpose_y_to_x(wk_in, wk_out)
+    pencil_x = wk_out
+    deallocate(wk_in, wk_out)
+  end procedure
+
+  module procedure m_exchange_y2z_3dsize_c
+    use decomp_2d_constants; use decomp_2d_mpi; use decomp_2d
+    complex(p8), dimension(:,:,:), allocatable :: wk_in, wk_out
+
+    if (size(pencil_y,1) .ne. ysize(1)) stop 'm_exchange_y2z_3dsize_c: input y-pencil 1st dim. incorrect'
+    if (size(pencil_y,2) .ne. ysize(2)) stop 'm_exchange_y2z_3dsize_c: input y-pencil 2nd dim. incorrect'
+    if (size(pencil_y,3) .ne. ysize(3)) stop 'm_exchange_y2z_3dsize_c: input y-pencil 3rd dim. incorrect'
+    if (size(pencil_z,1) .ne. zsize(1)) stop 'm_exchange_y2z_3dsize_c: output z-pencil 1st dim. incorrect'
+    if (size(pencil_z,2) .ne. zsize(2)) stop 'm_exchange_y2z_3dsize_c: output z-pencil 2nd dim. incorrect'
+    if (size(pencil_z,3) .ne. zsize(3)) stop 'm_exchange_y2z_3dsize_c: output z-pencil 3rd dim. incorrect'
+    call alloc_y(wk_in)
+    call alloc_z(wk_out)
+    wk_in = pencil_y
+    call transpose_y_to_z(wk_in, wk_out)
+    pencil_z = wk_out
+    deallocate(wk_in, wk_out)
+  end procedure
+
+  module procedure m_exchange_z2y_3dsize_c
+    use decomp_2d_constants; use decomp_2d_mpi; use decomp_2d
+    complex(p8), dimension(:,:,:), allocatable :: wk_in, wk_out
+
+    if (size(pencil_z,1) .ne. zsize(1)) stop 'm_exchange_z2y_3dsize_c: input z-pencil 1st dim. incorrect'
+    if (size(pencil_z,2) .ne. zsize(2)) stop 'm_exchange_z2y_3dsize_c: input z-pencil 2nd dim. incorrect'
+    if (size(pencil_z,3) .ne. zsize(3)) stop 'm_exchange_z2y_3dsize_c: input z-pencil 3rd dim. incorrect'
+    if (size(pencil_y,1) .ne. ysize(1)) stop 'm_exchange_z2y_3dsize_c: output y-pencil 1st dim. incorrect'
+    if (size(pencil_y,2) .ne. ysize(2)) stop 'm_exchange_z2y_3dsize_c: output y-pencil 2nd dim. incorrect'
+    if (size(pencil_y,3) .ne. ysize(3)) stop 'm_exchange_z2y_3dsize_c: output y-pencil 3rd dim. incorrect'
+    call alloc_z(wk_in)
+    call alloc_y(wk_out)
+    wk_in = pencil_z
+    call transpose_z_to_y(wk_in, wk_out)
+    pencil_y = wk_out
+    deallocate(wk_in, wk_out)
+  end procedure
 
 end submodule

@@ -33,6 +33,7 @@ build
 
 # outputs
 *.out
+*.log
 output
 
 # any temporary directories

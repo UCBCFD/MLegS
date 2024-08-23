@@ -60,13 +60,14 @@ cd ../../
 cd ./lapack
 # (re)create and go into a new build directory
 if [ -d ./build ]; then
-	        rm -rf ./build
+	rm -rf ./build
 fi
 mkdir -p ./build
 cd ./build
 
 # run cmake to create a script to build a library
-cmake -DCMAKE_Fortran_COMPILER=${FC} -DCMAKE_C_COMPILER=${CC} -DCMAKE_INSTALL_LIBDIR=$(pwd)/lib ..
+cmake -DCMAKE_Fortran_COMPILER=${FC} -DCMAKE_C_COMPILER=${CC} -DCMAKE_INSTALL_LIBDIR=$(pwd)/lib \
+      -DBUILD_SINGLE=OFF -DBUILD_DOUBLE=ON -DBUILD_COMPLEX=OFF -DBUILD_COMPLEX16=ON ..
 
 # run the build
 cmake --build . -j --target install
@@ -79,7 +80,7 @@ cd ../../
 cd ./2decomp-fft
 # (re)create and go into a new build directory
 if [ -d ./build ]; then
-	rm -rf .build
+	rm -rf ./build
 fi
 mkdir -p ./build
 cd ./build
@@ -105,7 +106,7 @@ cmake -DCMAKE_Fortran_COMPILER=${FC} -DCMAKE_INSTALL_LIBDIR=$(pwd)/lib \
 cmake --build . -j --target install
 
 ln -s $(pwd)/lib/libdecomp2d.a ../../lib/libdecomp2d.a
-ln -s $(pwd)/inc/* ../../inc/
+ln -s $(pwd)/opt/include/* ../../inc/
 cd ../../
 
 exit 0
