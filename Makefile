@@ -1,5 +1,6 @@
 # Compiler (ifx or gfortran)
-OMPI_FC = gfortran
+OMPI_FC = ifx
+# Disclaimer -- compiling on Intel compilers (ifx) has been ONLY verified at the archetype version (ver.0)
 
 # Compiler flags
 ifeq ($(OMPI_FC), ifx)
@@ -12,7 +13,7 @@ else
   $(error Untested compiler: $(FC). Tested compilers are gfortran <v11.2 or later> and ifx <v2024.1.0 or later>)
 endif
 
-EXTLIBS = -llapack -lblas -lfm -lffte -ldecomp2d
+EXTLIBS = -llapack -lblas -lfm -lffte -ldecomp2d -I${MKLROOT}/include/fftw
 
 # Source and build directories
 MODULE_DIR = src/modules
