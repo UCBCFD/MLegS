@@ -1,0 +1,1474 @@
+MODULE MOD_BANDMAT ! LEVEL 1 MODULE
+! BAND MATRIX OPERATIONS
+      USE OMP_LIB
+      USE MPI
+      USE MOD_MISC, ONLY : P4,P8,PI,IU                                   ! LEVEL 0
+      IMPLICIT NONE
+      PRIVATE
+!=======================================================================
+!======================== PUBLIC DECLARATION ===========================
+!=======================================================================
+      ! LU DECOMPOSITION OF A MATRIX IN A BAND FORM
+      PUBLIC :: LUB
+      ! SOLVE AX=B WHERE A IS INPUT AS A BAND FORM USING LU BACK SUBST.
+      PUBLIC :: SOLVEB
+      ! VECTOR MUPLIPLICATION TO A MATRIX IN A BAND FORM 
+      PUBLIC :: BANMUL
+      ! CONVERTS A BAND FORM MATRIX TO A REGULAR SQUARE MATRIX
+      PUBLIC :: MTRX
+!=======================================================================
+!============================ INTERFACES ===============================
+!=======================================================================
+      INTERFACE LUB
+        MODULE PROCEDURE LUDCMPB                                         ! LU DECOMPOSITION OF K REAL MATRICES IN A BAND FORM
+        MODULE PROCEDURE CLUDCMPB                                        ! LU DECOMPOSITION OF K COMPLEX MATRICES IN A BAND FORM
+        MODULE PROCEDURE LUDCMP1                                         ! LU DECOMPOSITION OF A REAL MATRIX IN A BAND FORM
+        MODULE PROCEDURE CLUDCMP1                                        ! LU DECOMPOSITION OF A COMPLEX MATRIX IN A BAND FORM
+      END INTERFACE
+
+      INTERFACE SOLVEB
+        MODULE PROCEDURE LUBKSBB
+        MODULE PROCEDURE LUBKSBBR
+        MODULE PROCEDURE LUBKSB1
+        MODULE PROCEDURE LUBKSB1R
+        MODULE PROCEDURE CLUBKSBB
+        MODULE PROCEDURE CLUBKSBBR
+        MODULE PROCEDURE CLUBKSB1
+        MODULE PROCEDURE CLUBKSB1R
+      END INTERFACE
+
+      INTERFACE BANMUL
+        MODULE PROCEDURE BANMULR                                         ! REAL(P8)_BAND      *    REAL(P8)(:)
+        MODULE PROCEDURE BANMULC                                         ! REAL(P8)_BAND      *    COMPLEX(P8)(:)
+        MODULE PROCEDURE BANMULRM                                        ! REAL(P8)_BAND      *    REAL(P8)(:,:)
+        MODULE PROCEDURE BANMULCM                                        ! REAL(P8)_BAND      *    COMPLEX(P8)(:,:)
+        MODULE PROCEDURE CBANMULR                                        ! COMPLEX(P8)_BAND   *    REAL(P8)(:)
+        MODULE PROCEDURE CBANMULC                                        ! COMPLEX(P8)_BAND   *    COMPLEX(P8)(:)
+        MODULE PROCEDURE CBANMULRM                                       ! COMPLEX(P8)_BAND   *    REAL(P8)(:,:)
+        MODULE PROCEDURE CBANMULCM                                       ! COMPLEX(P8)_BAND   *    COMPLEX(P8)(:,:)
+        MODULE PROCEDURE MR_BAN_MUL                                      ! REAL(P8)(:,:)      *    REAL(P8)_BAND 
+        MODULE PROCEDURE VR_BAN_MUL                                      ! REAL(P8)(:)        *    REAL(P8)_BAND 
+        MODULE PROCEDURE MC_BAN_MUL                                      ! COMPLEX(P8)(:,:)   *    REAL(P8)_BAND 
+        MODULE PROCEDURE VC_BAN_MUL                                      ! COMPLEX(P8)(:)     *    REAL(P8)_BAND 
+        MODULE PROCEDURE BANBANMUL                                       ! REAL(P8)_BAND      *    REAL(P8)_BAND
+      END INTERFACE
+
+      INTERFACE MTRX
+        MODULE PROCEDURE MTRXR
+        MODULE PROCEDURE MTRXC
+      END INTERFACE
+CONTAINS
+!=======================================================================
+!============================ SUBROUTINES ==============================
+!=======================================================================
+      SUBROUTINE LUDCMPB(AMAT,NC,MSIZE,AUXSIZE)
+!=======================================================================
+! [USAGE]: 
+! LU DECOMPOSITION OF REAL MATRICES IN A BANDED FORM (AMAT)
+! BY GAUSSIAN ELIMINATION.
+! THE BANDWIDTH IS DETERMINED BY THE SECOND ARGUMENT (NC).
+! [PARAMETERS]:
+! AMAT >> INPUT REAL MATRIX IN A BANDED FORM 
+!         WITH THE ARRAY DIMENSION (1:ND,1:NE,1:K)
+!         ND IS THE DIMENSION OF THE FIRST SLOT (CRSPND. TO THE MAIN D.)
+!         NE IS THE BANDWIDTH OF THE MATRIX
+!         K IS THE # OF THE BANDED MATRICES TO BE LU-DECOMPOSED
+!         (MULTIPLE MATRICES CAN BE DECOMPOSED AT ONCE)
+! NC >> THE LOCATION OF THE CENTER OF THE MATRIX (= MAIN DIAGONAL PART)
+! MSIZE >> (OPTIONAL) THE SIZES OF K MATRICES. INPUT AS A VECTOR (1:K)
+!          DEFAULT IS ND TAKEN FROM THE DIM. OF AMAT
+! AUXSIZE >> (OPTIONAL) AUXILIARY ARRAY DERIVED FROM MSIZE (SEE BANDAUX)
+!            HELPFUL TO SAVE TIME FROM COMPUTING AUXSIZE EVERYTIME
+! [DEPENDENCIES]:
+! 1. BANDAUX(~) @ MOD_BANDMAT
+! [UPDATES]:
+! ORIGINALL WRITTEN BY TATSUHITO MATSUSHIMA
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      REAL(P8),DIMENSION(:,:,:),INTENT(INOUT) :: AMAT
+      INTEGER,INTENT(IN) :: NC
+      INTEGER,DIMENSION(SIZE(AMAT,3)),OPTIONAL,INTENT(IN) :: MSIZE
+
+      INTEGER,DIMENSION(SIZE(AMAT,1)),OPTIONAL :: AUXSIZE
+      INTEGER,DIMENSION(SIZE(AMAT,3)):: NRCHOPS
+      INTEGER,DIMENSION(SIZE(AMAT,1)+SIZE(AMAT,2)):: NTCHOPS
+
+      INTEGER :: NE,ND,NTCHOP,NRCHOP
+      INTEGER :: I,J,K,NN,MM
+
+      ND = SIZE(AMAT,1)
+      NE = SIZE(AMAT,2)
+      NTCHOP = SIZE(AMAT,3)
+
+      IF(PRESENT(MSIZE)) THEN
+        NRCHOPS = MSIZE
+        IF(MINVAL(MSIZE) <1) THEN
+          WRITE(*,*) 'LUDCMPB: SIZE OF SOME MATRICES IS ZERO.'
+          WRITE(*,*) 'MSIZE=',MSIZE
+          STOP
+        ENDIF
+      ELSE
+        NRCHOPS = SIZE(AMAT,1)
+      ENDIF
+      
+      IF(PRESENT(AUXSIZE)) THEN
+        NTCHOPS = AUXSIZE
+      ELSE
+        CALL BANDAUX(NRCHOPS,NTCHOPS)
+      ENDIF
+
+      NRCHOP = MAXVAL(NRCHOPS)
+
+      DO NN=1,NRCHOP
+        DO I=NC+1,NE
+          DO MM=1,NTCHOPS(NN+I-NC)
+            AMAT(NN,I,MM) = AMAT(NN,I,MM)/AMAT(NN,NC,MM)
+          ENDDO
+        ENDDO
+
+        DO I=NC+1,NE
+          DO J=1,NC-1
+            K  = MAX(I-NC,J)
+            DO MM=1,NTCHOPS(NN+K)
+              AMAT(NN+J,I-J,MM)=AMAT(NN+J,I-J,MM) &
+              -AMAT(NN,I,MM)*AMAT(NN+J,NC-J,MM)
+            ENDDO
+          ENDDO
+        ENDDO
+
+        DO J=1,NC-1
+          DO MM=1,NTCHOPS(NN+J)
+            AMAT(NN+J,NC-J,MM) = AMAT(NN+J,NC-J,MM)/AMAT(NN,NC,MM)
+          ENDDO
+        ENDDO
+      ENDDO
+
+      DO NN=1,NRCHOP
+        DO MM=1,NTCHOPS(NN)
+          AMAT(NN,NC,MM) = 1.D0/AMAT(NN,NC,MM)
+        ENDDO
+      ENDDO
+
+      RETURN
+      END SUBROUTINE LUDCMPB
+!=======================================================================
+      SUBROUTINE CLUDCMPB(AMAT,NC,MSIZE,AUXSIZE)
+!=======================================================================
+! [USAGE]: 
+! LU DECOMPOSITION OF COMPLEX MATRICES IN A BANDED FORM (AMAT)
+! BY GAUSSIAN ELIMINATION.
+! THE BANDWIDTH IS DETERMINED BY THE SECOND ARGUMENT (NC).
+! [PARAMETERS]:
+! AMAT >> INPUT COMPLEX MATRIX IN A BANDED FORM 
+!         WITH THE ARRAY DIMENSION (1:ND,1:NE,1:K)
+!         ND IS THE DIMENSION OF THE FIRST SLOT (CRSPND. TO THE MAIN D.)
+!         NE IS THE BANDWIDTH OF THE MATRIX
+!         K IS THE # OF THE BANDED MATRICES TO BE LU-DECOMPOSED
+!         (MULTIPLE MATRICES CAN BE DECOMPOSED AT ONCE)
+! NC >> THE LOCATION OF THE CENTER OF THE MATRIX (= MAIN DIAGONAL PART)
+! MSIZE >> (OPTIONAL) THE SIZES OF K MATRICES. INPUT AS A VECTOR (1:K)
+!          DEFAULT IS ND TAKEN FROM THE DIM. OF AMAT
+! AUXSIZE >> (OPTIONAL) AUXILIARY ARRAY DERIVED FROM MSIZE (SEE BANDAUX)
+!            HELPFUL TO SAVE TIME FROM COMPUTING AUXSIZE EVERYTIME
+! [DEPENDENCIES]:
+! 1. BANDAUX(~) @ MOD_BANDMAT
+! [UPDATES]:
+! ORIGINALL WRITTEN BY TATSUHITO MATSUSHIMA
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      COMPLEX(P8),DIMENSION(:,:,:),INTENT(INOUT) :: AMAT
+      INTEGER,INTENT(IN) :: NC
+      INTEGER,DIMENSION(SIZE(AMAT,3)),OPTIONAL,INTENT(IN) :: MSIZE
+
+      INTEGER,DIMENSION(SIZE(AMAT,1)),OPTIONAL :: AUXSIZE
+      INTEGER,DIMENSION(SIZE(AMAT,3)):: NRCHOPS
+      INTEGER,DIMENSION(SIZE(AMAT,1)+SIZE(AMAT,2)):: NTCHOPS
+
+      INTEGER :: NE,ND,NTCHOP,NRCHOP
+      INTEGER :: I,J,K,NN,MM
+
+      ND = SIZE(AMAT,1)
+      NE = SIZE(AMAT,2)
+      NTCHOP = SIZE(AMAT,3)
+
+      IF(PRESENT(MSIZE)) THEN
+        NRCHOPS = MSIZE
+        IF(MINVAL(MSIZE) <1 ) THEN
+          WRITE(*,*) 'CLUDCMPB: SIZE OF SOME MATRICES IS ZERO.'
+          WRITE(*,*) 'MSIZE=',MSIZE
+          STOP
+        ENDIF
+      ELSE
+        NRCHOPS = SIZE(AMAT,1)
+      ENDIF
+
+      IF(PRESENT(AUXSIZE)) THEN
+        NTCHOPS = AUXSIZE
+      ELSE
+        CALL BANDAUX(NRCHOPS,NTCHOPS)
+      ENDIF
+
+      NRCHOP = MAXVAL(NRCHOPS)
+
+      DO NN=1,NRCHOP
+        DO I=NC+1,NE
+          DO MM=1,NTCHOPS(NN+I-NC)
+            AMAT(NN,I,MM) = AMAT(NN,I,MM)/AMAT(NN,NC,MM)
+          ENDDO
+        ENDDO
+
+
+        DO I=NC+1,NE
+          DO J=1,NC-1
+            K  = MAX(I-NC,J)
+            DO MM=1,NTCHOPS(NN+K)
+              AMAT(NN+J,I-J,MM)=AMAT(NN+J,I-J,MM) &
+              -AMAT(NN,I,MM)*AMAT(NN+J,NC-J,MM)
+            ENDDO
+          ENDDO
+        ENDDO
+
+        DO J=1,NC-1
+          DO MM=1,NTCHOPS(NN+J)
+            AMAT(NN+J,NC-J,MM) = AMAT(NN+J,NC-J,MM)/AMAT(NN,NC,MM)
+          ENDDO
+        ENDDO
+      ENDDO
+
+      DO NN=1,NRCHOP
+        DO MM=1,NTCHOPS(NN)
+          AMAT(NN,NC,MM) = 1.D0/AMAT(NN,NC,MM)
+        ENDDO
+      ENDDO
+
+      RETURN
+      END SUBROUTINE CLUDCMPB
+!=======================================================================
+      SUBROUTINE LUDCMP1(AMAT,NC)
+!=======================================================================
+! [USAGE]: 
+! LU DECOMPOSITION OF A REAL MATRIX IN A BANDED FORM (AMAT)
+! BY GAUSSIAN ELIMINATION.
+! THE BANDWIDTH IS DETERMINED BY THE SECOND ARGUMENT (NC).
+! [PARAMETERS]:
+! AMAT >> INPUT REAL MATRIX IN A BANDED FORM 
+!         WITH THE ARRAY DIMENSION (1:ND,1:NE)
+!         ND IS THE DIMENSION OF THE FIRST SLOT (CRSPND. TO THE MAIN D.)
+!         NE IS THE BANDWIDTH OF THE MATRIX
+! NC >> THE LOCATION OF THE CENTER OF THE MATRIX (= MAIN DIAGONAL PART)
+! MSIZE >> (OPTIONAL) THE SIZES OF K MATRICES. INPUT AS A VECTOR (1:K)
+!          DEFAULT IS ND TAKEN FROM THE DIM. OF AMAT
+! AUXSIZE >> (OPTIONAL) AUXILIARY ARRAY DERIVED FROM MSIZE (SEE BANDAUX)
+!            HELPFUL TO SAVE TIME FROM COMPUTING AUXSIZE EVERYTIME
+! [DEPENDENCIES]:
+! 1. LUDCMPB(~) @ MOD_BANDMAT
+! [UPDATES]:
+! ORIGINALL WRITTEN BY TATSUHITO MATSUSHIMA
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      REAL(P8),DIMENSION(:,:),INTENT(INOUT) :: AMAT
+      INTEGER,INTENT(IN) :: NC
+
+      REAL(P8),DIMENSION(SIZE(AMAT,1),SIZE(AMAT,2),1) :: B
+
+      B(:,:,1) = AMAT
+
+      CALL LUDCMPB(B,NC)
+
+      AMAT = B(:,:,1)
+
+      RETURN
+      END SUBROUTINE LUDCMP1
+!=======================================================================
+      SUBROUTINE CLUDCMP1(AMAT,NC)
+!=======================================================================
+! [USAGE]: 
+! LU DECOMPOSITION OF A COPMLEX MATRIX IN A BANDED FORM (AMAT)
+! BY GAUSSIAN ELIMINATION.
+! THE BANDWIDTH IS DETERMINED BY THE SECOND ARGUMENT (NC).
+! [PARAMETERS]:
+! AMAT >> INPUT COMPLEX MATRIX IN A BANDED FORM 
+!         WITH THE ARRAY DIMENSION (1:ND,1:NE)
+!         ND IS THE DIMENSION OF THE FIRST SLOT (CRSPND. TO THE MAIN D.)
+!         NE IS THE BANDWIDTH OF THE MATRIX
+! NC >> THE LOCATION OF THE CENTER OF THE MATRIX (= MAIN DIAGONAL PART)
+! [DEPENDENCIES]:
+! 1. CLUDCMPB(~) @ MOD_BANDMAT
+! [UPDATES]:
+! ORIGINALL WRITTEN BY TATSUHITO MATSUSHIMA
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      COMPLEX(P8),DIMENSION(:,:),INTENT(INOUT) :: AMAT
+      INTEGER,INTENT(IN) :: NC
+
+      COMPLEX(P8),DIMENSION(SIZE(AMAT,1),SIZE(AMAT,2),1) :: B
+
+      B(:,:,1) = AMAT
+
+      CALL CLUDCMPB(B,NC)
+
+      AMAT = B(:,:,1)
+
+      RETURN
+      END SUBROUTINE CLUDCMP1
+!=======================================================================
+      SUBROUTINE LUBKSBB(AMAT,NC,A,MSIZE,AUXSIZE)
+!=======================================================================
+! [USAGE]: 
+! SOLVE THE LINEAR EQUATION (AMAT)*X = A WHERE AMAT GIVEN IN A BAND
+! FORM. AMAT IS REAL MATRICES & A IS COMPLEX VECTORS
+! [PARAMETERS]:
+! AMAT >> INPUT REAL MATRIX IN A BANDED FORM 
+!         WITH THE ARRAY DIMENSION (1:ND, 1:NE, 1:K)
+!         ND IS THE DIMENSION OF THE FIRST SLOT (CRSPND. TO THE MAIN D.)
+!         NE IS THE BANDWIDTH OF THE MATRIX
+!         K IS THE # OF THE BANDED MATRICES TO BE SOLVED
+!         (MULTIPLE MATRICES CAN BE DECOMPOSED AT ONCE)
+! NC >> THE LOCATION OF THE CENTER OF THE MATRIX (= MAIN DIAGONAL PART)
+! A >> ON ENTRY, THE RHS VECTOR OF THE LINEAR EQUATION (AMAT)*X = A
+!      WITH THE ARRAY DIMENSION (1:NC, 1:K)
+!      K IS THE # OF THE RHS VECTORS
+!      ON EXIT, GIVES THE SOLUTION OF THE EQUATION (AMAT)*X = A
+! MSIZE >> (OPTIONAL) THE SIZES OF K MATRICES. INPUT AS A VECTOR (1:K)
+!          DEFAULT IS ND TAKEN FROM THE DIM. OF AMAT
+! AUXSIZE >> (OPTIONAL) AUXILIARY ARRAY DERIVED FROM MSIZE (SEE BANDAUX)
+!            HELPFUL TO SAVE TIME FROM COMPUTING AUXSIZE EVERYTIME
+! [DEPENDENCY]:
+! 1. BANDAUX(~) @ MOD_BANDMAT
+! [UPDATES]:
+! ORIGINALL WRITTEN BY TATSUHITO MATSUSHIMA
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      REAL(P8),DIMENSION(:,:,:) :: AMAT
+      INTEGER :: NC
+      COMPLEX(P8),DIMENSION(:,:),INTENT(INOUT) :: A
+      INTEGER,DIMENSION(SIZE(AMAT,3)),OPTIONAL :: MSIZE
+      INTEGER,DIMENSION(SIZE(AMAT,1)),OPTIONAL :: AUXSIZE
+
+      INTEGER,DIMENSION(SIZE(AMAT,3)) :: NRCHOPS
+      INTEGER,DIMENSION(SIZE(AMAT,1)+SIZE(AMAT,2)) :: NTCHOPS
+
+      INTEGER :: NE,ND,NTCHOP,NRCHOP
+      INTEGER :: I,J,NN,MM,NNE
+
+      IF(PRESENT(MSIZE)) THEN
+        NRCHOPS = MSIZE
+      ELSE
+        NRCHOPS = SIZE(A,1)
+      ENDIF
+
+      IF(PRESENT(AUXSIZE)) THEN
+        NTCHOPS = AUXSIZE
+      ELSE
+        CALL BANDAUX(NRCHOPS,NTCHOPS)
+      ENDIF
+
+      ND = SIZE(AMAT,1)
+      NE = SIZE(AMAT,2)
+      NTCHOP = SIZE(AMAT,3)
+      NRCHOP = MAXVAL(NRCHOPS)
+
+      DO NN=2,NRCHOP
+        NNE = MIN(NN-1,NC-1)
+        DO J=1,NNE
+          DO MM=1,NTCHOPS(NN)
+            A(NN,MM) = A(NN,MM)-A(NN-J,MM)*AMAT(NN,NC-J,MM)
+          ENDDO
+        ENDDO
+      ENDDO
+
+      DO NN=1,NRCHOP
+        DO MM=1,NTCHOPS(NN)
+          A(NN,MM) = A(NN,MM)*AMAT(NN,NC,MM)
+        ENDDO
+      ENDDO
+
+      DO NN=NRCHOP-1,1,-1
+        DO I=1,NE-NC
+          DO MM=1,NTCHOPS(NN+I)
+            A(NN,MM) = A(NN,MM)-A(NN+I,MM)*AMAT(NN,NC+I,MM)
+          ENDDO
+        ENDDO
+      ENDDO
+
+      RETURN
+      END SUBROUTINE LUBKSBB
+!=======================================================================
+      SUBROUTINE CLUBKSBB(AMAT,NC,A,MSIZE,AUXSIZE)
+!=======================================================================
+! [USAGE]: 
+! SOLVE THE LINEAR EQUATION (AMAT)*X = A WHERE AMAT GIVEN IN A BAND
+! FORM. AMAT IS COMPLEX MATRICES & A IS COMPLEX VECTORS
+! [PARAMETERS]:
+! AMAT >> INPUT COMPLEX MATRIX IN A BANDED FORM 
+!         WITH THE ARRAY DIMENSION (1:ND, 1:NE, 1:K)
+!         ND IS THE DIMENSION OF THE FIRST SLOT (CRSPND. TO THE MAIN D.)
+!         NE IS THE BANDWIDTH OF THE MATRIX
+!         K IS THE # OF THE BANDED MATRICES TO BE SOLVED
+!         (MULTIPLE MATRICES CAN BE DECOMPOSED AT ONCE)
+! NC >> THE LOCATION OF THE CENTER OF THE MATRIX (= MAIN DIAGONAL PART)
+! A >> ON ENTRY, THE RHS VECTOR OF THE LINEAR EQUATION (AMAT)*X = A
+!      WITH THE ARRAY DIMENSION (1:NC, 1:K)
+!      K IS THE # OF THE RHS VECTORS
+!      ON EXIT, GIVES THE SOLUTION OF THE EQUATION (AMAT)*X = A
+! MSIZE >> (OPTIONAL) THE SIZES OF K MATRICES. INPUT AS A VECTOR (1:K)
+!          DEFAULT IS ND TAKEN FROM THE DIM. OF AMAT
+! AUXSIZE >> (OPTIONAL) AUXILIARY ARRAY DERIVED FROM MSIZE (SEE BANDAUX)
+!            HELPFUL TO SAVE TIME FROM COMPUTING AUXSIZE EVERYTIME
+! [DEPENDENCY]:
+! 1. BANDAUX(~) @ MOD_BANDMAT
+! [UPDATES]:
+! ORIGINALL WRITTEN BY TATSUHITO MATSUSHIMA
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      COMPLEX(P8),DIMENSION(:,:,:) :: AMAT
+      INTEGER :: NC
+      COMPLEX(P8),DIMENSION(:,:),INTENT(INOUT) :: A
+      INTEGER,DIMENSION(SIZE(AMAT,3)),OPTIONAL :: MSIZE
+      INTEGER,DIMENSION(SIZE(AMAT,1)),OPTIONAL :: AUXSIZE
+
+      INTEGER,DIMENSION(SIZE(AMAT,3)) :: NRCHOPS
+      INTEGER,DIMENSION(SIZE(AMAT,1)+SIZE(AMAT,2)) :: NTCHOPS
+
+      INTEGER :: NE,ND,NTCHOP,NRCHOP
+      INTEGER :: I,J,NN,MM,NNE
+
+      IF(PRESENT(MSIZE)) THEN
+        NRCHOPS = MSIZE
+      ELSE
+        NRCHOPS = SIZE(A,1)
+      ENDIF
+
+      IF(PRESENT(AUXSIZE)) THEN
+        NTCHOPS = AUXSIZE
+      ELSE
+        CALL BANDAUX(NRCHOPS,NTCHOPS)
+      ENDIF
+
+      ND = SIZE(AMAT,1)
+      NE = SIZE(AMAT,2)
+      NTCHOP = SIZE(AMAT,3)
+      NRCHOP = MAXVAL(NRCHOPS)
+
+      DO NN=2,NRCHOP
+        NNE = MIN(NN-1,NC-1)
+        DO J=1,NNE
+          DO MM=1,NTCHOPS(NN)
+            A(NN,MM) = A(NN,MM)-A(NN-J,MM)*AMAT(NN,NC-J,MM)
+          ENDDO
+        ENDDO
+      ENDDO
+
+      DO NN=1,NRCHOP
+        DO MM=1,NTCHOPS(NN)
+          A(NN,MM) = A(NN,MM)*AMAT(NN,NC,MM)
+        ENDDO
+      ENDDO
+
+      DO NN=NRCHOP-1,1,-1
+        DO I=1,NE-NC
+          DO MM=1,NTCHOPS(NN+I)
+            A(NN,MM) = A(NN,MM)-A(NN+I,MM)*AMAT(NN,NC+I,MM)
+          ENDDO
+        ENDDO
+      ENDDO
+
+      RETURN
+      END SUBROUTINE CLUBKSBB
+!=======================================================================
+      SUBROUTINE LUBKSBBR(AMAT,NC,A,MSIZE,AUXSIZE)
+!=======================================================================
+! [USAGE]: 
+! SOLVE THE LINEAR EQUATION (AMAT)*X = A WHERE AMAT GIVEN IN A BAND
+! FORM. AMAT IS REAL MATRICES & A IS REAL VECTORS
+! [PARAMETERS]:
+! AMAT >> INPUT REAL MATRIX IN A BANDED FORM 
+!         WITH THE ARRAY DIMENSION (1:ND, 1:NE, 1:K)
+!         ND IS THE DIMENSION OF THE FIRST SLOT (CRSPND. TO THE MAIN D.)
+!         NE IS THE BANDWIDTH OF THE MATRIX
+!         K IS THE # OF THE BANDED MATRICES TO BE SOLVED
+!         (MULTIPLE MATRICES CAN BE DECOMPOSED AT ONCE)
+! NC >> THE LOCATION OF THE CENTER OF THE MATRIX (= MAIN DIAGONAL PART)
+! A >> ON ENTRY, THE RHS VECTOR OF THE LINEAR EQUATION (AMAT)*X = A
+!      WITH THE ARRAY DIMENSION (1:NC, 1:K)
+!      K IS THE # OF THE RHS VECTORS
+!      ON EXIT, GIVES THE SOLUTION OF THE EQUATION (AMAT)*X = A
+! MSIZE >> (OPTIONAL) THE SIZES OF K MATRICES. INPUT AS A VECTOR (1:K)
+!          DEFAULT IS ND TAKEN FROM THE DIM. OF AMAT
+! AUXSIZE >> (OPTIONAL) AUXILIARY ARRAY DERIVED FROM MSIZE (SEE BANDAUX)
+!            HELPFUL TO SAVE TIME FROM COMPUTING AUXSIZE EVERYTIME
+! [DEPENDENCY]:
+! 1. BANDAUX(~) @ MOD_BANDMAT
+! [UPDATES]:
+! ORIGINALL WRITTEN BY TATSUHITO MATSUSHIMA
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      REAL(P8),DIMENSION(:,:,:) :: AMAT
+      INTEGER :: NC
+      REAL(P8),DIMENSION(:,:),INTENT(INOUT) :: A
+      INTEGER,DIMENSION(SIZE(AMAT,3)),OPTIONAL :: MSIZE
+      INTEGER,DIMENSION(SIZE(AMAT,1)),OPTIONAL :: AUXSIZE
+
+      INTEGER,DIMENSION(SIZE(AMAT,3)) :: NRCHOPS
+      INTEGER,DIMENSION(SIZE(AMAT,1)+SIZE(AMAT,2)) :: NTCHOPS
+
+      INTEGER :: NE,ND,NTCHOP,NRCHOP
+      INTEGER :: I,J,NN,MM,NNE
+
+      IF(PRESENT(MSIZE)) THEN
+        NRCHOPS = MSIZE
+      ELSE
+        NRCHOPS = SIZE(A,1)
+      ENDIF
+
+      IF(PRESENT(AUXSIZE)) THEN
+        NTCHOPS = AUXSIZE
+      ELSE
+        CALL BANDAUX(NRCHOPS,NTCHOPS)
+      ENDIF
+
+      ND = SIZE(AMAT,1)
+      NE = SIZE(AMAT,2)
+      NTCHOP = SIZE(AMAT,3)
+      NRCHOP = MAXVAL(NRCHOPS)
+
+      DO NN=2,NRCHOP
+        NNE = MIN(NN-1,NC-1)
+        DO J=1,NNE
+          DO MM=1,NTCHOPS(NN)
+            A(NN,MM) = A(NN,MM)-A(NN-J,MM)*AMAT(NN,NC-J,MM)
+          ENDDO
+        ENDDO
+      ENDDO
+
+      DO NN=1,NRCHOP
+        DO MM=1,NTCHOPS(NN)
+          A(NN,MM) = A(NN,MM)*AMAT(NN,NC,MM)
+        ENDDO
+      ENDDO
+
+      DO NN=NRCHOP-1,1,-1
+        DO I=1,NE-NC
+          DO MM=1,NTCHOPS(NN+I)
+            A(NN,MM) = A(NN,MM)-A(NN+I,MM)*AMAT(NN,NC+I,MM)
+          ENDDO
+        ENDDO
+      ENDDO
+
+      RETURN
+      END SUBROUTINE LUBKSBBR
+!=======================================================================
+      SUBROUTINE CLUBKSBBR(AMAT,NC,A,MSIZE,AUXSIZE)
+!=======================================================================
+! [USAGE]: 
+! SOLVE THE LINEAR EQUATION (AMAT)*X = A WHERE AMAT GIVEN IN A BAND
+! FORM. AMAT IS COMPLEX MATRICES & A IS REAL VECTORS
+! [PARAMETERS]:
+! AMAT >> INPUT REAL MATRIX IN A BANDED FORM 
+!         WITH THE ARRAY DIMENSION (1:ND, 1:NE, 1:K)
+!         ND IS THE DIMENSION OF THE FIRST SLOT (CRSPND. TO THE MAIN D.)
+!         NE IS THE BANDWIDTH OF THE MATRIX
+!         K IS THE # OF THE BANDED MATRICES TO BE SOLVED
+!         (MULTIPLE MATRICES CAN BE DECOMPOSED AT ONCE)
+! NC >> THE LOCATION OF THE CENTER OF THE MATRIX (= MAIN DIAGONAL PART)
+! A >> ON ENTRY, THE RHS VECTOR OF THE LINEAR EQUATION (AMAT)*X = A
+!      WITH THE ARRAY DIMENSION (1:NC, 1:K)
+!      K IS THE # OF THE RHS VECTORS
+!      ON EXIT, GIVES THE SOLUTION OF THE EQUATION (AMAT)*X = A
+! MSIZE >> (OPTIONAL) THE SIZES OF K MATRICES. INPUT AS A VECTOR (1:K)
+!          DEFAULT IS ND TAKEN FROM THE DIM. OF AMAT
+! AUXSIZE >> (OPTIONAL) AUXILIARY ARRAY DERIVED FROM MSIZE (SEE BANDAUX)
+!            HELPFUL TO SAVE TIME FROM COMPUTING AUXSIZE EVERYTIME
+! [DEPENDENCY]:
+! 1. BANDAUX(~) @ MOD_BANDMAT
+! [UPDATES]:
+! ORIGINALL WRITTEN BY TATSUHITO MATSUSHIMA
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      COMPLEX(P8),DIMENSION(:,:,:) :: AMAT
+      INTEGER :: NC
+      REAL(P8),DIMENSION(:,:),INTENT(INOUT) :: A
+      INTEGER,DIMENSION(SIZE(AMAT,3)),OPTIONAL :: MSIZE
+      INTEGER,DIMENSION(SIZE(AMAT,1)),OPTIONAL :: AUXSIZE
+
+      INTEGER,DIMENSION(SIZE(AMAT,3)) :: NRCHOPS
+      INTEGER,DIMENSION(SIZE(AMAT,1)+SIZE(AMAT,2)) :: NTCHOPS
+
+      INTEGER :: NE,ND,NTCHOP,NRCHOP
+      INTEGER :: I,J,NN,MM,NNE
+      
+      IF(PRESENT(MSIZE)) THEN
+        NRCHOPS = MSIZE
+      ELSE
+        NRCHOPS = SIZE(A,1)
+      ENDIF
+
+      IF(PRESENT(AUXSIZE)) THEN
+        NTCHOPS = AUXSIZE
+      ELSE
+        CALL BANDAUX(NRCHOPS,NTCHOPS)
+      ENDIF
+
+      ND = SIZE(AMAT,1)
+      NE = SIZE(AMAT,2)
+      NTCHOP = SIZE(AMAT,3)
+      NRCHOP = MAXVAL(NRCHOPS)
+
+      DO NN=2,NRCHOP
+        NNE = MIN(NN-1,NC-1)
+        DO J=1,NNE
+          DO MM=1,NTCHOPS(NN)
+            A(NN,MM) = A(NN,MM)-A(NN-J,MM)*AMAT(NN,NC-J,MM)
+          ENDDO
+        ENDDO
+      ENDDO
+
+      DO NN=1,NRCHOP
+        DO MM=1,NTCHOPS(NN)
+          A(NN,MM) = A(NN,MM)*AMAT(NN,NC,MM)
+        ENDDO
+      ENDDO
+
+      DO NN=NRCHOP-1,1,-1
+        DO I=1,NE-NC
+          DO MM=1,NTCHOPS(NN+I)
+            A(NN,MM) = A(NN,MM)-A(NN+I,MM)*AMAT(NN,NC+I,MM)
+          ENDDO
+        ENDDO
+      ENDDO
+
+      RETURN
+      END SUBROUTINE CLUBKSBBR
+!=======================================================================
+      SUBROUTINE LUBKSB1(AMAT,NC,A)
+!=======================================================================
+! [USAGE]: 
+! SOLVE THE LINEAR EQUATION (AMAT)*X = A WHERE AMAT GIVEN IN A BAND
+! FORM. AMAT IS A COMPLEX MATRIX & A IS A COMPLEX VECTOR
+! [PARAMETERS]:
+! AMAT >> INPUT COMPLEX MATRIX IN A BANDED FORM 
+!         WITH THE ARRAY DIMENSION (1:ND, 1:NE)
+!         ND IS THE DIMENSION OF THE FIRST SLOT (CRSPND. TO THE MAIN D.)
+!         NE IS THE BANDWIDTH OF THE MATRIX
+! NC >> THE LOCATION OF THE CENTER OF THE MATRIX (= MAIN DIAGONAL PART)
+! A >> ON ENTRY, THE RHS VECTOR OF THE LINEAR EQUATION (AMAT)*X = A
+!      WITH THE ARRAY DIMENSION (1:NC)
+!      ON EXIT, GIVES THE SOLUTION OF THE EQUATION (AMAT)*X = A
+! [DEPENDENCY]:
+! 1. LUBKSBB(~) @ MOD_BANDMAT
+! [UPDATES]:
+! ORIGINALL WRITTEN BY TATSUHITO MATSUSHIMA
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      REAL(P8),DIMENSION(:,:),INTENT(INOUT) :: AMAT
+      INTEGER,INTENT(IN) :: NC
+      COMPLEX(P8),DIMENSION(:),INTENT(INOUT) :: A
+
+      COMPLEX(P8),DIMENSION(SIZE(A,1),1):: B
+
+      B(:,1)=A
+
+      CALL LUBKSBB(RESHAPE(AMAT,(/SIZE(AMAT,1),SIZE(AMAT,2),1/)),NC, B)
+
+      A=B(:,1)
+
+      RETURN
+      END SUBROUTINE LUBKSB1
+!=======================================================================
+      SUBROUTINE CLUBKSB1(AMAT,NC,A)
+!=======================================================================
+! [USAGE]: 
+! SOLVE THE LINEAR EQUATION (AMAT)*X = A WHERE AMAT GIVEN IN A BAND
+! FORM. AMAT IS A COMPLEX MATRIX & A IS A COMPLEX VECTOR
+! [PARAMETERS]:
+! AMAT >> INPUT COMPLEX MATRIX IN A BANDED FORM 
+!         WITH THE ARRAY DIMENSION (1:ND, 1:NE)
+!         ND IS THE DIMENSION OF THE FIRST SLOT (CRSPND. TO THE MAIN D.)
+!         NE IS THE BANDWIDTH OF THE MATRIX
+! NC >> THE LOCATION OF THE CENTER OF THE MATRIX (= MAIN DIAGONAL PART)
+! A >> ON ENTRY, THE RHS VECTOR OF THE LINEAR EQUATION (AMAT)*X = A
+!      WITH THE ARRAY DIMENSION (1:NC)
+!      ON EXIT, GIVES THE SOLUTION OF THE EQUATION (AMAT)*X = A
+! [DEPENDENCY]:
+! 1. CLUBKSBB(~) @ MOD_BANDMAT
+! [UPDATES]:
+! ORIGINALL WRITTEN BY TATSUHITO MATSUSHIMA
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      COMPLEX(P8),DIMENSION(:,:),INTENT(INOUT) :: AMAT
+      INTEGER,INTENT(IN) :: NC
+      COMPLEX(P8),DIMENSION(:),INTENT(INOUT) :: A
+
+      COMPLEX(P8),DIMENSION(SIZE(A,1),1):: B
+
+      B(:,1)=A
+
+      CALL CLUBKSBB(RESHAPE(AMAT,(/SIZE(AMAT,1),SIZE(AMAT,2),1/)),NC, B)
+
+      A=B(:,1)
+
+      RETURN
+      END SUBROUTINE CLUBKSB1
+!=======================================================================
+      SUBROUTINE LUBKSB1R(AMAT,NC,A)
+!=======================================================================
+! [USAGE]: 
+! SOLVE THE LINEAR EQUATION (AMAT)*X = A WHERE AMAT GIVEN IN A BAND
+! FORM. AMAT IS A REAL MATRIX & A IS A REAL VECTOR
+! [PARAMETERS]:
+! AMAT >> INPUT REAL MATRIX IN A BANDED FORM 
+!         WITH THE ARRAY DIMENSION (1:ND, 1:NE)
+!         ND IS THE DIMENSION OF THE FIRST SLOT (CRSPND. TO THE MAIN D.)
+!         NE IS THE BANDWIDTH OF THE MATRIX
+! NC >> THE LOCATION OF THE CENTER OF THE MATRIX (= MAIN DIAGONAL PART)
+! A >> ON ENTRY, THE RHS VECTOR OF THE LINEAR EQUATION (AMAT)*X = A
+!      WITH THE ARRAY DIMENSION (1:NC)
+!      ON EXIT, GIVES THE SOLUTION OF THE EQUATION (AMAT)*X = A
+! [DEPENDENCY]:
+! 1. CLUBKSBB(~) @ MOD_BANDMAT
+! [UPDATES]:
+! ORIGINALL WRITTEN BY TATSUHITO MATSUSHIMA
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      REAL(P8),DIMENSION(:,:),INTENT(INOUT) :: AMAT
+      INTEGER,INTENT(IN) :: NC
+      REAL(P8),DIMENSION(:),INTENT(INOUT) :: A
+
+      REAL(P8),DIMENSION(SIZE(A,1),1):: B
+
+      B(:,1)=A
+
+      CALL LUBKSBBR(RESHAPE(AMAT,(/SIZE(AMAT,1),SIZE(AMAT,2),1/)),NC, B)
+
+      A=B(:,1)
+
+      RETURN
+      END SUBROUTINE LUBKSB1R
+!=======================================================================
+      SUBROUTINE CLUBKSB1R(AMAT,NC,A)
+!=======================================================================
+! [USAGE]: 
+! SOLVE THE LINEAR EQUATION (AMAT)*X = A WHERE AMAT GIVEN IN A BAND
+! FORM. AMAT IS A COMPLEX MATRIX & A IS A REAL VECTOR
+! [PARAMETERS]:
+! AMAT >> INPUT COMPLEX MATRIX IN A BANDED FORM 
+!         WITH THE ARRAY DIMENSION (1:ND, 1:NE)
+!         ND IS THE DIMENSION OF THE FIRST SLOT (CRSPND. TO THE MAIN D.)
+!         NE IS THE BANDWIDTH OF THE MATRIX
+! NC >> THE LOCATION OF THE CENTER OF THE MATRIX (= MAIN DIAGONAL PART)
+! A >> ON ENTRY, THE RHS VECTOR OF THE LINEAR EQUATION (AMAT)*X = A
+!      WITH THE ARRAY DIMENSION (1:NC)
+!      ON EXIT, GIVES THE SOLUTION OF THE EQUATION (AMAT)*X = A
+! [DEPENDENCY]:
+! 1. CLUBKSBB(~) @ MOD_BANDMAT
+! [UPDATES]:
+! ORIGINALL WRITTEN BY TATSUHITO MATSUSHIMA
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      COMPLEX(P8),DIMENSION(:,:),INTENT(INOUT) :: AMAT
+      INTEGER,INTENT(IN) :: NC
+      REAL(P8),DIMENSION(:),INTENT(INOUT) :: A
+
+      REAL(P8),DIMENSION(SIZE(A,1),1):: B
+
+      B(:,1)=A
+
+      CALL CLUBKSBBR(RESHAPE(AMAT,(/SIZE(AMAT,1),SIZE(AMAT,2),1/)),NC, B)
+
+      A=B(:,1)
+
+      RETURN
+      END SUBROUTINE CLUBKSB1R
+!=======================================================================
+      SUBROUTINE BANDAUX(NRCHOP,NTCHOP)
+!=======================================================================
+! [USAGE]: 
+! CREATE AN AUXILIARY ARRAY TO SOLVE THE LINEAR EQUATION AMAT*X = B
+! WHERE AMAT IS GIVEN IN A BAND FORM.
+! [PARAMETERS]:
+! NRCHOP >> EQUAL TO MSIZE(1:K), THE SIZE OF THE EQUATION TO BE SOLVED
+!           CORRESPONDS TO NRCHOP IN MOD_SCALAR3. IN DECREASE ORDER.
+! NTCHOP >> BASED ON NRCHOP, SET THE CHOP LOCATION IN THETA DIRECTION
+! [UPDATES]:
+! ORIGINALLY WRITTEN BY TATSUHITO MATSUSHIMA
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      INTEGER,DIMENSION(:),INTENT(IN) :: NRCHOP
+      INTEGER,DIMENSION(:),INTENT(INOUT) :: NTCHOP
+
+      INTEGER :: NR,NT,I
+
+      NT = SIZE(NRCHOP)
+      NR = SIZE(NTCHOP)
+      IF(MAXVAL(NRCHOP(2:NT)-NRCHOP(1:NT-1)) > 0) THEN
+        WRITE(*,*) 'NTSET: NRCHOP CANNOT INCREASE.'
+        WRITE(*,*) 'NRCHOP:'
+        WRITE(*,*)  NRCHOP
+        STOP
+      ENDIF
+
+      NTCHOP(NRCHOP(1):NR) = 0
+
+      DO I=1,NT-1
+        NTCHOP(NRCHOP(I+1):NRCHOP(I)) = I
+      ENDDO
+
+      NTCHOP(1:NRCHOP(NT)) = NT
+
+      RETURN
+      END SUBROUTINE BANDAUX
+!=======================================================================
+!============================ FUNCTIONS ================================
+!=======================================================================
+      FUNCTION MR_BAN_MUL(MAT,BAND,NC)
+!=======================================================================
+! [USAGE]:
+! MATRIX MULTIPLICATION OF A REGULAR MATRIX MAT AND A BAND FORM MATRIX
+! BAND, OUTPUTTING A REGULAR MATRIX FORM 
+! [INPUTS]:
+! MAT >> A REAL REGULAR MATRIX 
+! BAND >> A REAL BAND MATRIX
+! NC >> THE LOCATION OF THE CENTER OF BAND (= MAIN DIAGONAL PART)
+! [OUTPUTS]:
+! MR_BAN_MUL >> RESULT OF MAT * BAND IN A REGULAR FORM
+! [DEPENDENCIES]:
+! VR_BAN_MUL(~) @ MOD_BANDMAT
+! [UPDATES]:
+! ORIGINALLY WRITTEN BY TATSUHITO MATSUSHIMA 
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      REAL(P8),DIMENSION(:,:):: MAT
+      REAL(P8),DIMENSION(:,:):: BAND
+      INTEGER,INTENT(IN):: NC
+      REAL(P8),DIMENSION(SIZE(MAT,1),SIZE(MAT,2)):: MR_BAN_MUL
+
+      INTEGER :: I
+
+      DO I=1,SIZE(MAT,1)
+        MR_BAN_MUL(I,:) = VR_BAN_MUL(MAT(I,:),BAND,NC)
+      ENDDO
+
+      RETURN
+      END FUNCTION MR_BAN_MUL
+!=======================================================================
+      FUNCTION MC_BAN_MUL(MAT,BAND,NC)
+!=======================================================================
+! [USAGE]:
+! MATRIX MULTIPLICATION OF A REGULAR MATRIX MAT AND A BAND FORM MATRIX
+! BAND, OUTPUTTING A REGULAR MATRIX FORM 
+! [INPUTS]:
+! MAT >> A COMPLEX REGULAR MATRIX 
+! BAND >> A REAL BAND MATRIX
+! NC >> THE LOCATION OF THE CENTER OF BAND (= MAIN DIAGONAL PART)
+! [OUTPUTS]:
+! MC_BAN_MUL >> RESULT OF MAT * BAND IN A REGULAR FORM
+! [DEPENDENCIES]:
+! VC_BAN_MUL(~) @ MOD_BANDMAT
+! [UPDATES]:
+! ORIGINALLY WRITTEN BY TATSUHITO MATSUSHIMA 
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      COMPLEX(P8),DIMENSION(:,:):: MAT
+      REAL(P8),DIMENSION(:,:):: BAND
+      INTEGER,INTENT(IN):: NC
+      COMPLEX(P8),DIMENSION(SIZE(MAT,1),SIZE(MAT,2)):: MC_BAN_MUL
+
+      INTEGER :: I
+
+      DO I=1,SIZE(MAT,1)
+        MC_BAN_MUL(I,:) = VC_BAN_MUL(MAT(I,:),BAND,NC)
+      ENDDO
+
+      RETURN
+      END FUNCTION MC_BAN_MUL
+!=======================================================================
+      FUNCTION VR_BAN_MUL(VEC,A,NC)
+!=======================================================================
+! [USAGE]:
+! MATRIX MULTIPLICATION OF A ROW VECTOR VEC AND A BAND FORM MATRIX
+! BAND
+! [INPUTS]:
+! VEC >> A REAL VECTOR 
+! A >> A REAL BAND MATRIX
+! NC >> THE LOCATION OF THE CENTER OF BAND (= MAIN DIAGONAL PART)
+! [OUTPUTS]:
+! VR_BAN_MUL >> RESULT OF VEC * A IN A REGULAR FORM
+! [UPDATES]:
+! ORIGINALLY WRITTEN BY TATSUHITO MATSUSHIMA 
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      REAL(P8),DIMENSION(:),INTENT(IN) :: VEC
+      REAL(P8),DIMENSION(:,:),INTENT(IN) :: A
+      INTEGER,INTENT(IN) :: NC
+      REAL(P8),DIMENSION(SIZE(VEC)) :: VR_BAN_MUL
+
+      INTEGER :: I,IS,C0,C1,B0,B1,N
+
+      N=SIZE(VEC)
+
+      IF(N.GT.SIZE(A,1)) THEN
+        WRITE(*,*) 'VR_BAN_MUL:SIZEOF BANDMAT SMALL COMPARED TO VEC'
+        STOP
+      ENDIF
+
+      VR_BAN_MUL=0
+
+      DO I=1,SIZE(A,2) 
+        IS = I-NC
+        C0 = MAX(1,1-IS)
+        C1 = MIN(N,N-IS)
+        B0 = MAX(1,1+IS)
+        B1 = MIN(N,N+IS)
+        VR_BAN_MUL(B0:B1)=VR_BAN_MUL(B0:B1)+A(C0:C1,I)*VEC(C0:C1)
+      ENDDO
+
+      RETURN
+      END FUNCTION VR_BAN_MUL
+!=======================================================================
+      FUNCTION VC_BAN_MUL(VEC,A,NC)
+!=======================================================================
+! [USAGE]:
+! MATRIX MULTIPLICATION OF A ROW VECTOR VEC AND A BAND FORM MATRIX
+! BAND
+! [INPUTS]:
+! VEC >> A COMPLEX VECTOR 
+! A >> A REAL BAND MATRIX
+! NC >> THE LOCATION OF THE CENTER OF BAND (= MAIN DIAGONAL PART)
+! [OUTPUTS]:
+! VC_BAN_MUL >> RESULT OF VEC * A IN A REGULAR FORM
+! [UPDATES]:
+! ORIGINALLY WRITTEN BY TATSUHITO MATSUSHIMA 
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      COMPLEX(P8),DIMENSION(:),INTENT(IN) :: VEC
+      REAL(P8),DIMENSION(:,:),INTENT(IN) :: A
+      INTEGER,INTENT(IN) :: NC
+      COMPLEX(P8),DIMENSION(SIZE(VEC)) :: VC_BAN_MUL
+      INTEGER :: I,IS,C0,C1,B0,B1,N
+
+      N=SIZE(VEC)
+
+      IF(N.GT.SIZE(A,1)) THEN
+        WRITE(*,*) 'VC_BAN_MUL:SIZEOF BANDMAT SMALL COMPARED TO VEC'
+        STOP
+      ENDIF
+
+      VC_BAN_MUL=0
+
+      DO I=1,SIZE(A,2) 
+        IS = I-NC
+        C0 = MAX(1,1-IS)
+        C1 = MIN(N,N-IS)
+        B0 = MAX(1,1+IS)
+        B1 = MIN(N,N+IS)
+        VC_BAN_MUL(B0:B1)=VC_BAN_MUL(B0:B1)+A(C0:C1,I)*VEC(C0:C1)
+      ENDDO
+
+      RETURN
+      END FUNCTION VC_BAN_MUL
+!=======================================================================
+      FUNCTION BANMULCM(A,NC,X)
+!=======================================================================
+! [USAGE]:
+! MATRIX MULTIPLICATION OF A BAND FORM MATRIX A AND A REGULAR MATRIX 
+! X, OUTPUTTING A REGULAR MATRIX FORM 
+! [INPUTS]:
+! A >> A REAL BAND MATRIX
+! NC >> THE LOCATION OF THE CENTER OF BAND (= MAIN DIAGONAL PART)
+! X >> A COMPLEX REGULAR MATRIX 
+! [OUTPUTS]:
+! BANMULCM >> RESULT OF A * X IN A REGULAR FORM
+! [DEPENDENCIES]:
+! BANMULC(~) @ MOD_BANDMAT
+! [UPDATES]:
+! ORIGINALLY WRITTEN BY TATSUHITO MATSUSHIMA 
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      REAL(P8),DIMENSION(:,:) :: A
+      INTEGER :: NC
+      COMPLEX(P8),DIMENSION(:,:) :: X
+      COMPLEX(P8),DIMENSION(SIZE(X,1),SIZE(X,2)) :: BANMULCM
+
+      INTEGER :: K
+
+      DO K=1,SIZE(X,2)
+        BANMULCM(:,K) = BANMULC(A,NC,X(:,K))
+      ENDDO
+
+      RETURN
+      END FUNCTION BANMULCM
+!=======================================================================
+      FUNCTION CBANMULCM(A,NC,X)
+!=======================================================================
+! [USAGE]:
+! MATRIX MULTIPLICATION OF A BAND FORM MATRIX A AND A REGULAR MATRIX 
+! X, OUTPUTTING A REGULAR MATRIX FORM 
+! [INPUTS]:
+! A >> A COMPLEX BAND MATRIX
+! NC >> THE LOCATION OF THE CENTER OF BAND (= MAIN DIAGONAL PART)
+! X >> A COMPLEX REGULAR MATRIX 
+! [OUTPUTS]:
+! CBANMULCM >> RESULT OF A * X IN A REGULAR FORM
+! [DEPENDENCIES]:
+! CBANMULC(~) @ MOD_BANDMAT
+! [UPDATES]:
+! ORIGINALLY WRITTEN BY TATSUHITO MATSUSHIMA 
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      COMPLEX(P8),DIMENSION(:,:) :: A
+      INTEGER :: NC
+      COMPLEX(P8),DIMENSION(:,:) :: X
+      COMPLEX(P8),DIMENSION(SIZE(X,1),SIZE(X,2)) :: CBANMULCM
+
+      INTEGER :: K
+
+      DO K=1,SIZE(X,2)
+        CBANMULCM(:,K) = CBANMULC(A,NC,X(:,K))
+      ENDDO
+
+      RETURN
+      END FUNCTION CBANMULCM
+!=======================================================================
+      FUNCTION BANMULRM(A,NC,X)
+!=======================================================================
+! [USAGE]:
+! MATRIX MULTIPLICATION OF A BAND FORM MATRIX A AND A REGULAR MATRIX 
+! X, OUTPUTTING A REGULAR MATRIX FORM 
+! [INPUTS]:
+! A >> A REAL BAND MATRIX
+! NC >> THE LOCATION OF THE CENTER OF BAND (= MAIN DIAGONAL PART)
+! X >> A REAL REGULAR MATRIX 
+! [OUTPUTS]:
+! BANMULRM >> RESULT OF A * X IN A REGULAR FORM
+! [DEPENDENCIES]:
+! BANMULR(~) @ MOD_BANDMAT
+! [UPDATES]:
+! ORIGINALLY WRITTEN BY TATSUHITO MATSUSHIMA 
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      REAL(P8),DIMENSION(:,:) :: A
+      INTEGER :: NC
+      REAL(P8),DIMENSION(:,:) :: X
+      REAL(P8),DIMENSION(SIZE(X,1),SIZE(X,2)) :: BANMULRM
+
+      INTEGER :: K
+
+      DO K=1,SIZE(X,2)
+        BANMULRM(:,K) = BANMULR(A,NC,X(:,K))
+      ENDDO
+
+      RETURN
+      END FUNCTION BANMULRM
+!=======================================================================
+      FUNCTION CBANMULRM(A,NC,X)
+!=======================================================================
+! [USAGE]:
+! MATRIX MULTIPLICATION OF A BAND FORM MATRIX A AND A REGULAR MATRIX 
+! X, OUTPUTTING A REGULAR MATRIX FORM 
+! [INPUTS]:
+! A >> A COMPLEX BAND MATRIX
+! NC >> THE LOCATION OF THE CENTER OF BAND (= MAIN DIAGONAL PART)
+! X >> A REAL REGULAR MATRIX 
+! [OUTPUTS]:
+! CBANMULRM >> RESULT OF A * X IN A REGULAR FORM
+! [DEPENDENCIES]:
+! CBANMULR(~) @ MOD_BANDMAT
+! [UPDATES]:
+! ORIGINALLY WRITTEN BY TATSUHITO MATSUSHIMA 
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      COMPLEX(P8),DIMENSION(:,:) :: A
+      INTEGER :: NC
+      REAL(P8),DIMENSION(:,:) :: X
+      REAL(P8),DIMENSION(SIZE(X,1),SIZE(X,2)) :: CBANMULRM
+
+      INTEGER :: K
+
+      DO K=1,SIZE(X,2)
+        CBANMULRM(:,K) = CBANMULR(A,NC,X(:,K))
+      ENDDO
+
+      RETURN
+      END FUNCTION CBANMULRM
+!=======================================================================
+      FUNCTION BANMULR(BAND,NC,X)
+!=======================================================================
+! [USAGE]:
+! MATRIX MULTIPLICATION OF A BAND FORM MATRIX BAND AND A REGULAR VECTOR 
+! X, OUTPUTTING A REGULAR MATRIX FORM 
+! [INPUTS]:
+! BAND >> A REAL BAND MATRIX
+! NC >> THE LOCATION OF THE CENTER OF BAND (= MAIN DIAGONAL PART)
+! X >> A REAL REGULAR VECTOR
+! [OUTPUTS]:
+! BANMULR >> RESULT OF BAND * X IN A REGULAR FORM
+! [UPDATES]:
+! ORIGINALLY WRITTEN BY TATSUHITO MATSUSHIMA 
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      REAL(P8),DIMENSION(:,:) :: BAND
+      INTEGER :: NC
+      REAL(P8),DIMENSION(:) :: X
+      REAL(P8),DIMENSION(SIZE(X)) :: BANMULR
+
+      INTEGER :: I,IS,C0,C1,B0,B1,N
+
+      N=SIZE(X)
+
+      IF(N.GT.SIZE(BAND,1)) THEN
+        WRITE(*,*) 'BANMULR:SIZEOF BANDMAT SMALL COMPARED TO X'
+        STOP
+      ENDIF
+
+      BANMULR = 0.D0
+
+      DO I=1,SIZE(BAND,2) 
+        IS = I-NC
+        C0 = MAX(1,1-IS)
+        C1 = MIN(N,N-IS)
+        B0 = MAX(1,1+IS)
+        B1 = MIN(N,N+IS)
+        BANMULR(C0:C1)=BANMULR(C0:C1)+BAND(C0:C1,I)*X(B0:B1)
+      ENDDO
+
+      RETURN
+      END FUNCTION BANMULR
+!=======================================================================
+      FUNCTION CBANMULR(BAND,NC,X)
+!=======================================================================
+! [USAGE]:
+! MATRIX MULTIPLICATION OF A BAND FORM MATRIX BAND AND A REGULAR VECTOR 
+! X, OUTPUTTING A REGULAR MATRIX FORM 
+! [INPUTS]:
+! BAND >> A COMPLEX BAND MATRIX
+! NC >> THE LOCATION OF THE CENTER OF BAND (= MAIN DIAGONAL PART)
+! X >> A REAL REGULAR VECTOR
+! [OUTPUTS]:
+! CBANMULR >> RESULT OF BAND * X IN A REGULAR FORM
+! [UPDATES]:
+! ORIGINALLY WRITTEN BY TATSUHITO MATSUSHIMA 
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      COMPLEX(P8),DIMENSION(:,:),INTENT(IN) :: BAND
+      INTEGER :: NC
+      REAL(P8),DIMENSION(:) :: X
+      REAL(P8),DIMENSION(SIZE(X)) :: CBANMULR
+
+      INTEGER :: I,IS,C0,C1,B0,B1,N
+
+      N=SIZE(X)
+
+      IF(N.GT.SIZE(BAND,1)) THEN
+        WRITE(*,*) 'CBANMULR:SIZEOF BANDMAT SMALL COMPARED TO X'
+        STOP
+      ENDIF
+
+      CBANMULR = 0.D0
+
+      DO I=1,SIZE(BAND,2) 
+        IS = I-NC
+        C0 = MAX(1,1-IS)
+        C1 = MIN(N,N-IS)
+        B0 = MAX(1,1+IS)
+        B1 = MIN(N,N+IS)
+        CBANMULR(C0:C1)=CBANMULR(C0:C1)+BAND(C0:C1,I)*X(B0:B1)
+      ENDDO
+
+      RETURN
+      END FUNCTION CBANMULR
+!=======================================================================
+      FUNCTION BANMULC(A,NC,X)
+!=======================================================================
+! [USAGE]:
+! MATRIX MULTIPLICATION OF A BAND FORM MATRIX A AND A REGULAR VECTOR 
+! X, OUTPUTTING A REGULAR MATRIX FORM 
+! [INPUTS]:
+! A >> A REAL BAND MATRIX
+! NC >> THE LOCATION OF THE CENTER OF BAND (= MAIN DIAGONAL PART)
+! X >> A COMPLEX REGULAR VECTOR
+! [OUTPUTS]:
+! BANMULC >> RESULT OF BAND * X IN A REGULAR FORM
+! [UPDATES]:
+! ORIGINALLY WRITTEN BY TATSUHITO MATSUSHIMA 
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      REAL(P8),DIMENSION(:,:) :: A
+      INTEGER :: NC
+      COMPLEX(P8),DIMENSION(:) :: X
+      COMPLEX(P8),DIMENSION(SIZE(X)) :: BANMULC
+
+      INTEGER :: I,IS,C0,C1,B0,B1,N
+
+      N=SIZE(X)
+
+      IF(N.GT.SIZE(A,1)) THEN
+        WRITE(*,*) 'BANMULC:SIZEOF BANDMAT SMALL COMPARED TO X'
+        STOP
+      ENDIF
+
+      BANMULC=A(1:N,NC)*X
+
+      DO I=1,SIZE(A,2) 
+        IF(I.EQ.NC) CYCLE
+        IS = I-NC
+        C0 = MAX(1,1-IS)
+        C1 = MIN(N,N-IS)
+        B0 = MAX(1,1+IS)
+        B1 = MIN(N,N+IS)
+        BANMULC(C0:C1)=BANMULC(C0:C1)+A(C0:C1,I)*X(B0:B1)
+      ENDDO
+
+      RETURN
+      END FUNCTION BANMULC
+!=======================================================================
+      FUNCTION CBANMULC(A,NC,X)
+!=======================================================================
+! [USAGE]:
+! MATRIX MULTIPLICATION OF A BAND FORM MATRIX A AND A REGULAR VECTOR 
+! X, OUTPUTTING A REGULAR MATRIX FORM 
+! [INPUTS]:
+! A >> A COMPLEX BAND MATRIX
+! NC >> THE LOCATION OF THE CENTER OF BAND (= MAIN DIAGONAL PART)
+! X >> A COMPLEX REGULAR VECTOR
+! [OUTPUTS]:
+! BANMULC >> RESULT OF BAND * X IN A REGULAR FORM
+! [UPDATES]:
+! ORIGINALLY WRITTEN BY TATSUHITO MATSUSHIMA 
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      COMPLEX(P8),DIMENSION(:,:) :: A
+      INTEGER :: NC
+      COMPLEX(P8),DIMENSION(:) :: X
+      COMPLEX(P8),DIMENSION(SIZE(X)) :: CBANMULC
+
+      INTEGER :: I,IS,C0,C1,B0,B1,N
+
+      N=SIZE(X)
+
+      IF(N.GT.SIZE(A,1)) THEN
+        WRITE(*,*) 'CBANMULC:SIZEOF BANDMAT SMALL COMPARED TO X'
+        STOP
+      ENDIF
+
+      CBANMULC=0
+
+      DO I=1,SIZE(A,2) 
+        IS = I-NC
+        C0 = MAX(1,1-IS)
+        C1 = MIN(N,N-IS)
+        B0 = MAX(1,1+IS)
+        B1 = MIN(N,N+IS)
+        CBANMULC(C0:C1)=CBANMULC(C0:C1)+A(C0:C1,I)*X(B0:B1)
+      ENDDO
+
+      RETURN
+      END FUNCTION CBANMULC
+!=======================================================================
+      FUNCTION BANBANMUL(A,AC,B,BC,CC)
+!=======================================================================
+! [USAGE]:
+! MATRIX MULTIPLICATION OF A BAND FORM MATRIX A AND ANOTHER BAND FORM
+! MATRIX B, OUTPUTTING A BAND MATRIX FORM 
+! [INPUTS]:
+! A >> FIRST REAL BAND MATRIX
+! AC >> THE LOCATION OF THE CENTER OF BAND (= MAIN DIAGONAL PART) OF A
+! B >> SECOND REAL BAND MATRIX
+! BC >> THE LOCATION OF THE CENTER OF BAND (= MAIN DIAGONAL PART) OF A
+! CC >> (OPTIONAL) IF EXISTS, ASSIGN AC+BC-1 ON EXIT (= SIZE OF OUTPUT)
+! [OUTPUTS]:
+! BANBANMUL >> RESULT OF A * B IN A BAND FORM
+! [UPDATES]:
+! ORIGINALLY WRITTEN BY TATSUHITO MATSUSHIMA 
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+!     MULTIPLY BANDED-BANDED MATRIX
+!=======================================================================
+      IMPLICIT NONE
+      REAL(P8),DIMENSION(:,:),INTENT(IN) :: A
+      REAL(P8),DIMENSION(:,:),INTENT(IN) :: B
+      INTEGER,INTENT(IN) :: AC,BC
+      INTEGER,INTENT(OUT),OPTIONAL :: CC
+
+      REAL(P8),DIMENSION(SIZE(A,1),SIZE(A,2)+SIZE(B,2)-1) :: BANBANMUL
+      INTEGER :: I,J,K,AW,BW,CW,A0,A1,B0,B1,C0,C1,AS,BS,NN,II
+
+      AW=SIZE(A,2)
+      BW=SIZE(B,2)
+      NN=SIZE(A,1)
+      CW=AW+BW-1
+
+      IF(PRESENT(CC)) THEN
+        CC=AC+BC-1
+      ENDIF
+
+      IF(NN.NE.SIZE(B,1)) THEN
+        WRITE(*,*) 'BANBANMUL: SIZE MISMATCH.'
+        WRITE(*,*) 'SIZEOF A=',SIZE(A,1)
+        WRITE(*,*) 'SIZEOF B=',SIZE(B,1)
+        STOP
+      ENDIF
+
+      BANBANMUL = 0.D0
+
+      DO I=1,AW
+        AS = I-AC
+        A0 = MAX(1,1-AS)
+        A1 = MIN(NN,NN-AS)
+        DO J=1,BW
+          K = I+J-1
+          BS = J-BC
+          B0 = MAX(1,1-BS)
+          B1 = MIN(NN,NN-BS)
+          C0 = MAX(A0,B0-AS)
+          C1 = MIN(A1,B1-AS)
+          BANBANMUL(C0:C1,K)= BANBANMUL(C0:C1,K)+A(C0:C1,I)*&
+                              B(C0+AS:C1+AS,J)
+        ENDDO
+      ENDDO
+
+      RETURN
+      END FUNCTION BANBANMUL
+!=======================================================================
+      FUNCTION MTRXR(A,NC)
+!=======================================================================
+! [USAGE]:
+! CONVERTS A BAND FORM MATRIX A TO A REGULAR MATRIX MTRXR
+! [INPUTS]:
+! A >> A REAL BAND FORM MATRIX TO BE CONVERTED
+! NC >> THE LOCATION OF THE CENTER OF BAND (= MAIN DIAGONAL PART)
+! [OUTPUTS]:
+! MTRXR >> A REGULAR FORM MATRIX CORRESPONDING TO THE INPUT BAND MATRIX
+! [UPDATES]:
+! ORIGINALLY WRITTEN BY TATSUHITO MATSUSHIMA 
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      REAL(P8),DIMENSION(:,:) :: A
+      INTEGER :: NC
+      REAL(P8),DIMENSION(SIZE(A,1),SIZE(A,1)) :: MTRXR
+
+      INTEGER :: I,J,N,JJ
+
+      MTRXR = 0
+      N = SIZE(A,1)
+
+      DO J=1,SIZE(A,2)
+        DO I=1,N
+          JJ = J+I-NC
+          IF(JJ.GE.1 .AND. JJ.LE.N) MTRXR(I,JJ) = A(I,J)
+        ENDDO
+      ENDDO
+
+      RETURN
+      END FUNCTION MTRXR
+!=======================================================================
+      FUNCTION MTRXC(A,NC)
+!=======================================================================
+! [USAGE]:
+! CONVERTS A BAND FORM MATRIX A TO A REGULAR MATRIX MTRXR
+! [INPUTS]:
+! A >> A COMPLEX BAND FORM MATRIX TO BE CONVERTED
+! NC >> THE LOCATION OF THE CENTER OF BAND (= MAIN DIAGONAL PART)
+! [OUTPUTS]:
+! MTRXC >> A REGULAR FORM MATRIX CORRESPONDING TO THE INPUT BAND MATRIX
+! [UPDATES]:
+! ORIGINALLY WRITTEN BY TATSUHITO MATSUSHIMA 
+! RE-CODED BY SANGJOON LEE @ NOV 17 2020
+!=======================================================================
+      IMPLICIT NONE
+      COMPLEX(P8),DIMENSION(:,:) :: A
+      INTEGER :: NC
+      COMPLEX(P8),DIMENSION(SIZE(A,1),SIZE(A,1)) :: MTRXC
+
+      INTEGER :: I,J,N,JJ
+
+      MTRXC = 0
+      N = SIZE(A,1)
+
+      DO J=1,SIZE(A,2)
+        DO I=1,N
+          JJ = J+I-NC
+          IF(JJ.GE.1 .AND. JJ.LE.N) MTRXC(I,JJ) = A(I,J)
+        ENDDO
+      ENDDO
+
+      RETURN
+      END FUNCTION MTRXC
+!=======================================================================
+END MODULE MOD_BANDMAT
+!=======================================================================
+!                      ORIGINAL COMMENTS (BY TATSU)
+!=======================================================================
+!  SUBROUTINES:
+!   LUB(AMAT,NC) LU-DECOMPOSES AMAT(1:NI,1:NB) WHERE AMAT IS REAL
+!                TWO DIMENSIONAL BANDED ARRAY. NO PIVOTING IS PERFORMED.
+!                NI IS THE SIZE OF THE MATRIX. THE SIZE IS ASSUMED TO BE
+!                NI*NI. NB IS THE BANDWIDTH. AMAT(I,:) CONTAINS THE I-TH
+!                ROW OF THE MATRIX.  NC IS THE LOCATION OF 
+!                THE CENTER OF THE MATRIX SO THAT AMAT(:,1:NC-1) IS THE 
+!                SUBDIAGONAL PART AND AMAT(:,NC+1:NB) IS THE 
+!                SUPERDIAGONAL PART OF AMAT. THE RESULT RETURNS IN AMAT. 
+!
+!   SOLVEB(AMAT,NC,B) SOLVES LINEAR EQUATION (AMAT)X = B.  AMAT IS THE 
+!                RESULT OF LUB. B(:) IS REAL OR COMPLEX.
+!
+!   LUB(AMAT,NC) IF AMAT IS THREE DIMENSIONAL: AMAT(:,:,1:K), THE THIRD 
+!                ARGUMENT IS INTERPRETED AS MATRIX NUMBER SO THAT K 
+!                MATRICES ARE LU-DECOMPOSED AT ONCE. NC MUST BE THE SAME
+!                FOR ALL K MATRICES.
+!
+!   SOLVEB(AMAT,NC,B) WHERE AMAT IS THREE DIMENSIONAL AND B IS TWO 
+!                DIMENSIONAL: AMAT(:,:,1:K) AND B(:,1:K) SOLVES 
+!                K LINEAR EQUATIONS (AMAT)X = B.
+!
+!   LUB(AMAT,NC,MSIZE) LU-DECOMPOSES MULTIPLE MATRICES OF DIFFERENT 
+!                SIZES AT ONCE. MSIZE(I) SPECIFIES THE SIZE OF 
+!                AMAT(:,:,I). MSIZE(I) CANNOT INCREASE AS I BECOMES 
+!                LARGER. THIS MULTIPLE TREATMENT OF LUB AND SOLVEB 
+!                IS EFFICIENT IN VECTOR PROCESSORS.
+!
+!   SOLVEB(AMAT,NC,B,MSIZE) SOLVES K LINEAR EQUATIONS OF DIFFERENT 
+!                SIZES, WHERE AMAT(:,:,1:K), B(:,1:K).
+!                MSIZE(K) SPECIFIES THE SIZE OF K-TH MATRIX B(:,K).
+!
+!  FUNCTION:
+!   BANMUL(AMAT,NC,B) MULTIPLIES A BAND MATRIX [AMAT,NC] TO A MATRIX B.
+!                AMAT(:,:), B(:,:). AMAT IS REAL. B CAN BE B(:).
+!                B CAN BE REAL OR COMPLEX. THE SIZE AND TYPE OF THE 
+!                RESULTING MATRIX IS THE SAME AS THOSE OF B.
+!
+!   BANMUL(B,AMAT,NC) MULTIPLIES A MATRIX B TO A BAND MATRIX [AMAT,NC].
+!                AMAT(:,:), B(:,:). AMAT IS REAL.
+!                B CAN BE REAL OR COMPLEX. THE SIZE AND TYPE OF THE 
+!                RESULTING MATRIX IS THE SAME AS THOSE OF B.
+!
+!   BANMUL(AMAT,NA,BMAT,NB) 
+!   BANMUL(AMAT,NA,BMAT,NB,NC) 
+!                RETURNS A BANDED MATRIX [AMAT,NA]*[BMAT,NB]. THE BAND 
+!                WIDTH OF THE RESULTING MATRIX IS SIZE(A,2)+SIZE(B,2)-1.
+!                OPTIONAL OUTPUT NC RETURNS THE INDEX FOR THE DIAGONAL 
+!                OF THE RESULTING MATRIX: NC=NA+NB-1.
+!  
+!   MTRX(AMAT,NC) CONVERTS THE [AMAT,NC] TO A SQUARE MATRIX.
+!
+!=======================================================================

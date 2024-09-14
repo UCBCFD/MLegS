@@ -17,7 +17,7 @@ EXTLIBS = -llapack -lblas -lfm -lffte -ldecomp2d
 # Source and build directories
 MODULE_DIR = src/modules
 SUBMODULE_DIR = src/submodules
-MAIN_DIR = test
+MAIN_DIR = src/apps
 BUILD_DIR = build
 MOD_DIR = $(BUILD_DIR)/mod
 OBJ_DIR = $(BUILD_DIR)/obj
