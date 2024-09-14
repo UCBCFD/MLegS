@@ -1,0 +1,133 @@
+PROGRAM EVP_READ_M_0919
+!=======================================================================
+! [USAGE]:  
+! READ EIGENVALUES FOR DIFFERENT SETS OF {M}
+!
+! [UPDATES]:
+! 9/19/2022
+!=======================================================================
+USE omp_lib
+USE MPI
+USE MOD_MISC
+USE MOD_BANDMAT
+USE MOD_EIG
+USE MOD_FD
+USE MOD_LIN_LEGENDRE
+USE MOD_SCALAR3
+USE MOD_FFT
+USE MOD_LAYOUT
+USE MOD_LEGOPS
+USE MOD_MARCH
+USE MOD_INIT
+USE MOD_EVP
+
+IMPLICIT NONE
+INTEGER     :: II,JJ,KK
+INTEGER     :: M_BAR
+REAL(P8),DIMENSION(:),ALLOCATABLE:: K_BAR_RANGE
+COMPLEX(P8),DIMENSION(:,:),ALLOCATABLE:: M_eig_M
+LOGICAL,DIMENSION(:,:),ALLOCATABLE:: M_res_M
+
+CALL MPI_INIT_THREAD(MPI_THREAD_SERIALIZED,MPI_THREAD_MODE,IERR)
+IF (MPI_THREAD_MODE.LT.MPI_THREAD_SERIALIZED) THEN
+    WRITE(*,*) 'The threading support is lesser than that demanded.'
+    CALL MPI_ABORT(MPI_COMM_WORLD,1,IERR)
+ENDIF
+
+CALL MPI_COMM_SIZE(MPI_COMM_WORLD, MPI_GLB_PROCS, IERR)
+CALL MPI_COMM_RANK(MPI_COMM_WORLD, MPI_GLB_RANK, IERR)
+IF (MPI_GLB_RANK.EQ.0) THEN
+    WRITE(*,*) 'PROGRAM STARTED'
+    CALL PRINT_REAL_TIME()   ! @ MOD_MISC
+ENDIF
+CALL MPI_Comm_split(MPI_COMM_WORLD, MPI_GLB_RANK, 0, newcomm, IERR) ! DIVIDE NR BY #OF MPI PROCS
+CALL READCOM('NOECHO')
+CALL READIN(5)
+
+! DO M_BAR = -1,1
+M_BAR = MPI_GLB_RANK - 1
+
+    CALL READ_MODE_M(M_BAR, K_BAR_RANGE, M_eig_M, M_res_M)
+
+    ! DEBUG:
+    ! IF (MPI_GLB_RANK.EQ.0) WRITE(*,*) K_BAR_RANGE
+    DO KK = 0,MPI_GLB_PROCS-1
+        IF (MPI_GLB_RANK .EQ. KK) THEN
+            ! check
+            DO JJ = 1,SIZE(K_BAR_RANGE)
+                WRITE(*,*) 'RANK#', MPI_GLB_RANK
+                WRITE(*,*) 'M_BAR = ', M_BAR
+                WRITE(*,*) 'K_BAR = ', K_BAR_RANGE(JJ)
+                DO II = 1,SIZE(M_eig_M,1)
+                    IF (M_res_M(II,JJ)) WRITE(*,*) II,M_eig_M(II,JJ)
+                ENDDO
+            ENDDO
+        ENDIF
+        CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+    ENDDO
+
+! ENDDO
+
+82 CONTINUE
+! DEALLOCATE
+DEALLOCATE(K_BAR_RANGE, M_eig_M, M_res_M)
+
+CALL MPI_FINALIZE(IERR)
+
+! ======================================================================
+
+CONTAINS
+! ======================================================================
+
+SUBROUTINE READ_MODE_M(M_READ, K_RANGE, EIG_MAT, RES_MAT)
+! ======================================================================
+
+! ======================================================================
+IMPLICIT NONE
+INTEGER:: M_READ, M_FILE
+COMPLEX(P8),DIMENSION(:,:),ALLOCATABLE:: EIG_MAT
+LOGICAL,DIMENSION(:,:),ALLOCATABLE:: RES_MAT
+
+INTEGER:: K_COUNT, EIG_SIZE
+REAL(P8):: K_START,K_END
+REAL(P8),DIMENSION(:),ALLOCATABLE:: K_RANGE
+
+CHARACTER(LEN=72):: FILENAME
+INTEGER:: STATUS
+
+! open file
+FILENAME = 'EIG_'//ITOA4(M_READ)//'.dat'
+OPEN(UNIT=7,FILE='./data/'//TRIM(FILENAME),STATUS='OLD',FORM='UNFORMATTED',ACTION='READ',IOSTAT=STATUS)
+IF (STATUS.NE.0) THEN
+    WRITE(*,*) 'READ_MODE_M: FAILED TO OPEN ',TRIM(FILENAME),' - RANK#',MPI_GLB_RANK
+    STOP
+ENDIF
+
+READ(7) M_FILE,K_START,K_END
+READ(7) EIG_SIZE,K_COUNT
+
+IF (M_FILE.NE.M_READ) THEN
+    WRITE(*,*) 'READ_MODE_M: M_READ = ',ITOA3(M_READ),' .NE. M_FILE = ',ITOA3(M_FILE),' - RANK#',ITOA3(MPI_GLB_RANK)
+    STOP
+ENDIF
+
+! obtain K_RANGE
+IF (ALLOCATED(K_RANGE)) DEALLOCATE(K_RANGE)
+ALLOCATE(K_RANGE(K_COUNT))
+CALL LINSPACE(K_START,K_END,K_RANGE)
+
+! read EIG_MAT and 
+IF (ALLOCATED(EIG_MAT)) DEALLOCATE(EIG_MAT)
+IF (ALLOCATED(RES_MAT)) DEALLOCATE(RES_MAT)
+ALLOCATE(EIG_MAT(EIG_SIZE,K_COUNT))
+ALLOCATE(RES_MAT(EIG_SIZE,K_COUNT))
+
+READ(7) EIG_MAT(:,:)
+READ(7) RES_MAT(:,:)
+CLOSE(7)
+
+END SUBROUTINE
+! ======================================================================
+
+END PROGRAM EVP_READ_M_0919
+!=======================================================================
