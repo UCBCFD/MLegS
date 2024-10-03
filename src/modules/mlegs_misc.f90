@@ -1,5 +1,5 @@
 module mlegs_misc
-  use mlegs_base
+  use mlegs_envir
   implicit none
   private
 
@@ -149,5 +149,16 @@ module mlegs_misc
     end subroutine
   end interface
   public :: mcat
+
+  !> I/O utilities
+  !> integer to string for print out
+  interface itoa
+    module function itoa(i) result(a)
+      implicit none
+      integer :: i
+      character(len=36) :: a
+    end function
+  end interface
+  public :: itoa
 
 end module

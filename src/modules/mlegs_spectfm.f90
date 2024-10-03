@@ -1,6 +1,6 @@
 module mlegs_spectfm
   use mlegs_base; use mlegs_genmat; use mlegs_bndmat
-  use mlegs_mpi
+  ! use mlegs_mpi
   implicit none
   private
 

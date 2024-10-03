@@ -1,5 +1,5 @@
 module mlegs_bndmat
-  use mlegs_base
+  use mlegs_envir
   implicit none
   private
 

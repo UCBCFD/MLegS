@@ -1,0 +1,6 @@
+{
+    "cmake.ignoreCMakeListsMissing": true,
+    "fortran.preferredCase": "uppercase",
+    "fortran-ls.variableHover": true,
+    "fortran-ls.lowercaseIntrinsics": true
+}

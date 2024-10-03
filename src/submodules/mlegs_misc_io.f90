@@ -276,6 +276,11 @@ contains
     call mcatc(a, width_, precision_)
   end procedure
 
+  module procedure itoa
+    write(a, '(i36)') i
+    a = trim(adjustl(a))
+  end procedure
+
 ! ======================================================================================================== !
 ! VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV INTERNAL (PRIVATE) SUBROUTINES/FUNCTIONS VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV !
 ! ======================================================================================================== !
@@ -552,16 +557,5 @@ contains
   104 format('axis 2 (data): ', I6, '   ', 'axis 2 (array): ', I6)
   105 format('axis 3 (data): ', I6, '   ', 'axis 3 (array): ', I6)
   end subroutine
-
-! ======================================================================================================== !
-
-  function itoa(i) result(a)
-    implicit none
-    integer(i4) :: i
-    character(len=36) :: a
-
-    write(a, '(i36)') i
-    a = trim(adjustl(a))
-  end function
 
 end submodule
