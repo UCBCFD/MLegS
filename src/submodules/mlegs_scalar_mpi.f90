@@ -2,10 +2,9 @@ submodule (mlegs_scalar) mlegs_scalar_mpi
   implicit none
 
 contains
-
     !> initialise a scalar
     module procedure scalar_initialise
-        integer :: i, comm_grp_idx, nproc_i, rank_i, loc_sz_i, loc_st_i
+        integer(i4) :: i, comm_grp_idx, nproc_i, rank_i, loc_sz_i, loc_st_i
 
         this%glb_sz = glb_sz
 
@@ -14,18 +13,21 @@ contains
             ! 1D: r
             case (1)
                 if ((glb_sz(2).ne.1).or.(glb_sz(3).ne.1)) then
-                    if (rank_glb.eq.0) write(*,*) "ERROR: scalar_initialise is expecting 1D data"
+                    if (rank_glb.eq.0) write(*,*) &
+                    "ERROR: scalar_initialise is expecting 1D data"
                     call mpi_abort(comm_glb,error_flag_comm,mpi_ierr)
                 endif
-                if ((is_warning).and.(rank_glb.eq.0)) write(*,*) "WARNING: scalar_initialise detects 1D (radial) configuration"
+                if ((is_warning).and.(rank_glb.eq.0)) write(*,*) &
+                "WARNING: scalar_initialise detects 1D (radial) configuration"
                 this%axis_comm = 0
                 this%axis_comm(1) = axis_comm(1)
             ! 2D: r-theta or r-z
             case (2)
                 ! find the dimension that is not present: theta or z
-                i = findloc(glb_sz,1)
+                i = findloc(glb_sz,1,dim=1)
                 if (i.eq.1) then
-                    if (rank_glb.eq.0) write(*,*) "ERROR: scalar_initialise does not support 2D (theta-z) configuration"
+                    if (rank_glb.eq.0) write(*,*) &
+                    "ERROR: scalar_initialise does not support 2D (theta-z) configuration"
                     call mpi_abort(comm_glb,error_flag_comm,mpi_ierr)
                 endif
                 ! set axis_comm
@@ -47,7 +49,8 @@ contains
             !> dimension that gets distributed
             else
                 if (comm_grp_idx.gt.count(comm_grps.ne.0)) then
-                    if (rank_glb.eq.0) write(*,*) "ERROR: scalar_initialise does not have enough communicator groups available"
+                    if (rank_glb.eq.0) write(*,*) &
+                    "ERROR: scalar_initialise does not have enough communicator groups available"
                     call mpi_abort(comm_glb,error_flag_comm,mpi_ierr)
                 endif
                 rank_i = rank_grps(comm_grp_idx)
@@ -71,7 +74,8 @@ contains
     !> deallocate a scalar
     module procedure scalar_dealloc
         if (.not.associated(this%e)) then
-            if ((is_warning).and.(rank_glb.eq.0)) write(*,*) "WARNING: scalar_dealloc tries to deallocate memory that has not been allocated"
+            if ((is_warning).and.(rank_glb.eq.0)) write(*,*) &
+            "WARNING: scalar_dealloc tries to deallocate memory that has not been allocated"
             return
         endif
         deallocate(this%e)
@@ -80,13 +84,14 @@ contains
 
     !> re-orient distributed data
     module procedure scalar_exchange !(this,axis_old,axis_new)
-        integer :: this_comm, loc_sz_new(3), i
+        integer(i4) :: this_comm, loc_sz_new(3), i
         integer, dimension(:), allocatable :: subarray_type_old, subarray_type_new
         complex(p8), dimension(:,:,:), target, allocatable :: e_new
 
         !> check whether the old dimension is distributed or not
         if (this%axis_comm(axis_old).ne.0) then
-            if (rank_glb.eq.0) write(*,*) "ERROR: scalar_exchange requires the data to be non-distributed along the old dimension: ",itoa(axis_old)
+            if (rank_glb.eq.0) write(*,*) &
+            "ERROR: scalar_exchange requires the data to be non-distributed along the old dimension: ",itoa(axis_old)
             call mpi_abort(comm_glb,error_flag_comm,mpi_ierr)
         endif
 
@@ -99,7 +104,7 @@ contains
 
         !> create after-swap new local size and data
         loc_sz_new = this%loc_sz
-        loc_sz_new(axis_new) = this%glb_sz(new)
+        loc_sz_new(axis_new) = this%glb_sz(axis_new)
         loc_sz_new(axis_old) = local_size(this%glb_sz(axis_old),this_comm)
         allocate(e_new(loc_sz_new(1),loc_sz_new(2),loc_sz_new(3)))
 
@@ -125,10 +130,10 @@ contains
 
     !> assemble distributed data into a single proc
     module procedure scalar_assemble
-        integer :: n1_glb, n2_glb, n3_glb, n1_loc, n2_loc, n3_loc
-        integer :: element_size, subcomm_l, subcomm_r
+        integer(i4) :: n1_glb, n2_glb, n3_glb, n1_loc, n2_loc, n3_loc
+        integer(i4) :: element_size, subcomm_l, subcomm_r
         integer(kind = MPI_ADDRESS_KIND) :: extend_size
-        integer :: subarray_type_temp, subarray_type, displacement_loc, recvcount_loc
+        integer(i4) :: subarray_type_temp, subarray_type, displacement_loc, recvcount_loc
         integer, dimension(:), allocatable :: displacement, recvcount
         complex(p8), dimension(:,:,:), allocatable :: local_array_temp, subglobal_array, global_array_temp
 
@@ -185,7 +190,7 @@ contains
         endif
 
         !> create elemental subarray of local array
-        call mpi_type_create_resized(subarray_type_temp, 0, extend_size, subarray_type, mpi_ierr)
+        call mpi_type_create_resized(subarray_type_temp, 0_mpi_address_kind, extend_size, subarray_type, mpi_ierr)
         call mpi_type_commit(subarray_type, mpi_ierr)
 
         !> in ea sub_comm_l, gather local array into subglobal array in subcomm_l's proc#0
@@ -231,10 +236,10 @@ contains
 
     !> disassemble data into distributed procs
     module procedure scalar_disassemble
-        integer :: n1_glb, n2_glb, n3_glb, n1_loc, n2_loc, n3_loc
-        integer :: element_size, subcomm_l, subcomm_r
-        integer(kind = MPI_ADDRESS_KIND) :: extend_size
-        integer :: subarray_type_temp, subarray_type, displacement_loc, recvcount_loc
+        integer(i4) :: n1_glb, n2_glb, n3_glb, n1_loc, n2_loc, n3_loc
+        integer(i4) :: element_size, subcomm_l, subcomm_r
+        integer(kind = mpi_address_kind) :: extend_size
+        integer(i4) :: subarray_type_temp, subarray_type, displacement_loc, recvcount_loc
         integer, dimension(:), allocatable :: displacement, recvcount
         complex(p8), dimension(:,:,:), allocatable :: local_array_temp, subglobal_array, global_array_temp
 
@@ -325,7 +330,7 @@ contains
         ENDIF
 
         !> create elemental subarray of local array
-        call mpi_type_create_resized(subarray_type_temp, 0, extend_size, subarray_type, mpi_ierr)
+        call mpi_type_create_resized(subarray_type_temp, 0_mpi_address_kind, extend_size, subarray_type, mpi_ierr)
         call mpi_type_commit(subarray_type, mpi_ierr)
 
         !> unpack subglobal array that is slab decomposed along the 3rd dim and stored in prod#0 of each subcomm_l
@@ -361,7 +366,7 @@ contains
 
     !> create subcommunicator groups
     module procedure subcomm_cart_2d
-        integer :: i
+        integer(i4) :: i
         integer, allocatable :: subcomms(:)
 
         call subcomm_cart(comm, 2, subcomms)
@@ -379,295 +384,293 @@ contains
 ! ======================================================================================================== !
 ! VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV INTERNAL (PRIVATE) SUBROUTINES/FUNCTIONS VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV !
 ! ======================================================================================================== !
-    subroutine DECOMPOSE(NSIZE,NPROCS,PROC_NUM,NSIZE_PROC,INDEX_PROC)
 ! ======================================================================
-! [USAGE]:
-! DECOMPOSE 1D DOMAIN INTO ALL PROCESSORS
-! [PARAMETERS]:
-! NSIZE >> TOT NUM OF ELEMENTS ALONG THAT DIMENSION 
-! NPROCS >> TOT NUM OF PROCS ALONG THAT DIMENSION
-! PROC_NUM >> RANK OF THAT PROCESSOR
-! NSIZE_PROC >> LOC NUM OF ELEMENTS ALONG THAT DIMENSION
-! INDEX_PROC >> START INDEX OF THAT PROCESSOR ALONG THAT DIMENSION
-! [NOTE]:
-! INDEX STARTS FROM 0
-! WRITTEN BY JINGE WANG @ SEP 29 2021
+    subroutine decompose(nsize,nprocs,proc_num,nsize_proc,index_proc)
 ! ======================================================================
-    INTEGER:: NSIZE, NPROCS, PROC_NUM, NSIZE_PROC, INDEX_PROC
-    INTEGER:: Q,R
-
-    Q = NSIZE/NPROCS
-    R = MOD(NSIZE,NPROCS)
-    IF (R.GT.PROC_NUM) THEN
-        NSIZE_PROC = Q+1
-        INDEX_PROC = NSIZE_PROC*PROC_NUM
-    ELSE
-        NSIZE_PROC = Q
-        INDEX_PROC = NSIZE_PROC*PROC_NUM + R
-    ENDIF
-
-    ! NSIZE_PROC = Q + (R.GT.PROC_NUM) ! DOESN'T WORK IN FORTRAN
-    ! INDEX_PROC = Q * PROC_NUM + MIN(R,PROC_NUM)
-
-    RETURN
-    end subroutine DECOMPOSE
+! [usage]:
+! decompose 1d domain into all processors
+! [parameters]:
+! nsize >> tot num of elements along that dimension 
+! nprocs >> tot num of procs along that dimension
+! proc_num >> rank of that processor
+! nsize_proc >> loc num of elements along that dimension
+! index_proc >> start index of that processor along that dimension
+! [note]:
+! index starts from 0
+! written by jinge wang @ sep 29 2021
 ! ======================================================================
-    subroutine SUBARRAY(ELEMENT_DATA_TYPE,NDIM,DATASIZE_PROC,DIM,NPROCS,NEW_DATA_TYPE)
+    implicit none
+    integer:: nsize, nprocs, proc_num, nsize_proc, index_proc
+    integer:: q,r
+
+    q = nsize/nprocs
+    r = mod(nsize,nprocs)
+    if (r.gt.proc_num) then
+        nsize_proc = q+1
+        index_proc = nsize_proc*proc_num
+    else
+        nsize_proc = q
+        index_proc = nsize_proc*proc_num + r
+    endif
+
+    ! nsize_proc = q + (r.gt.proc_num) ! doesn't work in fortran
+    ! index_proc = q * proc_num + min(r,proc_num)
+
+    return
+    end subroutine decompose
 ! ======================================================================
-! [USAGE]: CREATE SUBARRAY DATATYPES FOR EACH PROC. ORIGINAL ARRAY IS DE
-! COMPOSED ALONG DIM INTO SUBARRAYS.
-! [PARAMETERS]: 
-! OLD_DATA_TYPE >> ORIGINAL MPI ELEMENTARY DATATYPE OF THE ARRAY
-! NDIM >> NUMBER OF DIMENSIONS OF THE LOCAL ARRAY
-! DATASIZE_PROC >> ORIGINAL DATASIZE OF THE LOCAL ARRAY
-! DIM >> DIMENSION ALONG WHICH THE LOCAL ARRAY IS FURTHER DECOMPOSED
-! NPROCS >> NUMBER OF PROCS ALONG THAT DIM
-! NEW_DATA_TYPE >> MPI DERIVED DATATYPE FOR ALL PROCS (DIM = NPROCS)
-! [NOTE]:
-! 1. PROC INDEX STARTS FROM 0
-! 2. DIMN INDEX STARTS FROM 1
-! WRITTEN BY JINGE WANG @ SEP 29 2021
+    subroutine subarray(element_data_type,ndim,datasize_proc,dim,nprocs,new_data_type)
 ! ======================================================================
-    INTEGER:: ELEMENT_DATA_TYPE, NDIM, DIM, NPROCS
-    INTEGER,DIMENSION(NDIM):: DATASIZE_PROC, SUBDSIZE_PROC, SUBSTARTS_PROC
-    INTEGER,DIMENSION(0:NPROCS-1):: NEW_DATA_TYPE
-
-    INTEGER:: I 
-
-    DO I = 1,NDIM
-        SUBDSIZE_PROC(I) = DATASIZE_PROC(I)
-        SUBSTARTS_PROC(I) = 0
-    ENDDO
-
-    ! ALONG THAT DIM
-    DO I = 0,NPROCS-1
-        ! DECOMPOSE A DOMAIN OF DATASIZE_PROC(DIM) INTO NPROCS
-        ! -> DECOMPOSED DOMAIN SIZE ALONG THAT DIM: NSIZE_PROC(DIM)
-        ! -> OTHER DIMS KEEP THE ORIGINAL DOMAIN SIZE
-        ! -> DECOMPOSED DOMAIN START INDEX ALONG THAT DIM: SUBSTARTS_PROC(DIM)
-        ! -> OTHER DIMS KEEP THE ORIGINAL START INDEX
-        CALL DECOMPOSE(DATASIZE_PROC(DIM),NPROCS,I,SUBDSIZE_PROC(DIM),SUBSTARTS_PROC(DIM))
-        ! CREATE A NDIM-DIMENSION SUBARRAY DATATYPE FOR EACH PROC
-        CALL MPI_TYPE_CREATE_SUBARRAY(NDIM,DATASIZE_PROC,SUBDSIZE_PROC,SUBSTARTS_PROC, & 
-            MPI_ORDER_FORTRAN,ELEMENT_DATA_TYPE,NEW_DATA_TYPE(I),mpi_ierr)
-        CALL MPI_TYPE_COMMIT(NEW_DATA_TYPE(I),mpi_ierr)
-    ENDDO
-
-    RETURN
-    END subroutine SUBARRAY
+! [usage]: create subarray datatypes for each proc. original array is de
+! composed along dim into subarrays.
+! [parameters]: 
+! old_data_type >> original mpi elementary datatype of the array
+! ndim >> number of dimensions of the local array
+! datasize_proc >> original datasize of the local array
+! dim >> dimension along which the local array is further decomposed
+! nprocs >> number of procs along that dim
+! new_data_type >> mpi derived datatype for all procs (dim = nprocs)
+! [note]:
+! 1. proc index starts from 0
+! 2. dimn index starts from 1
+! written by jinge wang @ sep 29 2021
 ! ======================================================================
-    function create_new_type3D(COMM,DATA_SIZE_PROC_OLD,DIM_OLD,DATA_TYPE)
+    implicit none
+    integer:: element_data_type, ndim, dim, nprocs
+    integer,dimension(ndim):: datasize_proc, subdsize_proc, substarts_proc
+    integer,dimension(0:nprocs-1):: new_data_type
+
+    integer:: i 
+
+    do i = 1,ndim
+        subdsize_proc(i) = datasize_proc(i)
+        substarts_proc(i) = 0
+    enddo
+
+    ! along that dim
+    do i = 0,nprocs-1
+        ! decompose a domain of datasize_proc(dim) into nprocs
+        ! -> decomposed domain size along that dim: nsize_proc(dim)
+        ! -> other dims keep the original domain size
+        ! -> decomposed domain start index along that dim: substarts_proc(dim)
+        ! -> other dims keep the original start index
+        call decompose(datasize_proc(dim),nprocs,i,subdsize_proc(dim),substarts_proc(dim))
+        ! create a ndim-dimension subarray datatype for each proc
+        call mpi_type_create_subarray(ndim,datasize_proc,subdsize_proc,substarts_proc, & 
+            mpi_order_fortran,element_data_type,new_data_type(i),mpi_ierr)
+        call mpi_type_commit(new_data_type(i),mpi_ierr)
+    enddo
+
+    return
+    end subroutine subarray
 ! ======================================================================
-! [USAGE]:
-! CREATE SUBARRAY DATATYPE FOR 3D ARRAY OF DATA_SIZE_PROC_OLD STORED IN
-! COMMUNICATOR GROUP: COMM
-! [NOTE]:
-! COMPANION FUNC FOR EXCHANGE_3DCOMPLEX_FAST
-! WRITTEN BY JINGE WANG @ SEP 29 2021
+    function create_new_type3d(comm,data_size_proc_old,dim_old,data_type)
 ! ======================================================================
-    INTEGER:: NDIM = 3
-    INTEGER:: COMM, DIM_OLD, DATA_TYPE
-    INTEGER,DIMENSION(3),INTENT(IN):: DATA_SIZE_PROC_OLD
-    INTEGER,DIMENSION(:),ALLOCATABLE:: create_new_type3D
-
-    INTEGER:: I , NPROC_COMM
-
-    ! DETERMINE THE NUMBER OF PROCS IN PROCESSOR GROUP: COMM
-    CALL MPI_COMM_SIZE(COMM,NPROC_COMM,mpi_ierr)
-    ALLOCATE(create_new_type3D(0:NPROC_COMM-1))
-
-    ! CREATE SUBARRAY DATATYPES
-    ! OLD LOCAL ARRAY: ARRAY_OLD OF SIZE_OLD IS DECOMPOSED INTO SUBARRAY ALONG DIM_OLD
-    CALL SUBARRAY(DATA_TYPE,NDIM,DATA_SIZE_PROC_OLD,DIM_OLD,NPROC_COMM,create_new_type3D)
-
-    end function create_new_type3D
+! [usage]:
+! create subarray datatype for 3d array of data_size_proc_old stored in
+! communicator group: comm
+! [note]:
+! companion func for exchange_3dcomplex_fast
+! written by jinge wang @ sep 29 2021
 ! ======================================================================
-    subroutine EXCHANGE_3DCOMPLEX_FAST(COMM,ARRAY_PROC_OLD,DATA_TYPE_OLD &
-                                           ,ARRAY_PROC_NEW,DATA_TYPE_NEW)
+    implicit none
+    integer:: ndim = 3
+    integer:: comm, dim_old, data_type
+    integer,dimension(3),intent(in):: data_size_proc_old
+    integer,dimension(:),allocatable:: create_new_type3d
+
+    integer:: i , nproc_comm
+
+    ! determine the number of procs in processor group: comm
+    call mpi_comm_size(comm,nproc_comm,mpi_ierr)
+    allocate(create_new_type3d(0:nproc_comm-1))
+
+    ! create subarray datatypes
+    ! old local array: array_old of size_old is decomposed into subarray along dim_old
+    call subarray(data_type,ndim,data_size_proc_old,dim_old,nproc_comm,create_new_type3d)
+
+    end function create_new_type3d
 ! ======================================================================
-! [USAGE]:
-! FOR PROCESSOR GROUP 'COMM', SWAP axis_old AND axis_new.
-! [PARAMETERS]:
-! COMM >> PROCESSOR GROUP
-! DATA_SIZE_PROC >> SIZE OF THE LOCAL ARRAY
-! ARRAY_PROC >> LOCAL ARRAY TO BE SWAPPED
-! DIM >> DIMENSIONS TO BE SWAPPED
-! [NOTE]
-! 1. USE THIS ONLY IF THE DATATYPE ONLY NEEDS TO BE USED ONCE
-! 2. PROC INDEX STARTS FROM 0
-! 3. DIMN INDEX STARTS FROM 1
-! WRITTEN BY JINGE WANG @ SEP 29 2021
+    subroutine exchange_3dcomplex_fast(comm,array_proc_old,data_type_old &
+                                           ,array_proc_new,data_type_new)
 ! ======================================================================
-    INTEGER:: NDIM
-    INTEGER:: COMM
-    COMPLEX(P8),DIMENSION(:,:,:),INTENT(IN):: ARRAY_PROC_OLD
-    COMPLEX(P8),DIMENSION(:,:,:),INTENT(INOUT):: ARRAY_PROC_NEW
-    INTEGER,DIMENSION(:),INTENT(IN):: DATA_TYPE_OLD, DATA_TYPE_NEW
+! [usage]:
+! for processor group 'comm', swap axis_old and axis_new.
+! [parameters]:
+! comm >> processor group
+! data_size_proc >> size of the local array
+! array_proc >> local array to be swapped
+! dim >> dimensions to be swapped
+! [note]
+! 1. use this only if the datatype only needs to be used once
+! 2. proc index starts from 0
+! 3. dimn index starts from 1
+! written by jinge wang @ sep 29 2021
+! ======================================================================
+    implicit none
+    integer :: ndim
+    integer :: comm
+    integer(i4) :: array_rank
+    complex(p8),dimension(:,:,:),intent(in):: array_proc_old
+    complex(p8),dimension(:,:,:),intent(inout):: array_proc_new
+    integer(i4) ,dimension(:),intent(in):: data_type_old, data_type_new
 
-    INTEGER:: I , NPROC_COMM
-    INTEGER,DIMENSION(:),ALLOCATABLE:: counts, displs !, DATA_TYPE_OLD_COPY
+    integer:: i , nproc_comm
+    integer,dimension(:),allocatable:: counts, displs !, data_type_old_copy
 
-    ! CHECK
-    NDIM = 3
-    IF (RANK(ARRAY_PROC_OLD).NE.NDIM) THEN
-    ! ARRAY_PROC_OLD must have NDIM ranks
-    ! i.e NDIM = 3, ARRAY_PROC_OLD(:,:,:)
-        WRITE(*,*) 'ERROR: EXCHANGE_3DCOMPLEX_FAST - GLOBAL PROC#'//ITOA(RANK_GLB)//' - INCOMPATIBLE INPUT ARRAY DIMS'
-    ENDIF
-
-    ! SWAP SUBARRAYS
-    ! EACH SUBARRAY IS COUNTED AS ONE UNIT
-    CALL MPI_COMM_SIZE(COMM,NPROC_COMM,mpi_ierr)
-    ALLOCATE(counts(0:NPROC_COMM-1)); counts = 1
-    ALLOCATE(displs(0:NPROC_COMM-1)); displs = 0
-    ! DO I = 0,NPROC_COMM-1
-    ! counts(I) = 1; ! SWAP ONE SUBARRAY A TIME
-    ! displs(I) = 0; ! DIRECTLY START FROM THE FIRST MEMORY LOC OF THE ARRAY
+    ! swap subarrays
+    ! each subarray is counted as one unit
+    call mpi_comm_size(comm,nproc_comm,mpi_ierr)
+    allocate(counts(0:nproc_comm-1)); counts = 1
+    allocate(displs(0:nproc_comm-1)); displs = 0
+    ! do i = 0,nproc_comm-1
+    ! counts(i) = 1; ! swap one subarray a time
+    ! displs(i) = 0; ! directly start from the first memory loc of the array
     ! enddo
 
-    CALL MPI_ALLTOALLW(ARRAY_PROC_OLD, counts, displs, DATA_TYPE_OLD, &
-    ARRAY_PROC_NEW, counts, displs, DATA_TYPE_NEW, COMM, mpi_ierr)
+    call mpi_alltoallw(array_proc_old, counts, displs, data_type_old, &
+    array_proc_new, counts, displs, data_type_new, comm, mpi_ierr)
 
-    DEALLOCATE(counts, displs)
+    deallocate(counts, displs)
 
-    end subroutine EXCHANGE_3DCOMPLEX_FAST
+    end subroutine exchange_3dcomplex_fast
 ! ======================================================================
-!                           UTILITY FUNCTIONS                           
+!                           utility functions                           
 ! ======================================================================
-    function local_size(NSIZE,COMM)
+    function local_size(nsize,comm)
 ! ======================================================================
-! [USAGE]:
-! CALCULATE THE LOCAL SIZE
-! [NOTE]:
-! 1. ASSUMES THE PROCESSOR GROUP COMM IS ALIGNED 1D.
-! WRITTEN BY JINGE WANG @ SEP 29 2021
+! [usage]:
+! calculate the local size
+! [note]:
+! 1. assumes the processor group comm is aligned 1d.
+! written by jinge wang @ sep 29 2021
 ! ======================================================================
-    INTEGER:: COMM, NSIZE
-    INTEGER:: local_size
+    integer:: comm, nsize
+    integer:: local_size
 
-    INTEGER:: NPROC_COMM, RANK_COMM, INDEX_COMM 
+    integer:: nproc_comm, rank_comm, index_comm 
 
-    CALL MPI_COMM_SIZE(COMM,NPROC_COMM,mpi_ierr)
-    CALL MPI_COMM_RANK(COMM,RANK_COMM,mpi_ierr)
-    CALL DECOMPOSE(NSIZE,NPROC_COMM,RANK_COMM,local_size,INDEX_COMM)
+    call mpi_comm_size(comm,nproc_comm,mpi_ierr)
+    call mpi_comm_rank(comm,rank_comm,mpi_ierr)
+    call decompose(nsize,nproc_comm,rank_comm,local_size,index_comm)
 
     end function local_size
 ! ======================================================================
-function local_index(NSIZE,COMM)
+function local_index(nsize,comm)
 ! ======================================================================
-! [USAGE]:
-! CALCULATE THE LOCAL INDEX
-! [NOTE]:
-! 1. ASSUMES THE PROCESSOR GROUP COMM IS ALIGNED 1D.
-! 2. INDEX COUNTS FROM 0
-! WRITTEN BY JINGE WANG @ SEP 29 2021
+! [usage]:
+! calculate the local index
+! [note]:
+! 1. assumes the processor group comm is aligned 1d.
+! 2. index counts from 0
+! written by jinge wang @ sep 29 2021
 ! ======================================================================
-    INTEGER:: COMM, NSIZE
-    INTEGER:: local_index
+    integer:: comm, nsize
+    integer:: local_index
 
-    INTEGER:: NPROC_COMM, RANK_COMM, SIZE_COMM 
+    integer:: nproc_comm, rank_comm, size_comm 
 
-    CALL MPI_COMM_SIZE(COMM,NPROC_COMM,mpi_ierr)
-    CALL MPI_COMM_RANK(COMM,RANK_COMM,mpi_ierr)
-    CALL DECOMPOSE(NSIZE,NPROC_COMM,RANK_COMM,SIZE_COMM,local_index)
+    call mpi_comm_size(comm,nproc_comm,mpi_ierr)
+    call mpi_comm_rank(comm,rank_comm,mpi_ierr)
+    call decompose(nsize,nproc_comm,rank_comm,size_comm,local_index)
 
     end function local_index
 ! ======================================================================
-function local_proc(COMM)
+function local_proc(comm)
 ! ======================================================================
-! [USAGE]:
-! CALCULATE THE LOCAL MPI RANK IN THAT COMM GROUP
-! [NOTE]:
-! 1. ASSUMES THE PROCESSOR GROUP COMM IS ALIGNED 1D.
-! 2. RANK COUNTS FROM 0
-! WRITTEN BY JINGE WANG @ SEP 29 2021
+! [usage]:
+! calculate the local mpi rank in that comm group
+! [note]:
+! 1. assumes the processor group comm is aligned 1d.
+! 2. rank counts from 0
+! written by jinge wang @ sep 29 2021
 ! ======================================================================
-    INTEGER:: COMM
-    INTEGER:: local_proc
+    integer:: comm
+    integer:: local_proc
 
-    CALL MPI_COMM_RANK(COMM, local_proc, mpi_ierr)
+    call mpi_comm_rank(comm, local_proc, mpi_ierr)
 
     end function local_proc
 ! ======================================================================
-    function count_proc(COMM)
+    function count_proc(comm)
 ! ======================================================================
-! [USAGE]:
-! COUNT THE NUMBER OF PROCS IN THAT PROC_GROUP
-! WRITTEN BY JINGE WANG @ SEP 29 2021
+! [usage]:
+! count the number of procs in that proc_group
+! written by jinge wang @ sep 29 2021
 ! ======================================================================
-    INTEGER:: COMM, count_proc 
+    integer:: comm, count_proc 
 
-    CALL MPI_COMM_SIZE(COMM, count_proc, mpi_ierr)
+    call mpi_comm_size(comm, count_proc, mpi_ierr)
 
     end function count_proc
 ! ======================================================================
-    SUBROUTINE SUBCOMM_CART(COMM,NDIM,SUBCOMMS)
+    subroutine subcomm_cart(comm,ndim,subcomms)
 ! ======================================================================
-! [USAGE]:
-! CREATE COMMUNICATORS (SUBCOMMS(I)) FOR EACH DIMENSION(I) THAT HAS CART
-! ESIAN TOPOLOGY. 
-! [EXAMPLE]: 
-! FOR N1xN2xN3 = NPROC_COMM (NDIM = 3) PROCESSORS,
-! SUBCOMMS(1) >> N2XN3 GROUPS EACH HAS N1 PROCS
-! SUBCOMMS(2) >> N1XN3 GROUPS EACH HAS N2 PROCS
-! [NOTES]:
-! EA PROC CALCULATES ITS CORRESPONDING SUBCOMMS. PROCS ON THE SAME LINE
-! IN I-TH DIM WILL SHARE THE SAME SUBCOMMS(I)
-! WRITTEN BY JINGE WANG @ SEP 29 2021
+! [usage]:
+! create communicators (subcomms(i)) for each dimension(i) that has cart
+! esian topology. 
+! [example]: 
+! for n1xn2xn3 = nproc_comm (ndim = 3) processors,
+! subcomms(1) >> n2xn3 groups each has n1 procs
+! subcomms(2) >> n1xn3 groups each has n2 procs
+! [notes]:
+! ea proc calculates its corresponding subcomms. procs on the same line
+! in i-th dim will share the same subcomms(i)
+! written by jinge wang @ sep 29 2021
 ! ======================================================================
-    INTEGER:: COMM
-    INTEGER:: NDIM
-    INTEGER,DIMENSION(:),ALLOCATABLE,INTENT(OUT)::SUBCOMMS
+    integer:: comm
+    integer:: ndim
+    integer,dimension(:),allocatable,intent(out)::subcomms
 
-    INTEGER:: COMM_CART, NPROC_COMM, I 
-    INTEGER,DIMENSION(1:NDIM):: DIMS
-    LOGICAL,DIMENSION(1:NDIM):: PERIODS, REMDIMS
+    integer:: comm_cart, nproc_comm, i 
+    integer,dimension(1:ndim):: dims
+    logical,dimension(1:ndim):: periods, remdims
 
-    DIMS = 0
-    PERIODS = .FALSE.
-    REMDIMS = .FALSE.
-    ALLOCATE(SUBCOMMS(NDIM))
+    dims = 0
+    periods = .false.
+    remdims = .false.
+    allocate(subcomms(ndim))
 
-    CALL MPI_COMM_SIZE(COMM,NPROC_COMM,mpi_ierr)
+    call mpi_comm_size(comm,nproc_comm,mpi_ierr)
 
-    ! CREATES A DIVISION OF PROCESSORS IN A CARTESIAN GRID
-    ! DIMS: NUMBER OF PROCESSORS IN EACH DIM
-    CALL MPI_DIMS_CREATE(NPROC_COMM,NDIM,DIMS,mpi_ierr)
-    ! write(*,*) MPI_RANK,'-',dims(1),'x',dims(2)
+    ! creates a division of processors in a cartesian grid
+    ! dims: number of processors in each dim
+    call mpi_dims_create(nproc_comm,ndim,dims,mpi_ierr)
+    ! write(*,*) mpi_rank,'-',dims(1),'x',dims(2)
 
-    ! MAKES PROCESSOR GROUP THAT ATTACHES THE CARTESIAN TOPOLOGY
-    ! COMM: ORIGINAL PROCESSOR GROUP
-    ! NDIM: NUMBER OF DIMS IN CARTESIAN GRID
-    ! DIMS: NUMBER OF PROCESSORS IN EACH DIM
-    ! PERI: WHETHER EA DIM IS PERIODIC
-    ! REOR: REORDER OR NOT
-    ! COMM_CART: NEW PROCESSOR GROUP
-    CALL MPI_CART_CREATE(COMM,NDIM,DIMS,PERIODS,.TRUE.,COMM_CART,mpi_ierr)
+    ! makes processor group that attaches the cartesian topology
+    ! comm: original processor group
+    ! ndim: number of dims in cartesian grid
+    ! dims: number of processors in each dim
+    ! peri: whether ea dim is periodic
+    ! reor: reorder or not
+    ! comm_cart: new processor group
+    call mpi_cart_create(comm,ndim,dims,periods,.true.,comm_cart,mpi_ierr)
 
-    ! CREATES SUB-PROCESSOR GROUP
-    ! REMDIMS: TELLS WHICH DIM(S) IS KEPT IN THE SUBGRID
-    ! E.X: FOR 3D, REMDIMS = .FALSE.,.TRUE.,.FALSE.
-    !      THEN CREATES DIM1xDIM3 SUBGROUPS, EA WITH DIM2 PROCESSORS
-    DO I = 1,NDIM
-        REMDIMS(I) = .TRUE.
-        CALL MPI_CART_SUB(COMM_CART,REMDIMS,SUBCOMMS(I),mpi_ierr)
-        REMDIMS(I) = .FALSE.
-    ENDDO
+    ! creates sub-processor group
+    ! remdims: tells which dim(s) is kept in the subgrid
+    ! e.x: for 3d, remdims = .false.,.true.,.false.
+    !      then creates dim1xdim3 subgroups, ea with dim2 processors
+    do i = 1,ndim
+        remdims(i) = .true.
+        call mpi_cart_sub(comm_cart,remdims,subcomms(i),mpi_ierr)
+        remdims(i) = .false.
+    enddo
 
-    ! FOR 2D GRID ONLY:
-    ! MAKE SURE SUBCOMMS(1) IS ALWAYS BIGGER THAN SUBCOMMS(2)
-    IF (NDIM.EQ.2) THEN
-        IF (count_proc(SUBCOMMS(1)).LT.count_proc(SUBCOMMS(2))) THEN
-            mpi_ierr = SUBCOMMS(1)
-            SUBCOMMS(1) = SUBCOMMS(2)
-            SUBCOMMS(2) = mpi_ierr
-        ENDIF
-    ENDIF
+    ! for 2d grid only:
+    ! make sure subcomms(1) is always bigger than subcomms(2)
+    if (ndim.eq.2) then
+        if (count_proc(subcomms(1)).lt.count_proc(subcomms(2))) then
+            mpi_ierr = subcomms(1)
+            subcomms(1) = subcomms(2)
+            subcomms(2) = mpi_ierr
+        endif
+    endif
 
-    comm_glb = COMM_CART
-    CALL MPI_COMM_RANK(comm_glb,rank_glb,mpi_ierr)
+    comm_glb = comm_cart
+    call mpi_comm_rank(comm_glb,rank_glb,mpi_ierr)
 
-    END SUBROUTINE
+    end subroutine
 ! ======================================================================
 
 end submodule

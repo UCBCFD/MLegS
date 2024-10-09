@@ -292,7 +292,7 @@ contains
       enddo
     endif
     allocate( m_tbl(size(x), ne, me) )
-    call MPI_Allreduce(tbl, m_tbl, size(x)*ne*me, MPI_Real8, MPI_Sum, m_comm, m_err)
+    call MPI_Allreduce(tbl, m_tbl, size(x)*ne*me, MPI_Real8, MPI_Sum, comm_glb, mpi_ierr)
     tbl = m_tbl
     deallocate( fm_tbl, m_tbl )
   end function

@@ -1,4 +1,5 @@
 module mlegs_bndmat
+  !> module for banded matrix operations
   use mlegs_envir
   implicit none
   private

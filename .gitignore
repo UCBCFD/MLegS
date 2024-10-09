@@ -1,5 +1,6 @@
-# build directories
+# directories
 build
+.vscode
 
 # executables
 *.exe

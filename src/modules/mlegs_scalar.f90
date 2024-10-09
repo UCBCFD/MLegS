@@ -1,38 +1,41 @@
 module mlegs_scalar
-    use mlegs_envir
-    use mlegs_misc, only: itoa
-    use MPI
+  !> module for scalar class
+  use mlegs_envir
+  use mlegs_misc, only: itoa
+  use MPI
 
     implicit none
     private
 
     !> class: distributed scalar
     type, public :: scalar
-        !> glboal size is distributed into local size on ea proc
-        integer :: glb_sz(3), loc_sz(3), loc_st(3)
+        !> global size is distributed into local size on ea proc
+        integer(i4) :: glb_sz(3), loc_sz(3), loc_st(3)
+        
         !> ea axis' sub communicator index
         !> axis_comm(i) = 0: i-th axis is not distributed
         !> axis_comm(i) = j: i-th axis is distributed by communicator group comm_grps(j)
-        integer :: axis_comm(3)
+        integer(i4) :: axis_comm(3)
+        
         !> local distributed data
         complex(p8), dimension(:,:,:), pointer :: e
+        
         !> logarithmic term coeff. to describe O(ln(r)) as r -> infty. (P_ln == ln(r^2+L^2/2L^2))
         real(p8) :: ln
 
         !> methods
         contains
-        ! procedure :: set => scalar_set
-        procedure :: initialise => scalar_initialise
-        procedure :: alloc => scalar_alloc
-        procedure :: dealloc => scalar_dealloc
+            procedure :: initialise => scalar_initialise
+            procedure :: alloc => scalar_alloc
+            procedure :: dealloc => scalar_dealloc
 
-        ! procedure :: chopset => scalar_chopset
-        ! procedure :: chopdo => scalar_chopdo
+            ! procedure :: chopset => scalar_chopset
+            ! procedure :: chopdo => scalar_chopdo
 
-        ! MPI-related
-        procedure :: exchange => scalar_exchange
-        procedure :: assemble => scalar_assemble ! right now, only supports 3D: axis = 1 or 2
-        procedure :: disassemble => scalar_disassemble ! right now, only supports 3D: axis = 1 or 2
+            ! MPI-related
+            procedure :: exchange => scalar_exchange
+            procedure :: assemble => scalar_assemble ! right now, only supports 3D: axis = 1 or 2
+            procedure :: disassemble => scalar_disassemble ! right now, only supports 3D: axis = 1 or 2
     end type
 
     !> scalar: class methods
@@ -90,15 +93,15 @@ module mlegs_scalar
         !> assemble/disassemble distributed data into/from a single proc
         module function scalar_assemble(this,axis) result(array_glb)
             implicit none
-            class(scalar), intent(in) :: this
+            class(scalar), intent(inout) :: this
             complex(P8), dimension(:,:,:), allocatable :: array_glb
-            integer :: axis
+            integer(i4) :: axis
         end function
         module subroutine scalar_disassemble(this,axis,array_glb)
             implicit none
-            class(scalar), intent(in) :: this
+            class(scalar), intent(inout) :: this
             complex(P8), dimension(:,:,:), allocatable :: array_glb
-            integer :: axis
+            integer(i4) :: axis
         end subroutine
 
     end interface  

@@ -1,6 +1,9 @@
 module mlegs_spectfm
-  use mlegs_base; use mlegs_genmat; use mlegs_bndmat
-  ! use mlegs_mpi
+  !> module for spectral transform kit
+  use mlegs_envir
+  use mlegs_base
+  use mlegs_genmat
+  use mlegs_bndmat
   implicit none
   private
 

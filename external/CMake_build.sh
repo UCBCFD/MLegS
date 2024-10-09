@@ -15,8 +15,8 @@ mkdir -p ./inc
 # Thus, it is recommended to explicitly specify what compilers you want to use in case your system
 # possesses multiple compilers from different distributors (e.g., GNU and Intel).
 # Change the COMPILER pair e.g., FC=ifx && CC=icx, FC=gfortran && CC=gcc, etc.
-FC="gfortran" # change gfortran to ifx if one wants to use Intel's oneAPI compiler
-CC="gcc" # change gcc to icx if one wants to use Intel's oneAPI compiler
+FC="ifx" # change gfortran to ifx if one wants to use Intel's oneAPI compiler
+CC="icx" # change gcc to icx if one wants to use Intel's oneAPI compiler
 
 
 ###  generate the ffte library

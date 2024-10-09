@@ -1,9 +1,8 @@
-module mlegs_base !< turn this into simulation geometry like mesh setup for finite difference / FEA
+module mlegs_base 
+  !> module for base simulation setup parameters
   use mlegs_envir
   implicit none
   private
-
-  !> global variables
   !> discretization -- number of colloc. pts. / spec. elems. in the radial direction (2*p)
   integer(i4), public :: nr = 128, nrchop = 128
   !> discretization -- number of colloc. pts. / spec. elems. in the azimuthal direction (2^p 3^q 5^r)

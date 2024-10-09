@@ -1,4 +1,5 @@
 module mlegs_misc
+  !> module for miscellaneous procedures
   use mlegs_envir
   implicit none
   private

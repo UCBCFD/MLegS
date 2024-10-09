@@ -1,5 +1,6 @@
 module mlegs_genmat
-  use mlegs_base
+  !> module for general matrix operations
+  use mlegs_envir
   implicit none
   private
 

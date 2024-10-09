@@ -1,13 +1,13 @@
 # Compiler (ifx or gfortran)
-OMPI_FC = gfortran
+OMPI_FC = ifx
 
 # Compiler flags
 ifeq ($(OMPI_FC), ifx)
   FC = mpiifx
-  FFLAGS = -O3 -mcmodel=medium -g -std18 -module $(MOD_DIR) -I$(INC_DIR) -L$(LIB_DIR)
+  FFLAGS = -O3 -mcmodel=medium -g -std08 -module $(MOD_DIR) -I$(INC_DIR) -L$(LIB_DIR)
 else ifeq ($(OMPI_FC), gfortran)
   FC = mpifort
-  FFLAGS = -O3 -mcmodel=medium -g -std=f2018 -J$(MOD_DIR) -I$(INC_DIR) -L$(LIB_DIR)
+  FFLAGS = -O3 -mcmodel=medium -g -std=f2008 -J$(MOD_DIR) -I$(INC_DIR) -L$(LIB_DIR)
 else
   $(error Untested compiler: $(FC). Tested compilers are gfortran <v11.2 or later> and ifx <v2024.1.0 or later>)
 endif

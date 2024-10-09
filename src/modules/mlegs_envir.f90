@@ -1,10 +1,9 @@
-module mlegs_envir
+module mlegs_envir 
+  !> module for global environment variables
+  use MPI
   implicit none
   private
-
-  !> environment variables
-  
-  !> 1. basic math
+  !> basic math
   !> 32-bit (single-precision) real/complex
   integer, public, parameter :: p4 = selected_real_kind(6, 37) 
   !> 64-bit (double-precision) real/complex
@@ -20,7 +19,7 @@ module mlegs_envir
   !> string size (per number to be stored) for formatted file I/O
   integer(i4), public, parameter :: formatted_num_str_len = 24
 
-  !> 2. MPI
+  !> MPI
   !> global communicator group
   integer, public :: comm_glb, rank_glb, nprocs_glb
   !> cartesian communicator groups (MPI_GROUP)
@@ -32,7 +31,7 @@ module mlegs_envir
   integer, public :: mpi_ierr
   integer, public, parameter :: error_flag_comm = 201
 
-  !> 3. I/O
+  !> I/O
   logical, public, parameter :: is_warning = .true.
 
 end module
