@@ -15,8 +15,8 @@ mkdir -p ./inc
 # Thus, it is recommended to explicitly specify what compilers you want to use in case your system
 # possesses multiple compilers from different distributors (e.g., GNU and Intel).
 # Change the COMPILER pair e.g., FC=ifx && CC=icx, FC=gfortran && CC=gcc, etc.
-FC="ifx" # change gfortran to ifx if one wants to use Intel's oneAPI compiler
-CC="icx" # change gcc to icx if one wants to use Intel's oneAPI compiler
+FC="ifort" # change gfortran to ifx if one wants to use Intel's oneAPI compiler
+CC="icc" # change gcc to icx if one wants to use Intel's oneAPI compiler
 
 
 ###  generate the ffte library
@@ -91,6 +91,8 @@ if [ "${FC}" = "gfortran" ]; then
 	FC="mpifort"
 elif [ "${FC}" = "ifx" ]; then
 	FC="mpiifx"
+elif [ "${FC}" = "ifort" ]; then
+	FC="mpiifort"
 else
 	printf "Error: MPI compilations only tested in GNU & Intel LLVM Fortran currently"
 	printf "       try using either gfortran or ifx for the Fortran Compiler (FC) arg"

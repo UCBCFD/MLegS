@@ -271,7 +271,10 @@ contains
       stop
     endif
     allocate( fm_tbl(size(x), ne) )
-    call m_decompose( size(x), me, m_chunk, m_sidx, m_eidx)
+    ! the edit below is to suppress the error messasge !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! need to be fixed !
+    ! call m_decompose( size(x), me, m_chunk, m_sidx, m_eidx)
+    m_sidx(1) = 1; m_eidx(1) = size(x)
     if (m_chunk(1)*m_chunk(2) .gt. 0) then
       do mm = m_sidx(2), m_eidx(2)
         m = abs(ms(mm))

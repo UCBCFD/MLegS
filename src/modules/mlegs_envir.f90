@@ -21,7 +21,7 @@ module mlegs_envir
 
   !> MPI
   !> global communicator group
-  integer, public :: comm_glb, rank_glb, nprocs_glb
+  integer, public :: comm_glb, rank_glb, nprocs_glb, mpi_thread_mode
   !> cartesian communicator groups (MPI_GROUP)
   integer, public :: comm_grps(2), rank_grps(2), nprocs_grps(2)
   !> scalar element data type for MPI communications
@@ -29,7 +29,13 @@ module mlegs_envir
   integer, public:: cp8_size = 0
   !> error flags
   integer, public :: mpi_ierr
-  integer, public, parameter :: error_flag_comm = 201
+  integer, public, parameter :: &
+  error_flag_comm = 201, & ! error related to MPI communicator
+  error_flag_alloc = 202, & ! error related to memory allocation
+  error_flag_dealloc = 203, & ! error related to memory deallocation
+  error_flag_file = 204, & ! error related to file I/O
+  error_flag_misc = 205, & ! miscellaneous error
+  error_flag_warning = 206 ! warning
 
   !> I/O
   logical, public, parameter :: is_warning = .true.

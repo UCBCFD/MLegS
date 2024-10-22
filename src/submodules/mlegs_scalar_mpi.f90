@@ -82,11 +82,37 @@ contains
         nullify(this%e)
     end procedure
 
+    !> copy a scalar
+    module procedure scalar_copy
+        if (.not.associated(that%e)) then
+            if ((is_warning).and.(rank_glb.eq.0)) write(*,*) &
+            "WARNING: scalar_copy tries to copy from a scalar that has not been allocated"
+            return
+        endif
+        if (.not.associated(this%e)) then
+            call this%initialise(that%glb_sz,that%axis_comm)
+        elseif (any(this%loc_sz.ne.that%loc_sz)) then
+            if ((is_warning).and.(rank_glb.eq.0)) write(*,*) &
+            "WARNING: scalar_copy has inconsistent local sizes"
+            call this%dealloc()
+            call this%initialise(that%glb_sz,that%axis_comm)
+        endif
+
+        this%ln = that%ln
+        this%e = that%e
+
+        ! below might be unnecessary, but it ensusres all data are copied exactly
+        this%loc_st = that%loc_st
+        this%loc_sz = that%loc_sz
+        this%glb_sz = that%glb_sz
+        this%axis_comm = that%axis_comm
+    end procedure
+
     !> re-orient distributed data
     module procedure scalar_exchange !(this,axis_old,axis_new)
         integer(i4) :: this_comm, loc_sz_new(3), i
         integer, dimension(:), allocatable :: subarray_type_old, subarray_type_new
-        complex(p8), dimension(:,:,:), target, allocatable :: e_new
+        complex(p8), dimension(:,:,:), pointer :: e_new
 
         !> check whether the old dimension is distributed or not
         if (this%axis_comm(axis_old).ne.0) then
@@ -98,15 +124,15 @@ contains
         !> obtain communicator group
         this_comm = comm_grps(this%axis_comm(axis_new))
 
-        !> create subarray datatype for before and after swap configuration
-        subarray_type_old = create_new_type3D(this_comm,this%loc_sz,axis_old,scalar_element_type)
-        subarray_type_new = create_new_type3D(this_comm,loc_sz_new,axis_new,scalar_element_type)
-
         !> create after-swap new local size and data
         loc_sz_new = this%loc_sz
         loc_sz_new(axis_new) = this%glb_sz(axis_new)
         loc_sz_new(axis_old) = local_size(this%glb_sz(axis_old),this_comm)
         allocate(e_new(loc_sz_new(1),loc_sz_new(2),loc_sz_new(3)))
+
+        !> create subarray datatype for before and after swap configuration
+        subarray_type_old = create_new_type3D(this_comm,this%loc_sz,axis_old,scalar_element_type)
+        subarray_type_new = create_new_type3D(this_comm,loc_sz_new,axis_new,scalar_element_type)
 
         !> perform swap
         call exchange_3dcomplex_fast(this_comm,this%e,subarray_type_old,e_new,subarray_type_new)
@@ -114,6 +140,7 @@ contains
         !> reassign pointer, loc_sz, loc_st, and axis_comm
         call this%dealloc()
         this%e => e_new
+        nullify(e_new)
         this%loc_sz = loc_sz_new
         this%loc_st(axis_old) = local_index(this%glb_sz(axis_old),this_comm)
         this%loc_st(axis_new) = 0
@@ -136,6 +163,7 @@ contains
         integer(i4) :: subarray_type_temp, subarray_type, displacement_loc, recvcount_loc
         integer, dimension(:), allocatable :: displacement, recvcount
         complex(p8), dimension(:,:,:), allocatable :: local_array_temp, subglobal_array, global_array_temp
+        type(scalar) :: this_copy
 
         if (cp8_size.eq.0) then
             call mpi_type_size(scalar_element_type,cp8_size,mpi_ierr)
@@ -157,7 +185,8 @@ contains
             allocate(local_array_temp(n1_glb, n3_loc, n2_loc))
             !      #1   #2   #3
             ! old: N1 x N2 x N3
-            ! new: N1 x N3 x N2
+            ! new: N1 x N3 x N2 
+            ! order: #1 of old (N1) becomes #1 of new, #2 of old (N2) becomes #3 of new, #3 of old (N3) becomes #2 of newa
             local_array_temp = reshape(this%e, shape(local_array_temp), order = [1,3,2])
 
             !> create custom MPI datatype
@@ -177,14 +206,28 @@ contains
             !      #1   #2   #3
             ! old: N1 x N2 x N3
             ! new: N2 x N3 x N1
-            local_array_temp = reshape(this%e, shape(local_array_temp), order = [2,3,1])
+            ! order: #1 of old (N1) becomes #3 of new, #2 of old (N2) becomes #1 of new, #3 of old (N3) becomes #2 of new
+            local_array_temp = reshape(this%e, shape(local_array_temp), order = [3,1,2])
 
             call mpi_type_vector(n3_loc, n2_glb, n2_glb*n1_glb, scalar_element_type, subarray_type_temp, mpi_ierr)
             extend_size = element_size * n2_glb
             recvcount_loc = n1_loc
             displacement_loc = local_index(n1_glb, subcomm_l)
 
-        else 
+        elseif (axis.eq.3) then ! third axis is complete - use exchange then assemble
+
+            if ((is_warning).and.(rank_glb.eq.0)) write(*,*) &
+            "WARNING: scalar_assemble does not have native support for the 3rd axis, but it will proceed by exchanging axis first."
+            ! prevent modifying the original data
+            this_copy = this 
+            ! exchange axis 3 to axis 1
+            call this_copy%exchange(3,1) 
+            ! assemble with axis 1 now complete
+            array_glb(:,:,:) = this_copy%assemble(1) ! note: must have (:,:,:) after array_glb
+            call this_copy%dealloc()
+            return
+
+        else
             if (rank_glb.eq.0) write(*,*) "ERROR: scalar_assemble does not support the current axis"
             call mpi_abort(comm_glb,error_flag_comm,mpi_ierr)
         endif
@@ -221,6 +264,10 @@ contains
                 allocate(global_array_temp(n2_glb,n1_glb,n3_glb))
                 call mpi_gatherv(subglobal_array, n1_glb*n2_glb*n3_loc, scalar_element_type, &
                     global_array_temp, recvcount, displacement, scalar_element_type, 0, subcomm_r, mpi_ierr)
+                !      #1   #2   #3
+                ! old: N2 x N1 x N3
+                ! new: N1 x N2 x N3 
+                ! order: #1 of old (N2) becomes #2 of new, #2 of old (N1) becomes #1 of new, #3 of old (N3) becomes #3 of new
                 array_glb = reshape(global_array_temp, shape(array_glb), order = [2,1,3])
                 deallocate(global_array_temp)
             endif
@@ -236,7 +283,7 @@ contains
 
     !> disassemble data into distributed procs
     module procedure scalar_disassemble
-        integer(i4) :: n1_glb, n2_glb, n3_glb, n1_loc, n2_loc, n3_loc
+        integer(i4) :: n1_glb, n2_glb, n3_glb, n1_loc, n2_loc, n3_loc, axis_comm_copy(3)
         integer(i4) :: element_size, subcomm_l, subcomm_r
         integer(kind = mpi_address_kind) :: extend_size
         integer(i4) :: subarray_type_temp, subarray_type, displacement_loc, recvcount_loc
@@ -252,9 +299,11 @@ contains
         n1_loc = this%loc_sz(1); n2_loc = this%loc_sz(2); n3_loc = this%loc_sz(3)
 
         !> check global array dimensions
-        if ((size(array_glb,1).ne.n1_glb).or.(size(array_glb,2).ne.n2_glb).or.(size(array_glb,3).ne.n3_glb)) then
-            if (rank_glb.eq.0) write(*,*) "ERROR: scalar_disassemble has inconsistent dimension between array_glb and this%glb_sz"
-            return
+        if (rank_glb.eq.0) then
+            if ((size(array_glb,1).ne.n1_glb).or.(size(array_glb,2).ne.n2_glb).or.(size(array_glb,3).ne.n3_glb)) then
+                write(*,*) "ERROR: scalar_disassemble has inconsistent dimension between array_glb and this%glb_sz"
+                call mpi_abort(comm_glb,error_flag_comm,mpi_ierr)
+            endif
         endif
 
         !> define left and right subcommunicator groups
@@ -263,14 +312,32 @@ contains
             !  N1 , N2/axis_comm(2), N3/axis_comm(3)
             subcomm_l = comm_grps(this%axis_comm(2))
             subcomm_r = comm_grps(this%axis_comm(3))
+            allocate(subglobal_array(n1_glb,n2_glb,n3_loc))
         elseif (axis.eq.2) then
             !   SUBCOMMS_L   , axis,   SUBCOMMS_R
             ! N1/axis_comm(1),  N2 , N3/axis_comm(3)
             subcomm_l = comm_grps(this%axis_comm(1))
             subcomm_r = comm_grps(this%axis_comm(3))
+            allocate(subglobal_array(n2_glb, n1_glb, n3_loc))
         else
-            if (rank_glb.eq.0) write(*,*) "ERROR: scalar_disassemble does not support the current axis"
-            return
+            ! if (rank_glb.eq.0) write(*,*) "ERROR: scalar_disassemble does not support the current axis"
+            ! call mpi_abort(comm_glb,error_flag_comm,mpi_ierr)
+
+            if ((is_warning).and.(rank_glb.eq.0)) write(*,*) &
+            "WARNING: scalar_disassemble does not have native support for the 3rd axis, &", &
+            "but it will proceed by exchanging axis first."
+
+            ! Copy the current axis communicator configuration
+            axis_comm_copy = this%axis_comm
+            ! Deallocate the current scalar data
+            call this%dealloc()
+            ! Reinitialize the scalar with the new swapped axis communicator configuration
+            call this%initialise(this%glb_sz,(/ axis_comm_copy(1), axis_comm_copy(3), axis_comm_copy(2) /))
+            ! Disassemble the scalar data with the second axis complete
+            call this%disassemble(2, array_glb)
+            ! Swap the axis back to the original configuration
+            call this%exchange(2, 3)
+
         endif
 
         !> unpack global array in global proc#0 to subglobal arrays
@@ -286,11 +353,14 @@ contains
             call mpi_allgather(displacement_loc,1,MPI_INTEGER,displacement,1,MPI_INTEGER,subcomm_r,mpi_ierr)
 
             if (axis.eq.1) then
-                allocate(subglobal_array(n1_glb,n2_glb,n3_loc))
                 call mpi_scatterv(array_glb, recvcount, displacement, scalar_element_type, &
                     subglobal_array, n1_glb*n2_glb*n3_loc, scalar_element_type, 0, subcomm_r, mpi_ierr)
             elseif (axis.eq.2) then
                 allocate(global_array_temp(n2_glb,n1_glb,n3_glb))
+                !      #1   #2   #3
+                ! old: N1 x N2 x N3
+                ! new: N2 x N1 x N3 
+                ! order: #1 of old (N1) becomes #2 of new, #2 of old (N2) becomes #1 of new, #3 of old (N3) becomes #3 of new
                 global_array_temp = reshape(array_glb, shape(global_array_temp), order = [2,1,3])
                 call mpi_scatterv(global_array_temp, recvcount, displacement, scalar_element_type, &
                     subglobal_array, n1_glb*n2_glb*n3_loc, scalar_element_type, 0, subcomm_r, mpi_ierr)
@@ -300,6 +370,9 @@ contains
             deallocate(recvcount,displacement)
 
         endif
+
+        call mpi_barrier(comm_glb, mpi_ierr)
+        write(*,*) "rank = ", rank_glb, "after scatterv"
 
         if (axis.eq.1) then
 
@@ -347,14 +420,16 @@ contains
         if (axis.eq.1) then
             !      #1   #2   #3
             ! old: N1 X N3 X N2
-            ! new: N1 X N2 X N3
+            ! new: N1 X N2 X N3 
+            ! order: #1 of old (N1) becomes #1 of new, #2 of old (N3) becomes #3 of new, #3 of old (N2) becomes #2 of new
             this%e = reshape(local_array_temp, shape(this%e), order = [1,3,2])
 
         elseif (axis.EQ.2) THEN
             !      #1   #2   #3
             ! old: N2 X N3 X N1
-            ! new: N1 X N2 X N3
-            this%e = reshape(local_array_temp, shape(this%e), order = [3,1,2])
+            ! new: N1 X N2 X N3 
+            ! order: #1 of old (N2) becomes #2 of new, #2 of old (N3) becomes #3 of new, #3 of old (N1) becomes #1 of new
+            this%e = reshape(local_array_temp, shape(this%e), order = [2,3,1])
         endif
 
         call mpi_type_free(subarray_type,mpi_ierr)

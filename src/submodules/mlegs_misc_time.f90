@@ -4,7 +4,7 @@ submodule (mlegs_misc) mlegs_misc_time
 contains
 
   module procedure print_real_time
-    character(len=1) ::  dum
+    character(len=10) ::  dum
     integer(p4), dimension(8) :: vals
     call date_and_time(dum, dum, dum, vals)
     write(*,101) vals(1), vals(2), vals(3), vals(5), vals(6), vals(7)

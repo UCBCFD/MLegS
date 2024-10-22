@@ -65,7 +65,7 @@ module mlegs_scalar
             implicit none
             class(scalar), intent(inout) :: this
             integer, intent(in) :: glb_sz(3)
-            integer, allocatable, intent(in) :: axis_comm(:)
+            integer, intent(in) :: axis_comm(:)
         end subroutine
 
         !> NOTE: add overloaded initialise & alloc that takes XXX_SPACE tag (public)
@@ -91,20 +91,30 @@ module mlegs_scalar
         end subroutine
 
         !> assemble/disassemble distributed data into/from a single proc
-        module function scalar_assemble(this,axis) result(array_glb)
+        module recursive function scalar_assemble(this,axis) result(array_glb)
             implicit none
-            class(scalar), intent(inout) :: this
+            class(scalar), intent(in) :: this
             complex(P8), dimension(:,:,:), allocatable :: array_glb
             integer(i4) :: axis
         end function
-        module subroutine scalar_disassemble(this,axis,array_glb)
+        module recursive subroutine scalar_disassemble(this,axis,array_glb)
             implicit none
             class(scalar), intent(inout) :: this
             complex(P8), dimension(:,:,:), allocatable :: array_glb
             integer(i4) :: axis
         end subroutine
 
-    end interface  
+    end interface
+
+    !> copy a scalar
+    interface assignment(=)
+        module subroutine scalar_copy(this,that)
+            implicit none
+            class(scalar), intent(inout) :: this
+            class(scalar), intent(in) :: that
+        end subroutine
+    end interface
+    public :: assignment(=)
 
     !> set up cartesian communicator groups
     interface set_comm_grps

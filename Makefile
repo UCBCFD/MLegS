@@ -1,9 +1,12 @@
-# Compiler (ifx or gfortran)
-OMPI_FC = ifx
+# Compiler (ifx/ifort or gfortran)
+OMPI_FC = ifort
 
 # Compiler flags
 ifeq ($(OMPI_FC), ifx)
   FC = mpiifx
+  FFLAGS = -O3 -mcmodel=medium -g -std08 -module $(MOD_DIR) -I$(INC_DIR) -L$(LIB_DIR)
+else ifeq ($(OMPI_FC), ifort)
+  FC = mpiifort
   FFLAGS = -O3 -mcmodel=medium -g -std08 -module $(MOD_DIR) -I$(INC_DIR) -L$(LIB_DIR)
 else ifeq ($(OMPI_FC), gfortran)
   FC = mpifort
@@ -17,7 +20,7 @@ EXTLIBS = -llapack -lblas -lfm -lffte -ldecomp2d
 # Source and build directories
 MODULE_DIR = src/modules
 SUBMODULE_DIR = src/submodules
-MAIN_DIR = test
+MAIN_DIR = src/apps
 BUILD_DIR = build
 MOD_DIR = $(BUILD_DIR)/mod
 OBJ_DIR = $(BUILD_DIR)/obj
@@ -44,7 +47,7 @@ all: $(MAIN_EXES)
 
 # Link object files to create the executable
 $(MAIN_EXES): $(MODULE_OBJECTS) $(SUBMODULE_OBJECTS)
-	@mkdir -p $(MOD_DIR) $(OBJ_DIR) $(BIN_DIR)
+	@mkdir -p $(MOD_DIR) $(OBJ_DIR) $(BIN_DIR) 
 	$(FC) $(FFLAGS) $(MAIN_DIR)/$@.f90 -o $(BIN_DIR)/$@ $^ $(EXTLIBS)
 
 # Compile each module source file into an object file
