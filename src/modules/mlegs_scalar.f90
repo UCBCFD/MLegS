@@ -91,17 +91,17 @@ module mlegs_scalar
         end subroutine
 
         !> assemble/disassemble distributed data into/from a single proc
-        module recursive function scalar_assemble(this,axis) result(array_glb)
+        module recursive function scalar_assemble(this,axis_input) result(array_glb)
             implicit none
             class(scalar), intent(in) :: this
             complex(P8), dimension(:,:,:), allocatable :: array_glb
-            integer(i4) :: axis
+            integer(i4), optional :: axis_input
         end function
-        module recursive subroutine scalar_disassemble(this,axis,array_glb)
+        module recursive subroutine scalar_disassemble(this,array_glb,axis_input)
             implicit none
             class(scalar), intent(inout) :: this
             complex(P8), dimension(:,:,:), allocatable :: array_glb
-            integer(i4) :: axis
+            integer(i4), optional :: axis_input
         end subroutine
 
     end interface

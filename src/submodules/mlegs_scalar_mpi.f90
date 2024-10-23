@@ -91,9 +91,14 @@ contains
         endif
         if (.not.associated(this%e)) then
             call this%initialise(that%glb_sz,that%axis_comm)
-        elseif (any(this%loc_sz.ne.that%loc_sz)) then
+        elseif ((any(this%loc_sz.ne.that%loc_sz)).or.(any(this%axis_comm.ne.that%axis_comm))) then
             if ((is_warning).and.(rank_glb.eq.0)) write(*,*) &
-            "WARNING: scalar_copy has inconsistent local sizes"
+            "WARNING: scalar_copy has inconsistent communicator layout and/or data size - reset target scalar ", &
+            "with axis_comm configuration: OLD(", &
+            trim(adjustl(itoa(this%axis_comm(1)))), ",", trim(adjustl(itoa(this%axis_comm(2)))), ",", &
+            trim(adjustl(itoa(this%axis_comm(3)))), ") to NEW(", &
+            trim(adjustl(itoa(that%axis_comm(1)))), ",", trim(adjustl(itoa(that%axis_comm(2)))), ",", &
+            trim(adjustl(itoa(that%axis_comm(3)))), ")"
             call this%dealloc()
             call this%initialise(that%glb_sz,that%axis_comm)
         endif
@@ -157,7 +162,7 @@ contains
 
     !> assemble distributed data into a single proc
     module procedure scalar_assemble
-        integer(i4) :: n1_glb, n2_glb, n3_glb, n1_loc, n2_loc, n3_loc
+        integer(i4) :: axis, n1_glb, n2_glb, n3_glb, n1_loc, n2_loc, n3_loc
         integer(i4) :: element_size, subcomm_l, subcomm_r
         integer(kind = MPI_ADDRESS_KIND) :: extend_size
         integer(i4) :: subarray_type_temp, subarray_type, displacement_loc, recvcount_loc
@@ -174,6 +179,12 @@ contains
         n1_loc = this%loc_sz(1); n2_loc = this%loc_sz(2); n3_loc = this%loc_sz(3)
 
         allocate(array_glb(n1_glb,n2_glb,n3_glb))
+
+        if (present(axis_input)) then
+            axis = axis_input
+        else
+            axis = findloc(this%axis_comm,0,dim=1)
+        end if            
 
         if (axis.eq.1) then
             ! axis,    SUBCOMMS_L  ,   SUBCOMMS_R
@@ -283,7 +294,7 @@ contains
 
     !> disassemble data into distributed procs
     module procedure scalar_disassemble
-        integer(i4) :: n1_glb, n2_glb, n3_glb, n1_loc, n2_loc, n3_loc, axis_comm_copy(3)
+        integer(i4) :: axis, n1_glb, n2_glb, n3_glb, n1_loc, n2_loc, n3_loc, axis_comm_copy(3)
         integer(i4) :: element_size, subcomm_l, subcomm_r
         integer(kind = mpi_address_kind) :: extend_size
         integer(i4) :: subarray_type_temp, subarray_type, displacement_loc, recvcount_loc
@@ -307,6 +318,11 @@ contains
         endif
 
         !> define left and right subcommunicator groups
+        if (present(axis_input)) then
+            axis = axis_input
+        else
+            axis = findloc(this%axis_comm,0,dim=1)
+        end if
         if (axis.eq.1) then
             ! axis,    SUBCOMMS_L  ,   SUBCOMMS_R
             !  N1 , N2/axis_comm(2), N3/axis_comm(3)
@@ -334,7 +350,7 @@ contains
             ! Reinitialize the scalar with the new swapped axis communicator configuration
             call this%initialise(this%glb_sz,(/ axis_comm_copy(1), axis_comm_copy(3), axis_comm_copy(2) /))
             ! Disassemble the scalar data with the second axis complete
-            call this%disassemble(2, array_glb)
+            call this%disassemble(array_glb,2)
             ! Swap the axis back to the original configuration
             call this%exchange(2, 3)
 
@@ -370,9 +386,6 @@ contains
             deallocate(recvcount,displacement)
 
         endif
-
-        call mpi_barrier(comm_glb, mpi_ierr)
-        write(*,*) "rank = ", rank_glb, "after scatterv"
 
         if (axis.eq.1) then
 

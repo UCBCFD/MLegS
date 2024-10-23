@@ -87,8 +87,10 @@ call mpi_barrier(comm_glb, mpi_ierr)
 
 ! Assemble local scalars into global arrays and save them to files
 ! note: currently, assemble only supports arrays with either 1st or 2nd axis complete
-call save_glb(A_loc%assemble(1), "A_glb_012")
-call save_glb(B_loc%assemble(1), "B_glb_012")
+! call save_glb(A_loc%assemble(1), "A_glb_012")
+call save_glb(A_loc%assemble(), "A_glb_012")
+! call save_glb(B_loc%assemble(1), "B_glb_012")
+call save_glb(B_loc%assemble(), "B_glb_012")
 
 ! ================ TEST 2: ASSEMBLE THE SCALAR VALUES ==================
 ! Exchange the scalar values
@@ -96,7 +98,8 @@ call save_glb(B_loc%assemble(1), "B_glb_012")
 write(*,*) 'rank = ', rank_glb, 'A_loc_new%loc_sz = ', size(A_loc_new%e, 1), size(A_loc_new%e, 2), size(A_loc_new%e, 3)
 call mpi_barrier(comm_glb, mpi_ierr)
 ! 2. assemble the scalar values -> assemble automatically exchanges the scalar values first before assembling
-call save_glb(A_loc_new%assemble(3), "A_glb_120")
+! call save_glb(A_loc_new%assemble(3), "A_glb_120")
+call save_glb(A_loc_new%assemble(), "A_glb_120")
 
 ! 2. exchange the scalar values
 call A_loc_new%exchange(3,2) ! (1,2,0) -> (1,0,2)
@@ -105,7 +108,8 @@ write(*,*) 'rank = ', rank_glb, 'A_loc_new%loc_sz = ', size(A_loc_new%e, 1), siz
 call mpi_barrier(comm_glb, mpi_ierr)
 ! if (rank_glb.eq.0) write(*,*) int(real(A_loc_new%e))
 ! 4. assemble the scalar values
-call save_glb(A_loc_new%assemble(2), "A_glb_102")
+! call save_glb(A_loc_new%assemble(2), "A_glb_102")
+call save_glb(A_loc_new%assemble(), "A_glb_102")
 
 ! 2. exchange the scalar values
 call A_loc_new%exchange(2,3) ! (1,0,2) -> (1,2,0)
@@ -114,7 +118,8 @@ call A_loc_new%exchange(3,1) ! (1,2,0) -> (0,2,1)
 write(*,*) 'rank = ', rank_glb, 'A_loc_new%loc_sz = ', size(A_loc_new%e, 1), size(A_loc_new%e, 2), size(A_loc_new%e, 3)
 call mpi_barrier(comm_glb, mpi_ierr)
 ! 4. assemble the scalar values
-call save_glb(A_loc_new%assemble(1), "A_glb_021")
+! call save_glb(A_loc_new%assemble(1), "A_glb_021")
+call save_glb(A_loc_new%assemble(), "A_glb_021")
 
 ! 2. exchange the scalar values
 call A_loc_new%exchange(1,2) ! (0,2,1) -> (2,0,1)
@@ -123,7 +128,8 @@ write(*,*) 'rank = ', rank_glb, 'A_loc_new%loc_sz = ', size(A_loc_new%e, 1), siz
 call mpi_barrier(comm_glb, mpi_ierr)
 ! if (rank_glb.eq.0) write(*,*) int(real(A_loc_new%e))
 ! 4. assemble the scalar values
-call save_glb(A_loc_new%assemble(2), "A_glb_201")
+! call save_glb(A_loc_new%assemble(2), "A_glb_201")
+call save_glb(A_loc_new%assemble(), "A_glb_201")
 
 ! =============== TEST 3: DISASSEMBLE THE SCALAR VALUES ================
 allocate(A_glb(glb_sz(1), glb_sz(2), glb_sz(3)))
@@ -135,14 +141,16 @@ allocate(A_glb(glb_sz(1), glb_sz(2), glb_sz(3)))
 ! call A_loc_new%disassemble(2, A_glb)
 
 call A_loc_new%exchange(2,1) ! (2,0,1) -> (0,2,1)
-A_glb = A_loc_new%assemble(1)
+! A_glb = A_loc_new%assemble(1)
+A_glb = A_loc_new%assemble()
 A_loc = A_loc_new
 ! A_loc%e = A_loc%e * 2
 call A_loc_new%dealloc()
 
 ! Disassemble the global array into local scalars
 call A_loc_new%initialise(glb_sz, (/ 0, 2, 1 /))
-call A_loc_new%disassemble(1, A_glb)
+! call A_loc_new%disassemble(A_glb, 1)
+call A_loc_new%disassemble(A_glb)
 
 do ii = 1, A_loc_new%loc_sz(1)
     do jj = 1, size(A_loc_new%e, 2)
