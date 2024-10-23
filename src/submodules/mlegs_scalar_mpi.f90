@@ -444,7 +444,11 @@ contains
         integer(i4) :: i
         integer, allocatable :: subcomms(:)
 
-        call subcomm_cart(comm, 2, subcomms)
+        if (present(dims)) then
+            call subcomm_cart(comm, 2, subcomms, dims)
+        else
+            call subcomm_cart(comm, 2, subcomms)
+        endif
 
         do i = 1,2
             comm_grps(i) = subcomms(i)
@@ -679,7 +683,7 @@ function local_proc(comm)
 
     end function count_proc
 ! ======================================================================
-    subroutine subcomm_cart(comm,ndim,subcomms)
+    subroutine subcomm_cart(comm,ndim,subcomms,dims_in)
 ! ======================================================================
 ! [usage]:
 ! create communicators (subcomms(i)) for each dimension(i) that has cart
@@ -696,6 +700,7 @@ function local_proc(comm)
     integer:: comm
     integer:: ndim
     integer,dimension(:),allocatable,intent(out)::subcomms
+    integer,dimension(1:ndim),optional:: dims_in
 
     integer:: comm_cart, nproc_comm, i 
     integer,dimension(1:ndim):: dims
@@ -710,7 +715,12 @@ function local_proc(comm)
 
     ! creates a division of processors in a cartesian grid
     ! dims: number of processors in each dim
-    call mpi_dims_create(nproc_comm,ndim,dims,mpi_ierr)
+    if (present(dims_in)) then
+        dims = dims_in
+    else
+        call mpi_dims_create(nproc_comm,ndim,dims,mpi_ierr)
+    endif
+    if ((is_warning).and.(rank_glb.eq.0)) write(*,*) 'comm dims = ',dims
     ! write(*,*) mpi_rank,'-',dims(1),'x',dims(2)
 
     ! makes processor group that attaches the cartesian topology

@@ -118,9 +118,10 @@ module mlegs_scalar
 
     !> set up cartesian communicator groups
     interface set_comm_grps
-        module subroutine subcomm_cart_2d(comm)
+        module subroutine subcomm_cart_2d(comm,dims)
             implicit none
             integer:: comm
+            integer, optional:: dims(2)
         end subroutine
     end interface
     public :: set_comm_grps

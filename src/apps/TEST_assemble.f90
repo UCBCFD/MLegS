@@ -37,11 +37,12 @@ if (rank_glb.eq.0) then
 endif
 
 ! Set 2D processor grid
-call set_comm_grps(comm_glb)
+! call set_comm_grps(comm_glb) ! default: 2D grid / pencil
+call set_comm_grps(comm_glb,(/ 4, 1 /)) ! 1D grid / slab
 
 ! Initialize scalars with different axis communications
 ! Create a scalar with global size 10x12x10
-glb_sz = (/ 2, 4, 6 /)
+glb_sz = (/ 6, 8, 10 /)
 ! A: dim 1 is distributed by comm_grp(1), dim 2 by comm_grp(2), dim 3 is complete
 call A_loc%initialise(glb_sz, (/ 1, 2, 0 /))
 ! B: dim 1 is complete, dim 2 is distributed by comm_grp(1), dim 3 by comm_grp(2)
