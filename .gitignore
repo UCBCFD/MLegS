@@ -35,6 +35,7 @@ build
 # outputs
 *.out
 *.log
+*.dat
 output
 
 # any temporary directories
