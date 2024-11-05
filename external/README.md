@@ -17,12 +17,6 @@ MLegS includes the following copies of external open-source code packages for ne
  - Description: Solving systems of linear equations, eigenvalue problems, and singular value problems
  - License: Refer to LICENSE in the directory (`./lapack/`)
 
-4. General-purpose 2D pencil decomposition module -- 2DECOMP&FFT (v2.0.3) (Released 2024 Mar)
- - Source: [https://2decomp-fft.github.io/](https://2decomp-fft.github.io/)
- - Description: General-purpose 2D pencil decomposition for data distribution
- - License: Refer to LICENSE in the directory (`./2decomp-fft/`)
- - *Note: We do not make use of 2DECOMP&FFT's built-in FFT module; FFTE is our FFT engine.*
-
 Please refer to the license file in each directory for the full open-source license text of these packages.
 
 ### How to build

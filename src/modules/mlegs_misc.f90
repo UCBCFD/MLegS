@@ -1,6 +1,7 @@
 module mlegs_misc
   !> module for miscellaneous procedures
   use mlegs_envir
+  use mlegs_base
   implicit none
   private
 
@@ -151,8 +152,7 @@ module mlegs_misc
   end interface
   public :: mcat
 
-  !> I/O utilities
-  !> integer to string for print out
+  !> integer to string
   interface itoa
     module function itoa(i) result(a)
       implicit none
@@ -161,5 +161,14 @@ module mlegs_misc
     end function
   end interface
   public :: itoa
+
+  !> read input parameters in input.params
+  interface read_input
+    module subroutine read_input(fn)
+      implicit none
+      character(len=*), intent(in) :: fn
+    end subroutine
+  end interface
+  public :: read_input
 
 end module

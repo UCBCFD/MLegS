@@ -1,9 +1,9 @@
-
 $(OBJ_DIR)/mlegs_envir.o : $(MODULE_DIR)/mlegs_envir.f90
+$(OBJ_DIR)/mlegs_envir_mpi.o : $(SUBMODULE_DIR)/mlegs_envir_mpi.f90 $(OBJ_DIR)/mlegs_envir.o
 
 $(OBJ_DIR)/mlegs_base.o : $(MODULE_DIR)/mlegs_base.f90 $(OBJ_DIR)/mlegs_envir.o 
 
-$(OBJ_DIR)/mlegs_misc.o : $(MODULE_DIR)/mlegs_misc.f90 $(OBJ_DIR)/mlegs_envir.o 
+$(OBJ_DIR)/mlegs_misc.o : $(MODULE_DIR)/mlegs_misc.f90 $(OBJ_DIR)/mlegs_envir.o $(OBJ_DIR)/mlegs_base.o
 $(OBJ_DIR)/mlegs_misc_time.o : $(SUBMODULE_DIR)/mlegs_misc_time.f90 $(OBJ_DIR)/mlegs_misc.o 
 $(OBJ_DIR)/mlegs_misc_io.o : $(SUBMODULE_DIR)/mlegs_misc_io.f90 $(OBJ_DIR)/mlegs_misc.o
 
@@ -20,4 +20,5 @@ $(OBJ_DIR)/mlegs_spectfm_diff.o : $(SUBMODULE_DIR)/mlegs_spectfm_diff.f90 $(OBJ_
 $(OBJ_DIR)/mlegs_spectfm_tbp.o : $(SUBMODULE_DIR)/mlegs_spectfm_tbp.f90 $(OBJ_DIR)/mlegs_spectfm.o
 
 $(OBJ_DIR)/mlegs_scalar.o : $(MODULE_DIR)/mlegs_scalar.f90 $(OBJ_DIR)/mlegs_envir.o $(OBJ_DIR)/mlegs_misc.o
-$(OBJ_DIR)/mlegs_scalar_mpi.o : $(SUBMODULE_DIR)/mlegs_scalar_mpi.f90 $(OBJ_DIR)/mlegs_scalar.o
+$(OBJ_DIR)/mlegs_scalar_init.o : $(SUBMODULE_DIR)/mlegs_scalar_init.f90 $(OBJ_DIR)/mlegs_scalar.o
+$(OBJ_DIR)/mlegs_scalar_dist.o : $(SUBMODULE_DIR)/mlegs_scalar_dist.f90 $(OBJ_DIR)/mlegs_scalar.o

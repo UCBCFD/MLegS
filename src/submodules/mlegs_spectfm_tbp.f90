@@ -3,18 +3,17 @@ submodule (mlegs_spectfm) mlegs_spectfm_tbp
 
 contains
 
-  module procedure tfm_kit_set
+  module procedure tfm_kit_alloc
     integer(i4) :: i, n
 
-    if (this%is_set .eqv. .true.) then
-      write(*,*) 'tfm_kit_set: [warning] this kit has been initialized already;' &
-                 // ' are you really intentionally executing it?'
+    if ((is_warning) .and. this%is_set .eqv. .true.) then
+      write(*,*) 'tfm_kit_alloc: [warning] this kit has been already initialized'
       this%is_set = .false.
       call this%dealloc()
       tfm_kit_counter = tfm_kit_counter - 1
     endif
-    if (tfm_kit_counter .ge. 1) stop 'tfm_kit_set: only one MLegS transformation kit' &  
-                                     // ' (either 1D, 2D or 3D) is permitted while an app run'
+    if (tfm_kit_counter .ge. 1) stop 'tfm_kit_alloc: only one MLegS transformation kit' &  
+                                     // ' (either 1D, 2D or 3D) is permitted per program'
 
     select type(this)
       type is (tfm_kit_1d)
@@ -33,8 +32,8 @@ contains
         nzchop = 1
     end select
 
-    if (.not.((nr .gt. 0) .and. (mod(nr, 2) .eq. 0))) stop 'tfm_kit_set: nr must be even'
-    if (.not.((np .gt. 0) .and. ((np .eq. 1) .or. (mod(np, 2)) .eq. 0))) stop 'tfm_kit_set: np must be even'
+    if (.not.((nr .gt. 0) .and. (mod(nr, 2) .eq. 0))) stop 'tfm_kit_alloc: nr must be even'
+    if (.not.((np .gt. 0) .and. ((np .eq. 1) .or. (mod(np, 2)) .eq. 0))) stop 'tfm_kit_alloc: np must be even'
     if (np .ne. 1) then
       n = np
       do while (mod(n, 2) == 0 .or. mod(n, 3) == 0 .or. mod(n, 5) == 0)
@@ -42,9 +41,9 @@ contains
           if (mod(n, 3) == 0) n = n / 3
           if (mod(n, 5) == 0) n = n / 5
       enddo
-      if (n .ne. 1) stop 'tfm_kit_set: np must only have factors of 2, 3 and 5'
+      if (n .ne. 1) stop 'tfm_kit_alloc: np must only have factors of 2, 3 and 5'
     endif
-    if (.not.((nz .gt. 0) .and. ((nz .eq. 1) .or. (mod(nz, 2)) .eq. 0))) stop 'tfm_kit_set: nz must be even'
+    if (.not.((nz .gt. 0) .and. ((nz .eq. 1) .or. (mod(nz, 2)) .eq. 0))) stop 'tfm_kit_alloc: nz must be even'
     if (nz .ne. 1) then
       n = nz
       do while (mod(n, 2) == 0 .or. mod(n, 3) == 0 .or. mod(n, 5) == 0)
@@ -52,14 +51,14 @@ contains
           if (mod(n, 3) == 0) n = n / 3
           if (mod(n, 5) == 0) n = n / 5
       enddo
-      if (n .ne. 1) stop 'tfm_kit_set: nz must only have factors of 2, 3 and 5'
+      if (n .ne. 1) stop 'tfm_kit_alloc: nz must only have factors of 2, 3 and 5'
     endif
-    if (nrchop .gt. nr) stop 'tfm_kit_set: nrchop must be smaller than or equal to nr'
+    if (nrchop .gt. nr) stop 'tfm_kit_alloc: nrchop must be smaller than or equal to nr'
     if (np .ne. 1) then
-      if (npchop*2 .gt. np + 2) stop 'tfm_kit_set: npchop <= np/2 + 1 must be satisfied'
+      if (npchop*2 .gt. np + 2) stop 'tfm_kit_alloc: npchop <= np/2 + 1 must be satisfied'
     endif
     if (nz .ne. 1) then
-      if (nzchop*2 .gt. nz + 2) stop 'tfm_kit_set: nzchop <= nz/2 + 1 must be satisfied'
+      if (nzchop*2 .gt. nz + 2) stop 'tfm_kit_alloc: nzchop <= nz/2 + 1 must be satisfied'
     endif
 
     allocate( this%x(nr), this%w(nr) )
@@ -226,7 +225,7 @@ contains
     allocate(wk_log(0:me))
     wk_log(0) = log(.5D0)
     do m = 1, me
-      ! eqn. (13) in Matsushima & Marcus, 1997, without sqrt
+      ! refer to equation (13) in Matsushima & Marcus, 1997 (without sqrt)
       wk_log(m) = wk_log(m-1)+log(2.D0*m+1.D0)-log(2.D0*m*(2.D0*m-1.D0)**2)  
     enddo
     do mm = 1, size(ms)
@@ -271,10 +270,7 @@ contains
       stop
     endif
     allocate( fm_tbl(size(x), ne) )
-    ! the edit below is to suppress the error messasge !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! need to be fixed !
-    ! call m_decompose( size(x), me, m_chunk, m_sidx, m_eidx)
-    m_sidx(1) = 1; m_eidx(1) = size(x)
+    call m_divide( size(x), me, m_chunk, m_sidx, m_eidx)
     if (m_chunk(1)*m_chunk(2) .gt. 0) then
       do mm = m_sidx(2), m_eidx(2)
         m = abs(ms(mm))
@@ -295,10 +291,57 @@ contains
       enddo
     endif
     allocate( m_tbl(size(x), ne, me) )
-    call MPI_Allreduce(tbl, m_tbl, size(x)*ne*me, MPI_Real8, MPI_Sum, comm_glb, mpi_ierr)
+    call MPI_allreduce(tbl, m_tbl, size(x)*ne*me, MPI_real8, MPI_sum, comm_glb, MPI_err)
     tbl = m_tbl
     deallocate( fm_tbl, m_tbl )
   end function
+
+! ======================================================================================================== !
+
+  subroutine m_divide(size_1, size_2, chunk, start_idx, final_idx, ncartprocs, coords)
+    use MPI
+    implicit none
+    integer(i4), intent(in) :: size_1, size_2
+    integer(i4), intent(inout) :: chunk(2), start_idx(2), final_idx(2)
+    integer(i4), optional :: ncartprocs(2), coords(2)
+
+    integer(i4) :: ndim = 2, rank, nproc_comm_world
+    integer(i4), dimension(2) :: dims, coord
+    integer(i4) :: MPI_comm_world_cart, sub_size_1, sub_size_2
+
+    call MPI_comm_size(MPI_comm_world, nproc_comm_world, MPI_err)
+
+    if (present(ncartprocs)) then
+      dims(1) = ncartprocs(1)
+      dims(2) = ncartprocs(2)
+    else
+      dims = 0
+      call MPI_dims_create(nproc_comm_world, ndim, dims, MPI_err)
+    endif
+
+    call MPI_cart_create(MPI_comm_world, 2, dims, (/.false.,.false./), .true., MPI_comm_world_cart, MPI_err)
+
+    call MPI_comm_rank(MPI_comm_world_cart, rank, MPI_err)
+    if (present(coords)) then
+      coord(1) = coords(1)
+      coord(2) = coords(2)
+    else
+      call MPI_cart_coords(MPI_comm_world_cart, rank, 2, coord, MPI_err)
+    endif
+
+    sub_size_1 = size_1 / dims(1)
+    sub_size_2 = size_2 / dims(2)
+    if (coord(1) == dims(1) - 1) sub_size_1 = sub_size_1 + mod(size_1, dims(1))
+    if (coord(2) == dims(2) - 1) sub_size_2 = sub_size_2 + mod(size_2, dims(2))
+    chunk(1) = sub_size_1
+    chunk(2) = sub_size_2
+    start_idx(1) = coord(1) * (size_1 / dims(1)) + 1
+    final_idx(1) = start_idx(1) + chunk(1) - 1
+    start_idx(2) = coord(2) * (size_2 / dims(2)) + 1
+    final_idx(2) = start_idx(2) + chunk(2) - 1
+
+    call MPI_comm_free(MPI_comm_world_cart, MPI_err)
+  end subroutine
 
 ! ======================================================================================================== !
 
@@ -309,5 +352,7 @@ contains
 
     lf = log_gamma(2*m+1.D0) - m*log(2.D0) - log_gamma(m+1.D0)
   end function
+
+! ======================================================================================================== !
 
 end submodule

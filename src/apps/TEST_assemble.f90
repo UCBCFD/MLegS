@@ -3,7 +3,6 @@ program test_assemble
 ! [DESCRIPTION]
 ! This subroutine tests the assembly and exchange of a scalar    
 ! ======================================================================
-USE OMP_LIB
 USE MPI
 USE mlegs_bndmat
 USE mlegs_envir
@@ -20,33 +19,33 @@ type(scalar):: A_loc, B_loc, A_loc_new
 integer:: glb_sz(3), axis_comm(3)
 complex(p8), dimension(:,:,:),allocatable:: A_glb
 
-! Initialize MPI with thread support
-call mpi_init_thread(mpi_thread_serialized, mpi_thread_mode, mpi_ierr)
-if (mpi_thread_mode.lt.mpi_thread_serialized) then
-    write(*,*) 'the threading support is lesser than that demanded.'
-    call mpi_abort(mpi_comm_world, error_flag_comm, mpi_ierr)
+! Initialize MPI
+call MPI_init(MPI_err)
+if (MPI_err.ne.MPI_success) then
+write(*,*) 'MPI initialization failed.'
+call MPI_abort(MPI_comm_world, error_flag_comm, MPI_err)
 endif
 
 ! Get the global communicator and start timing
-time_start = mpi_wtime()
-comm_glb = mpi_comm_world
-call mpi_comm_rank(comm_glb, rank_glb, mpi_ierr)
+time_start = MPI_wtime()
+comm_glb = MPI_comm_world
+call MPI_comm_rank(comm_glb, rank_glb, MPI_err)
 if (rank_glb.eq.0) then
     write(*,*) 'program started'
     call print_real_time()
 endif
 
 ! Set 2D processor grid
-! call set_comm_grps(comm_glb) ! default: 2D grid / pencil
-call set_comm_grps(comm_glb,(/ 4, 1 /)) ! 1D grid / slab
+call set_comm_grps(comm_glb) ! default: 2D grid / pencil
+! call set_comm_grps(comm_glb,(/ 4, 1 /)) ! 1D grid / slab
 
 ! Initialize scalars with different axis communications
 ! Create a scalar with global size 10x12x10
 glb_sz = (/ 6, 8, 10 /)
 ! A: dim 1 is distributed by comm_grp(1), dim 2 by comm_grp(2), dim 3 is complete
-call A_loc%initialise(glb_sz, (/ 1, 2, 0 /))
+call A_loc%init(glb_sz, (/ 1, 2, 0 /))
 ! B: dim 1 is complete, dim 2 is distributed by comm_grp(1), dim 3 by comm_grp(2)
-call B_loc%initialise(glb_sz, (/ 0, 1, 2 /))
+call B_loc%init(glb_sz, (/ 0, 1, 2 /))
 
 ! Set the scalar values
 ! A and B both correspond to the same global array:
@@ -73,17 +72,17 @@ A_loc_new = A_loc
 ! after exchange, A_loc should be the same as B_loc
 ! 1. printout the local size of A before exchange
 write(*,*) 'rank = ', rank_glb, 'A_loc%loc_sz = ', size(A_loc%e, 1), size(A_loc%e, 2), size(A_loc%e, 3)
-call mpi_barrier(comm_glb, mpi_ierr)
+call MPI_barrier(comm_glb, MPI_err)
 ! 2. exchange the scalar values
 call A_loc%exchange(3,2) ! (1,2,0) -> (1,0,2)
 ! 3. printout the local size of A after 1st exchange
 write(*,*) 'rank = ', rank_glb, 'A_loc%loc_sz = ', size(A_loc%e, 1), size(A_loc%e, 2), size(A_loc%e, 3)
-call mpi_barrier(comm_glb, mpi_ierr)
+call MPI_barrier(comm_glb, MPI_err)
 ! 4. exchange the scalar values
 call A_loc%exchange(2,1) ! (1,0,2) -> (0,1,2)
 ! 5. printout the local size of A after 2nd exchange
 write(*,*) 'rank = ', rank_glb, 'A_loc%loc_sz = ', size(A_loc%e, 1), size(A_loc%e, 2), size(A_loc%e, 3)
-call mpi_barrier(comm_glb, mpi_ierr)
+call MPI_barrier(comm_glb, MPI_err)
 
 ! Assemble local scalars into global arrays and save them to files
 ! note: currently, assemble only supports arrays with either 1st or 2nd axis complete
@@ -96,7 +95,7 @@ call save_glb(B_loc%assemble(), "B_glb_012")
 ! Exchange the scalar values
 ! 1. printout the local size of A before exchange
 write(*,*) 'rank = ', rank_glb, 'A_loc_new%loc_sz = ', size(A_loc_new%e, 1), size(A_loc_new%e, 2), size(A_loc_new%e, 3)
-call mpi_barrier(comm_glb, mpi_ierr)
+call MPI_barrier(comm_glb, MPI_err)
 ! 2. assemble the scalar values -> assemble automatically exchanges the scalar values first before assembling
 ! call save_glb(A_loc_new%assemble(3), "A_glb_120")
 call save_glb(A_loc_new%assemble(), "A_glb_120")
@@ -105,7 +104,7 @@ call save_glb(A_loc_new%assemble(), "A_glb_120")
 call A_loc_new%exchange(3,2) ! (1,2,0) -> (1,0,2)
 ! 3. printout the local size of A after exchange
 write(*,*) 'rank = ', rank_glb, 'A_loc_new%loc_sz = ', size(A_loc_new%e, 1), size(A_loc_new%e, 2), size(A_loc_new%e, 3)
-call mpi_barrier(comm_glb, mpi_ierr)
+call MPI_barrier(comm_glb, MPI_err)
 ! if (rank_glb.eq.0) write(*,*) int(real(A_loc_new%e))
 ! 4. assemble the scalar values
 ! call save_glb(A_loc_new%assemble(2), "A_glb_102")
@@ -116,7 +115,7 @@ call A_loc_new%exchange(2,3) ! (1,0,2) -> (1,2,0)
 call A_loc_new%exchange(3,1) ! (1,2,0) -> (0,2,1)
 ! 3. printout the local size of A after exchange
 write(*,*) 'rank = ', rank_glb, 'A_loc_new%loc_sz = ', size(A_loc_new%e, 1), size(A_loc_new%e, 2), size(A_loc_new%e, 3)
-call mpi_barrier(comm_glb, mpi_ierr)
+call MPI_barrier(comm_glb, MPI_err)
 ! 4. assemble the scalar values
 ! call save_glb(A_loc_new%assemble(1), "A_glb_021")
 call save_glb(A_loc_new%assemble(), "A_glb_021")
@@ -125,7 +124,7 @@ call save_glb(A_loc_new%assemble(), "A_glb_021")
 call A_loc_new%exchange(1,2) ! (0,2,1) -> (2,0,1)
 ! 3. printout the local size of A after exchange
 write(*,*) 'rank = ', rank_glb, 'A_loc_new%loc_sz = ', size(A_loc_new%e, 1), size(A_loc_new%e, 2), size(A_loc_new%e, 3)
-call mpi_barrier(comm_glb, mpi_ierr)
+call MPI_barrier(comm_glb, MPI_err)
 ! if (rank_glb.eq.0) write(*,*) int(real(A_loc_new%e))
 ! 4. assemble the scalar values
 ! call save_glb(A_loc_new%assemble(2), "A_glb_201")
@@ -137,7 +136,7 @@ allocate(A_glb(glb_sz(1), glb_sz(2), glb_sz(3)))
 ! A_glb = A_loc_new%assemble(2) ! (2,0,1)
 ! A_loc = A_loc_new
 ! call A_loc_new%dealloc()
-! call A_loc_new%initialise(glb_sz, (/ 2, 0, 1 /))
+! call A_loc_new%init(glb_sz, (/ 2, 0, 1 /))
 ! call A_loc_new%disassemble(2, A_glb)
 
 call A_loc_new%exchange(2,1) ! (2,0,1) -> (0,2,1)
@@ -148,7 +147,7 @@ A_loc = A_loc_new
 call A_loc_new%dealloc()
 
 ! Disassemble the global array into local scalars
-call A_loc_new%initialise(glb_sz, (/ 0, 2, 1 /))
+call A_loc_new%init(glb_sz, (/ 0, 2, 1 /))
 ! call A_loc_new%disassemble(A_glb, 1)
 call A_loc_new%disassemble(A_glb)
 
@@ -170,8 +169,8 @@ call B_loc%dealloc()
 deallocate(A_glb)
 
 ! Final printout
-call mpi_barrier(comm_glb, mpi_ierr)
-time_end = mpi_wtime()
+call MPI_barrier(comm_glb, MPI_err)
+time_end = MPI_wtime()
 if (rank_glb.eq.0) then
     write(*,*) 'program started'
     call print_real_time()
@@ -179,8 +178,8 @@ if (rank_glb.eq.0) then
 endif
 
 ! Synchronize and finalize MPI
-call mpi_barrier(comm_glb, mpi_ierr)
-call mpi_finalize(mpi_ierr)
+call MPI_barrier(comm_glb, MPI_err)
+call MPI_finalize(MPI_err)
 
 ! ======================================================================
 contains
@@ -224,7 +223,7 @@ subroutine save_glb(glb_data, filename)
         close(777)
     endif
 
-    call mpi_barrier(comm_glb, mpi_ierr)
+    call MPI_barrier(comm_glb, MPI_err)
 256   format((f10.0), *(',', f10.0))
 end subroutine save_glb
 ! ======================================================================

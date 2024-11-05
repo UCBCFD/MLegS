@@ -27,7 +27,7 @@ module mlegs_spectfm
     !> MLeg values at origin & infinity when M = 0 (N = 0, 1, ...)
     real(p8), dimension(:), allocatable :: at0, at1
     contains
-      procedure :: set => tfm_kit_set
+      procedure :: alloc => tfm_kit_alloc
       procedure :: dealloc => tfm_kit_dealloc
   end type
 
@@ -63,7 +63,7 @@ module mlegs_spectfm
 
   !> initialization
   interface
-    module subroutine tfm_kit_set(this)
+    module subroutine tfm_kit_alloc(this)
       implicit none
       class(tfm_kit), intent(inout) :: this
     end subroutine

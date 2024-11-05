@@ -281,6 +281,50 @@ contains
     a = trim(adjustl(a))
   end procedure
 
+  module procedure read_input
+    integer(i4) :: fu = 1001
+    logical :: xpi_to_zlen
+    character(len=1) :: dum
+
+    open(unit=fu, file=trim(adjustl(fn)), status='unknown', form='formatted')
+
+    read(fu,*) dum ! computational domain info.
+    read(fu,*) dum; read(fu,*) nr,     np,     nz
+    read(fu,*) dum; read(fu,*) nrchop, npchop, nzchop
+    read(fu,*) dum; read(fu,*) ell,    zlen,   xpi_to_zlen
+    if (xpi_to_zlen) then
+      zlen = zlen * pi
+    endif
+    read(fu,*) dum
+
+    read(fu,*) dum ! time stepping info.
+    read(fu,*) dum; read(fu,*) dt, ti, totaltime, ni, totaln
+    read(fu,*) dum
+
+    read(fu,*) dum ! flow field property info.
+    read(fu,*) dum; read(fu,*) visc, hyperpow, hypervisc
+    read(fu,*) dum
+
+    read(fu,*) dum ! data storage info.
+    read(fu,*) dum; read(fu,'(a256)') flddir; flddir = trim(adjustl(flddir))
+    if (flddir(len(flddir):len(flddir)) .ne. '/') then
+      flddir = trim(adjustl(flddir))//'/'
+    endif
+    read(fu,*) dum; read(fu,*) isfldsav, fldsavintvl
+    read(fu,*) dum
+
+    read(fu,*) dum ! data logging info.
+    read(fu,*) dum; read(fu,'(a256)') logdir; logdir = trim(adjustl(logdir))
+    if (logdir(len(logdir):len(logdir)) .ne. '/') then
+      logdir = trim(adjustl(logdir))//'/'
+    endif
+    read(fu,*) dum; read(fu,*) islogsav, logsavintvl
+    read(fu,*) dum
+
+    close(fu)
+
+  end procedure
+
 ! ======================================================================================================== !
 ! VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV INTERNAL (PRIVATE) SUBROUTINES/FUNCTIONS VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV !
 ! ======================================================================================================== !

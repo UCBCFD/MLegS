@@ -1,12 +1,10 @@
-# Compiler (ifx/ifort or gfortran)
-OMPI_FC = ifort
+# Compiler (ifx or gfortran)
+# change gfortran to ifx if one wants to use Intel's oneAPI compiler
+OMPI_FC = gfortran
 
 # Compiler flags
 ifeq ($(OMPI_FC), ifx)
   FC = mpiifx
-  FFLAGS = -O3 -mcmodel=medium -g -std08 -module $(MOD_DIR) -I$(INC_DIR) -L$(LIB_DIR)
-else ifeq ($(OMPI_FC), ifort)
-  FC = mpiifort
   FFLAGS = -O3 -mcmodel=medium -g -std08 -module $(MOD_DIR) -I$(INC_DIR) -L$(LIB_DIR)
 else ifeq ($(OMPI_FC), gfortran)
   FC = mpifort
@@ -15,7 +13,7 @@ else
   $(error Untested compiler: $(FC). Tested compilers are gfortran <v11.2 or later> and ifx <v2024.1.0 or later>)
 endif
 
-EXTLIBS = -llapack -lblas -lfm -lffte -ldecomp2d
+EXTLIBS = -llapack -lblas -lfm -lffte
 
 # Source and build directories
 MODULE_DIR = src/modules
