@@ -4,6 +4,9 @@ module mlegs_scalar
   use mlegs_envir
   use mlegs_base
   use mlegs_misc
+  use mlegs_genmat
+  use mlegs_bndmat
+  use mlegs_spectfm
 
   implicit none
   private
@@ -22,7 +25,7 @@ module mlegs_scalar
     complex(p8), dimension(:,:,:), pointer :: e
 
     !> log term expression. used for toroidal-poloidal decomposition
-    real(p8) :: ln
+    real(p8) :: ln = 0.D0
 
     !> spectral element chopping offset
     integer(i4) :: nrchop_offset = 0, npchop_offset = 0, nzchop_offset = 0
@@ -33,8 +36,7 @@ module mlegs_scalar
     !> procedures
     contains
       !> initialization
-      procedure :: init => scalar_initialize
-      procedure :: alloc => scalar_alloc
+      procedure :: init => scalar_init
       procedure :: dealloc => scalar_dealloc
       
       !> MPI distribution for parallel processing
@@ -42,9 +44,7 @@ module mlegs_scalar
       procedure :: assemble => scalar_assemble
       procedure :: disassemble => scalar_disassemble
 
-      ! procedure :: chop_offset => scalar_chop_offset
-      ! procedure :: chop_do => scalar_chop_do
-      ! procedure :: trans => scalar_trans
+      procedure :: chop_offset => scalar_chop_offset
       ! procedure :: calcat0 => scalar_calcat0
       ! procedure :: calcat1 => scalar_calcat1
       ! procedure :: zeroat1 => scalar_zeroat1
@@ -54,26 +54,17 @@ module mlegs_scalar
 
   interface !> type bound procedures
     !> initialize a scalar: glb_sz, loc_sz, loc_st, and axis_comm
-    module subroutine scalar_initialize(this, glb_sz, axis_comm)
+    module subroutine scalar_init(this, glb_sz, axis_comm)
       implicit none
       class(scalar), intent(inout) :: this
-      integer(i4), intent(in) :: glb_sz(3)
+      integer(i4), dimension(3), intent(in) :: glb_sz
       integer(i4), intent(in) :: axis_comm(:)
     end subroutine
-
-    !> NOTE: add overloaded MPI & alloc that takes XXX_SPACE tag (public)
-    !> OR create extended type for 3D FFT which directly create loc_sz and loc_st based on XXX_SPACE
-
-    !> allocate/deallocate a scalr
-    module subroutine scalar_alloc(this)
-      implicit none
-      class(scalar), intent(inout) :: this
-    end subroutine
+    !> deallocate a scalar
     module subroutine scalar_dealloc(this)
       implicit none
       class(scalar), intent(inout) :: this
     end subroutine
-
     !> re-orient distributed data
     !> before: data is complete (not distributed) along axis_old for ea proc
     !> after : data is complete (not distributed) along axis_new for ea proc
@@ -82,7 +73,6 @@ module mlegs_scalar
       class(scalar), intent(inout) :: this
       integer, intent(in) :: axis_old, axis_new
     end subroutine
-
     !> assemble/disassemble distributed data into/from a single proc
     module recursive function scalar_assemble(this,axis_input) result(array_glb)
       implicit none
@@ -96,7 +86,6 @@ module mlegs_scalar
       complex(P8), dimension(:,:,:), allocatable :: array_glb
       integer(i4), optional :: axis_input
     end subroutine
-
     !> set up new chopping offsets for a scalar field
     module subroutine scalar_chop_offset(this, iof1, iof2, iof3)
       implicit none
@@ -104,6 +93,11 @@ module mlegs_scalar
       integer(i4), intent(in) :: iof1 ! offset of nrchop
       integer(i4), optional :: iof2 ! offset of npchop (default is 0)
       integer(i4), optional :: iof3 ! offset of nzchop (default is 0)
+    end subroutine
+    !> set up new chopping offsets for a scalar field
+    module subroutine scalar_chop_do(this)
+      implicit none
+      class(scalar), intent(inout) :: this
     end subroutine
   end interface
 
@@ -126,5 +120,26 @@ module mlegs_scalar
     end subroutine
   end interface
   public :: set_comm_grps
+
+  !> chop a scalar
+  interface chop
+    module subroutine chop(s, tfm)
+      implicit none
+      class(scalar) :: s
+      class(tfm_kit) :: tfm
+    end subroutine
+  end interface
+  public :: chop
+
+  !> perform spectral transformation of a scalar
+  interface trans
+    module subroutine trans(s, space, tfm)
+      implicit none
+      class(scalar) :: s
+      character(len=3) :: space
+      class(tfm_kit) :: tfm
+    end subroutine
+  end interface
+  public :: trans
 
 end module

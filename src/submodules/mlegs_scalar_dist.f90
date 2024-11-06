@@ -8,6 +8,16 @@ contains
     integer, dimension(:), allocatable :: subarray_type_old, subarray_type_new
     complex(p8), dimension(:,:,:), pointer :: e_new
 
+    real(p8) :: ln_
+    integer(i4) :: nrchop_offset_, npchop_offset_, nzchop_offset_
+    character(len=3) :: space_
+
+    ln_ = this%ln
+    nrchop_offset_ = this%nrchop_offset
+    npchop_offset_ = this%npchop_offset
+    nzchop_offset_ = this%nzchop_offset
+    space_ = this%space
+
     !> check whether the old dimension is distributed or not
     if (this%axis_comm(axis_old).ne.0) then
       if (rank_glb.eq.0) write(*,*) &
@@ -47,6 +57,13 @@ contains
       call MPI_type_free(subarray_type_new(i),MPI_err)
     enddo
     deallocate(subarray_type_new,subarray_type_old)
+
+    this%ln = ln_
+    this%nrchop_offset = nrchop_offset_
+    this%npchop_offset = npchop_offset_
+    this%nzchop_offset = nzchop_offset_
+    this%space = space_
+
   end procedure
 
   !> assemble distributed data into a single proc
@@ -322,7 +339,9 @@ contains
             local_array_temp, n1_loc*n2_loc*n3_loc, scalar_element_type, 0, subcomm_l, MPI_err)
 
     !> copy value to this%e
-    if (.not.associated(this%e)) call this%alloc()
+    if (.not.associated(this%e)) then
+      allocate(this%e(this%loc_sz(1),this%loc_sz(2),this%loc_sz(3)))
+    endif
     if (axis.eq.1) then
       !      #1   #2   #3
       ! old: N1 X N3 X N2

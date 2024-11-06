@@ -27,7 +27,7 @@ module mlegs_spectfm
     !> MLeg values at origin & infinity when M = 0 (N = 0, 1, ...)
     real(p8), dimension(:), allocatable :: at0, at1
     contains
-      procedure :: alloc => tfm_kit_alloc
+      procedure :: init => tfm_kit_init
       procedure :: dealloc => tfm_kit_dealloc
   end type
 
@@ -60,10 +60,10 @@ module mlegs_spectfm
     !> spectral workspace dimensions
     integer(i4) :: nzdim, chopzl, chopzu
   end type
+  type(tfm_kit_3d), public :: tfm
 
-  !> initialization
-  interface
-    module subroutine tfm_kit_alloc(this)
+  interface !> type-bound procedures
+    module subroutine tfm_kit_init(this)
       implicit none
       class(tfm_kit), intent(inout) :: this
     end subroutine

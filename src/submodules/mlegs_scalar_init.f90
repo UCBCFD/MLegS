@@ -3,11 +3,10 @@ submodule (mlegs_scalar) mlegs_scalar_init
 
 contains
   !> initialize a scalar
-  module procedure scalar_initialize
+  module procedure scalar_init
     integer(i4) :: i, comm_grp_idx, nproc_i, rank_i, loc_sz_i, loc_st_i
 
     this%glb_sz = glb_sz
-
     ! multi-dimension support
     select case (size(axis_comm))
       ! 1D: r
@@ -62,13 +61,9 @@ contains
     enddo
 
     !> allocate
-    call this%alloc()
-
-  end procedure
-
-  !> allocate a scalar
-  module procedure scalar_alloc
     allocate(this%e(this%loc_sz(1),this%loc_sz(2),this%loc_sz(3)))
+    this%space = 'PPP'
+
   end procedure
 
   !> deallocate a scalar
@@ -80,6 +75,31 @@ contains
     endif
     deallocate(this%e)
     nullify(this%e)
+    this%ln = 0.D0
+    this%nrchop_offset = 0; this%npchop_offset = 0; this%nzchop_offset = 0
+    this%space = ''
+  end procedure
+
+  !> set offset values for chopping
+  module procedure scalar_chop_offset
+    implicit none
+    integer(i4) :: iof2_, iof3_
+
+    if (present(iof2)) then
+      iof2_ = iof2
+    else
+      iof2_ = 0
+    endif
+    
+    if (present(iof3)) then
+      iof3_ = iof3
+    else
+      iof3_ = 0
+    endif
+
+    this%nrchop_offset = iof1
+    this%npchop_offset = iof2_
+    this%nzchop_offset = iof3_
   end procedure
 
   !> copy a scalar
@@ -110,6 +130,13 @@ contains
     this%loc_sz = that%loc_sz
     this%glb_sz = that%glb_sz
     this%axis_comm = that%axis_comm
+    
+    this%ln = that%ln
+    this%nrchop_offset = that%nrchop_offset
+    this%npchop_offset = that%npchop_offset
+    this%nzchop_offset = that%nzchop_offset
+  
+    this%space = that%space
   end procedure
 
 end submodule
