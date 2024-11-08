@@ -24,7 +24,7 @@ module mlegs_base
   !> time stepping -- end step index (termination criterion)
   integer(i4), public :: totaln = 100000
   !> flow properties -- viscosity (== inverse of Reynolds number)
-  real(p8), public :: visc = 1.D-5
+  real(p8), public :: visc = 1.D-3
   !> flow properties -- hyperviscosity power (0 if no hyperviscosity, otherwise greater than 2 and even)
   integer(i4), public :: hyperpow = 0
   !> flow properties -- hypervisocisty value

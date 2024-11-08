@@ -20,6 +20,12 @@ module mlegs_envir
   !> string size (per number to be stored) for formatted file I/O
   integer(i4), public, parameter :: formatted_num_str_len = 24
 
+  !> Timestep
+  !> Current timestep
+  integer(i4), public :: curr_n = 0
+  !> Current simulation time
+  real(p8), public :: curr_t = 0.D0
+
   !> MPI
   !> global communicator group
   integer, public :: comm_glb, rank_glb, nprocs_glb

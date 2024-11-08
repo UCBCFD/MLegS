@@ -44,12 +44,8 @@ module mlegs_scalar
       procedure :: assemble => scalar_assemble
       procedure :: disassemble => scalar_disassemble
 
+      !> chopping index setup
       procedure :: chop_offset => scalar_chop_offset
-      ! procedure :: calcat0 => scalar_calcat0
-      ! procedure :: calcat1 => scalar_calcat1
-      ! procedure :: zeroat1 => scalar_zeroat1
-      ! procedure :: msave => scalar_msave
-      ! procedure :: mload => scalar_mload
   end type
 
   interface !> type bound procedures
@@ -115,8 +111,8 @@ module mlegs_scalar
   interface set_comm_grps
     module subroutine subcomm_cart_2d(comm,dims)
       implicit none
-      integer:: comm
-      integer, optional:: dims(2)
+      integer :: comm
+      integer, optional :: dims(2)
     end subroutine
   end interface
   public :: set_comm_grps
@@ -125,8 +121,8 @@ module mlegs_scalar
   interface chop
     module subroutine chop(s, tfm)
       implicit none
-      class(scalar) :: s
-      class(tfm_kit) :: tfm
+      class(scalar), intent(inout) :: s
+      class(tfm_kit), intent(in) :: tfm
     end subroutine
   end interface
   public :: chop
@@ -135,11 +131,242 @@ module mlegs_scalar
   interface trans
     module subroutine trans(s, space, tfm)
       implicit none
-      class(scalar) :: s
-      character(len=3) :: space
-      class(tfm_kit) :: tfm
+      class(scalar), intent(inout) :: s
+      character(len=3), intent(in) :: space
+      class(tfm_kit), intent(in) :: tfm
     end subroutine
   end interface
   public :: trans
+
+  !> calculate the values of scalar at origin
+  interface calcat0
+    module function calcat0(s, tfm) result(calc)
+      implicit none
+      class(scalar) :: s
+      class(tfm_kit) :: tfm
+      complex(p8), dimension(:), allocatable :: calc
+    end function
+  end interface
+  public :: calcat0
+
+  !> calculate the values of scalar at infinity
+  interface calcat1
+    module function calcat1(s, tfm) result(calc)
+      implicit none
+      class(scalar) :: s
+      class(tfm_kit) :: tfm
+      complex(p8), dimension(:), allocatable :: calc
+    end function
+  end interface
+  public :: calcat1
+
+  !> zero out the values of scalar at infinity
+  interface zeroat1
+    module subroutine zeroat1(s, tfm)
+      implicit none
+      class(scalar), intent(inout) :: s
+      class(tfm_kit), intent(in) :: tfm
+    end subroutine
+  end interface
+  public :: zeroat1
+
+  !> del^2_perp
+  interface delsqp
+    module function delsqp(s, tfm) result(so)
+      implicit none
+      class(scalar) :: s
+      class(tfm_kit) :: tfm
+      type(scalar) :: so
+    end function
+  end interface
+  public :: delsqp
+
+  !> inverse of del^2_perp
+  interface idelsqp
+    module function idelsqp(s, tfm) result(so)
+      implicit none
+      class(scalar) :: s
+      class(tfm_kit) :: tfm
+      type(scalar) :: so
+    end function
+  end interface
+  public :: idelsqp
+
+  !> (1-x)^2*d()/dx (equivalent to r*d()/dr)
+  interface xxdx
+    module function xxdx(s, tfm) result(so)
+      implicit none
+      class(scalar) :: s
+      class(tfm_kit) :: tfm
+      type(scalar) :: so
+    end function
+  end interface
+  public :: xxdx
+
+  !> del^2
+  interface del2
+    module function del2(s, tfm) result(so)
+      implicit none
+      class(scalar) :: s
+      class(tfm_kit) :: tfm
+      type(scalar) :: so
+    end function
+  end interface
+  public :: del2
+
+  !> inverse of del^2 (predetermined ln, or ln from scalar entry (1,1,1))
+  interface idel2
+    module function idel2_preln(s, tfm, preln) result (so)
+      implicit none
+      class(scalar) :: s
+      class(tfm_kit) :: tfm
+      real(p8) :: preln
+      type(scalar) :: so
+    end function
+    module function idel2_proln(s, tfm) result (so)
+      implicit none
+      class(scalar) :: s
+      class(tfm_kit) :: tfm
+      type(scalar) :: so
+    end function
+  end interface
+  public :: idel2
+
+  !> helmholtz (del^2 + alpha*identity)
+  interface helm
+    module function helm(s, alpha, tfm) result (so)
+      implicit none
+      class(scalar) :: s
+      real(p8) :: alpha
+      class(tfm_kit) :: tfm
+      type(scalar) :: so
+    end function
+  end interface
+  public :: helm
+
+  !> inverse of helmholtz
+  interface ihelm
+    module function ihelm(s, alpha, tfm) result (so)
+      implicit none
+      class(scalar) :: s
+      real(p8) :: alpha
+      class(tfm_kit) :: tfm
+      type(scalar) :: so
+    end function
+  end interface
+  public :: ihelm
+
+  !> powered helmholtz (del^p + beta*del^2 + alpha*identity)
+  interface helmp
+    module function helmp(s, power, alpha, beta, tfm) result (so)
+      implicit none
+      class(scalar) :: s
+      integer(i4) :: power
+      real(p8) :: alpha, beta
+      class(tfm_kit) :: tfm
+      type(scalar) :: so
+    end function
+  end interface
+  public :: helmp
+
+  !> inverse of powered helmholtz (del^p + beta*del^2 + alpha*identity)
+  interface ihelmp
+    module function ihelmp(s, power, alpha, beta, tfm) result (so)
+      implicit none
+      class(scalar) :: s
+      integer(i4) :: power
+      real(p8) :: alpha, beta
+      class(tfm_kit) :: tfm
+      type(scalar) :: so
+    end function
+  end interface
+  public :: ihelmp
+
+  !> forward euler - forward euler time advancement (1st explicit order)
+  !> note: we solve the following:
+  !> d(s)/dt = (s_rhs_nonlin) + visc*del^2(s) + hypervisc*del^p(s)
+  !>           --advct.etc.--   ------- diffusion(linear) --------
+  !> FEFE: F(K+1) = F(K) + DT * (NLTERM(K) + LTERM(K))
+  interface fefe
+    module subroutine fefe(s, s_rhs_nonlin, dt, tfm)
+      implicit none
+      class(scalar), intent(inout) :: s
+      class(scalar), intent(in) :: s_rhs_nonlin
+      real(p8), intent(in) :: dt
+      class(tfm_kit) :: tfm
+    end subroutine
+  end interface
+
+  !> adams bashforth - adams bashforth time advancement (2nd explicit order)
+  !> note: we solve the following:
+  !> d(s)/dt = (s_rhs_nonlin) + visc*del^2(s) + hypervisc*del^p(s)
+  !>           --advct.etc.--   ------- diffusion(linear) --------
+  !> ABAB: F(K+1) = F(K) + DT * [1.5D0*(NLTERM(K)+LTERM(K)) - 0.5D0*(NLTERM(K-1)+LTERM(K-1))]
+  interface abab
+    module subroutine abab(s, s_p, s_rhs_nonlin, s_rhs_nonlin_p, dt, tfm, is_2nd_svis_p)
+      implicit none
+      class(scalar), intent(inout) :: s
+      class(scalar), intent(in) :: s_p
+      class(scalar), intent(in) :: s_rhs_nonlin, s_rhs_nonlin_p
+      real(p8), intent(in) :: dt
+      class(tfm_kit) :: tfm
+      logical, optional :: is_2nd_svis_p
+    end subroutine
+  end interface
+
+  !> forward euler - backward euler time advancement (1st semi-implicit order)
+  !> note: we solve the following:
+  !> d(s)/dt = (s_rhs_nonlin) + visc*del^2(s) + hypervisc*del^p(s)
+  !>           --advct.etc.--   ------- diffusion(linear) --------
+  !> FE : F(K+1/2) = F(K) + DT * NLTERM(K)
+  !> BE : F(K+1) = F(K+1/2) + DT * LTERM(K+1)
+  interface febe
+    module subroutine febe(s, s_rhs_nonlin, dt, tfm)
+      implicit none
+      class(scalar), intent(inout) :: s
+      class(scalar), intent(in) :: s_rhs_nonlin
+      real(p8), intent(in) :: dt
+      class(tfm_kit) :: tfm
+    end subroutine
+  end interface
+
+  !> adams bashforth - crank nicolson time advancement (2nd semi-implicit order)
+  !> note: we solve the following:
+  !> d(s)/dt = (s_rhs_nonlin) + visc*del^2(s) + hypervisc*del^p(s)
+  !>           --advct.etc.--   ------- diffusion(linear) --------
+  !> AB : F(K+1/2) = F(K) + DT * [1.5D0*NLTERM(K) - 0.5D0*NLTERM(K-1)]
+  !> CN : F(K+1) = F(K+1/2) + DT/2 * [LTERM(K+1) + LTERM(K)]
+  interface abcn
+    module subroutine abcn(s, s_p, s_rhs_nonlin, s_rhs_nonlin_p, dt, tfm)
+      implicit none
+      class(scalar), intent(inout) :: s
+      class(scalar), intent(in) :: s_p
+      class(scalar), intent(in) :: s_rhs_nonlin, s_rhs_nonlin_p
+      real(p8), intent(in) :: dt
+      class(tfm_kit) :: tfm
+    end subroutine
+  end interface
+
+  !> i/o save
+  interface msave
+    module subroutine msave_scalar(s, fn, is_binary, is_global)
+      implicit none
+      class(scalar),intent(in) :: s
+      character(len=*), intent(in) :: fn
+      logical, optional :: is_binary, is_global
+    end subroutine
+  end interface
+  public :: msave
+
+  !> i/o load
+  interface mload
+    module subroutine mload_scalar(fn, s, is_binary, is_global)
+      implicit none
+      character(len=*), intent(in) :: fn
+      class(scalar),intent(inout) :: s
+      logical, optional :: is_binary, is_global
+    end subroutine
+  end interface
+  public :: mload
 
 end module

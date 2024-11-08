@@ -171,4 +171,11 @@ module mlegs_misc
   end interface
   public :: read_input
 
+  !> time step termination criteria setup
+  interface timestep_set
+    module subroutine timestep_set()
+      implicit none
+    end subroutine
+  end interface
+
 end module

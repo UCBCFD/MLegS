@@ -145,9 +145,9 @@ contains
         this%pf = leg_tbl(this%x(:nr/2), nrchop+14, this%m, this%lognorm)
     end select
     allocate( this%at0(nrchop) )
-    this%at0 = reshape(leg_tbl((/ -1.D0 /), nrchop, (/ 0 /), this%lognorm(1:nrchop,1:1)), (/nrchop/))
+    this%at0 = reshape(leg_tbl((/ -1.D0+1.D-15 /), nrchop, (/ 0 /), this%lognorm(1:nrchop,1:1)), (/nrchop/))
     allocate( this%at1(nrchop) )
-    this%at1 = reshape(leg_tbl((/ 1.D0 /), nrchop, (/ 0 /), this%lognorm(1:nrchop,1:1)), (/nrchop/))
+    this%at1 = reshape(leg_tbl((/ 1.D0-1.D-15 /), nrchop, (/ 0 /), this%lognorm(1:nrchop,1:1)), (/nrchop/))
 
     this%is_set = .true.
     tfm_kit_counter = tfm_kit_counter + 1

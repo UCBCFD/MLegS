@@ -325,6 +325,26 @@ contains
 
   end procedure
 
+  module procedure timestep_set
+    real(p8) :: tott, totn
+
+    !> this subroutine checks totaltime and totaln and choose the longer one as a termination criterion.
+    !> if your program requires transient simulation, run this subroutine at the initialization stage.
+    !> otherwise, you must manually set totaltime and totaln in a consistent manner to avoid confusion.
+    if (dt .le. 0.D0) stop 'timestep_setup: dt must be positive'
+    tott = totaltime; totn = totaln
+    totaltime = max(tott, dt*totaln)
+    if (totaltime .eq. tott) then
+      totaln = floor(tott/dt)
+    else
+      totaln = totn
+    endif
+
+    curr_n = ni
+    curr_t = ti
+
+  end procedure
+
 ! ======================================================================================================== !
 ! VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV INTERNAL (PRIVATE) SUBROUTINES/FUNCTIONS VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV !
 ! ======================================================================================================== !
@@ -452,7 +472,7 @@ contains
     dum1 = itoa(formatted_num_str_len)
     dum2 = itoa(formatted_num_str_len - 8)
     dum3 = itoa(nj)
-    bsstr = '('//trim(adjustl(dum1))//'(1PE'//trim(adjustl(dum1))//'.'//trim(adjustl(dum2))//'E3))'
+    bsstr = '('//trim(adjustl(dum3))//'(1PE'//trim(adjustl(dum1))//'.'//trim(adjustl(dum2))//'E3))'
 
     ni = size(a,1)
     nj = size(a,2)
@@ -553,7 +573,7 @@ contains
     dum1 = itoa(formatted_num_str_len)
     dum2 = itoa(formatted_num_str_len - 8)
     dum3 = itoa(2*nj)
-    bsstr = '('//trim(adjustl(dum1))//'(1PE'//trim(adjustl(dum1))//'.'//trim(adjustl(dum2))//'E3))'
+    bsstr = '('//trim(adjustl(dum3))//'(1PE'//trim(adjustl(dum1))//'.'//trim(adjustl(dum2))//'E3))'
 
     ni = size(a,1)
     nj = size(a,2)

@@ -23,3 +23,4 @@ $(OBJ_DIR)/mlegs_scalar.o : $(MODULE_DIR)/mlegs_scalar.f90 $(OBJ_DIR)/mlegs_envi
 $(OBJ_DIR)/mlegs_scalar_init.o : $(SUBMODULE_DIR)/mlegs_scalar_init.f90 $(OBJ_DIR)/mlegs_scalar.o
 $(OBJ_DIR)/mlegs_scalar_dist.o : $(SUBMODULE_DIR)/mlegs_scalar_dist.f90 $(OBJ_DIR)/mlegs_scalar.o
 $(OBJ_DIR)/mlegs_scalar_ops.o : $(SUBMODULE_DIR)/mlegs_scalar_ops.f90 $(OBJ_DIR)/mlegs_scalar.o
+$(OBJ_DIR)/mlegs_scalar_io.o : $(SUBMODULE_DIR)/mlegs_scalar_io.f90 $(OBJ_DIR)/mlegs_scalar.o

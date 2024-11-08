@@ -9,7 +9,8 @@ program test
   integer :: ii, jj, kk
   integer :: glb_sz(3), axis_comm(3)
   complex(p8), dimension(:,:,:),allocatable :: A_glb
-  type(scalar) :: s
+  complex(p8), dimension(:), allocatable :: v
+  type(scalar) :: s, st
   logical :: tf
 
   !!!............ Pre-initialization for MPI parallelism
@@ -55,23 +56,58 @@ program test
   !> Allocate global scalar
   allocate(A_glb(tfm%nrdim, tfm%npdim, tfm%nzdim))
   A_glb = 0.D0
-  A_glb(2, 3, 2) = 1.D0 + iu * 1.D0
-  ! A_glb(:nr, 1, :nz) = 0
+  A_glb(10:11, 2:, :) = 1.D0
 
-  !> Make a local scalar
-  call s%init((/ tfm%nrdim, tfm%npdim, tfm%nzdim /), (/ 1, 0, 2 /))
+  !> Make a local scalar in FFF space
+  call s%init((/ tfm%nrdim, tfm%npdim, tfm%nzdim /), (/ 0, 1, 2 /))
   call s%disassemble(A_glb)
-  call s%exchange(2, 3)
+  call s%exchange(1, 3)
   s%space = 'FFF'
-  if (rank_glb .eq. 0) call mcat(s%e, width=5)
+  s%ln = -.5D0
+
+  !> Perform forward-backward spectral transformations
+  ! if (rank_glb .eq. 0) call mcat(s%e, width=5)
   call trans(s, 'PPP', tfm)
-  if (rank_glb .eq. 0) call mcat(s%e, width=5)
+  ! if (rank_glb .eq. 0) call mcat(s%e, width=5)
   call trans(s, 'FFF', tfm)
-  if (rank_glb .eq. 0) call mcat(s%e, width=5)
+  ! if (rank_glb .eq. 0) call mcat(s%e, width=5)
+  
+  ! !> Assemble local arrays into a global one at proc 0
+  ! call s%exchange(3, 1)
+  ! A_glb = s%assemble()
+  ! if (rank_glb.eq.0)call mcat(A_glb(:,:10,1:2), width=5)
+  ! call s%exchange(1, 3)
+
+  ! !> Save and load scalar data files
+  ! call msave(s, './scalar.dat', is_binary = .true., is_global = .true.)
+  ! call mload('./scalar.dat', s, is_binary = .true., is_global = .true.)
+
+  st = s
+  do ii = 1, 10
+  st = del2(st, tfm)
+  st = idel2(st, tfm, preln=-.5D0)
+  enddo
+
+  !> Assemble local arrays into a global one at proc 0
+  call st%exchange(3, 1)
+  A_glb = st%assemble()
+  if (rank_glb.eq.0)call mcat(A_glb(:,:,1:2), width=5)
+
+  !> Interim time record
+  if (rank_glb .eq. 0) then
+    write(*,*) 'Scalar Transformation'
+    write(*,101) toc(); call tic()
+    write(*,*) ''
+  endif
 
   !!!............ Finalization 
   !> Finalize MPI
   call MPI_finalize(MPI_err)
+
+  !> deallocate any allocated arrays
+  deallocate( A_glb )
+  call s%dealloc()
+  call st%dealloc()
 
   !> Interim time record
   if (rank_glb .eq. 0) then

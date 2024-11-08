@@ -104,12 +104,12 @@ contains
 
   !> copy a scalar
   module procedure scalar_copy
-    if (.not.associated(that%e)) then
+    if (associated(that%e) .eqv. .false.) then
       if ((is_warning).and.(rank_glb.eq.0)) write(*,*) &
       "WARNING: scalar_copy tries to copy from a scalar that has not been allocated"
       return
     endif
-    if (.not.associated(this%e)) then
+    if (associated(this%e) .eqv. .false.) then
       call this%init(that%glb_sz,that%axis_comm)
     elseif ((any(this%loc_sz.ne.that%loc_sz)).or.(any(this%axis_comm.ne.that%axis_comm))) then
       if ((is_warning).and.(rank_glb.eq.0)) write(*,*) &

@@ -1,8 +1,8 @@
 !!! COMPUTATIONAL DOMAIN INFO !!!
 # ---------- NR ----------- NP ----------- NZ ----------------------------------
-             16              8              8    
+            128             64             64    
 # ------ NRCHOP ------- NPCHOP ------- NZCHOP ----------------------------------
-             16              5              5    
+            128             33             33    
 # --------- ELL --------- ZLEN ------ ZLENxPI ---(IF ZLENxPI==T, ZLEN=ZLEN*PI)-- 
            4.D0           2.D0              T
 #
@@ -12,17 +12,17 @@
 #
 !!! FIELD PROPERTY INFO !!!
 # -------- VISC ----- HYPERPOW ---- HYPERVISC ----------------------------------
-          1.D-5              0           0.D0
+          1.D-3              0           0.D0
 #
 !!! FIELD SAVE INFO !!!
 # --------------------- FLDDIR -------------------------------------------------
                   ./output/fld
-# ---- ISFLDSAV -- FLDSAVINTVL ---(IF ISFLDSAV==T, FIELDS ARE NOT SAVED)--------
+# ---- ISFLDSAV -- FLDSAVINTVL ---(IF ISFLDSAV!=T, FIELDS ARE NOT SAVED)--------
               T            100
 #
 !!! DATA LOGGING INFO !!!
 # --------------------- LOGDIR -------------------------------------------------
                   ./output/log
-# ---- ISLOGSAV -- LOGSAVINTVL ---(IF ISLOGSAV==T, LOGS ARE NOT GENERATED)------
+# ---- ISLOGSAV -- LOGSAVINTVL ---(IF ISLOGSAV!=T, LOGS ARE NOT GENERATED)------
               T              1
 /* ------------------------------ END OF INPUT ------------------------------ */
