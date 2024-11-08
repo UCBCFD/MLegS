@@ -4,7 +4,7 @@ $(OBJ_DIR)/mlegs_envir_mpi.o : $(SUBMODULE_DIR)/mlegs_envir_mpi.f90 $(OBJ_DIR)/m
 $(OBJ_DIR)/mlegs_base.o : $(MODULE_DIR)/mlegs_base.f90 $(OBJ_DIR)/mlegs_envir.o 
 
 $(OBJ_DIR)/mlegs_misc.o : $(MODULE_DIR)/mlegs_misc.f90 $(OBJ_DIR)/mlegs_envir.o $(OBJ_DIR)/mlegs_base.o
-$(OBJ_DIR)/mlegs_misc_time.o : $(SUBMODULE_DIR)/mlegs_misc_time.f90 $(OBJ_DIR)/mlegs_misc.o 
+$(OBJ_DIR)/mlegs_misc_timer.o : $(SUBMODULE_DIR)/mlegs_misc_timer.f90 $(OBJ_DIR)/mlegs_misc.o 
 $(OBJ_DIR)/mlegs_misc_io.o : $(SUBMODULE_DIR)/mlegs_misc_io.f90 $(OBJ_DIR)/mlegs_misc.o
 
 $(OBJ_DIR)/mlegs_genmat.o : $(MODULE_DIR)/mlegs_genmat.f90 $(OBJ_DIR)/mlegs_envir.o

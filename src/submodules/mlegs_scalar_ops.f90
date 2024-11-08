@@ -962,14 +962,10 @@ contains
   end procedure
 
   ! !> richardson extrapolation (2nd order) for initial bootstrapping
-  ! interface richardson
-  !   module subroutine richardson(s, s_rhs_linear, s_rhs_nonlin)
-  !     implicit none
-  !     class(scalar), intent(inout) :: s
-  !   end subroutine
-  ! end interface
+  ! subroutine richardson(s, s_rhs_linear, s_rhs_nonlin)
+  !   implicit none
+  !   class(scalar), intent(inout) :: s
 
-  ! module procedure richardson
   !   type(scalar) :: s1, s2
   !   integer(i4) :: i
   !   real(p8) :: dto, ddt, ddth
@@ -1003,7 +999,7 @@ contains
   !   call s2%dealloc()
 
   !   return
-  ! end procedure
+  ! end subroutine
 
 ! ======================================================================================================== !
 ! VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV INTERNAL (PRIVATE) SUBROUTINES/FUNCTIONS VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV !

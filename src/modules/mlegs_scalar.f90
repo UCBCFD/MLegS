@@ -285,7 +285,7 @@ module mlegs_scalar
   !> forward euler - forward euler time advancement (1st explicit order)
   !> note: we solve the following:
   !> d(s)/dt = (s_rhs_nonlin) + visc*del^2(s) + hypervisc*del^p(s)
-  !>           --advct.etc.--   ------- diffusion(linear) --------
+  !>           --advct.term--   ------- diffusion (stiff) --------
   !> FEFE: F(K+1) = F(K) + DT * (NLTERM(K) + LTERM(K))
   interface fefe
     module subroutine fefe(s, s_rhs_nonlin, dt, tfm)
@@ -300,7 +300,7 @@ module mlegs_scalar
   !> adams bashforth - adams bashforth time advancement (2nd explicit order)
   !> note: we solve the following:
   !> d(s)/dt = (s_rhs_nonlin) + visc*del^2(s) + hypervisc*del^p(s)
-  !>           --advct.etc.--   ------- diffusion(linear) --------
+  !>           --advct.term--   ------- diffusion (stiff) --------
   !> ABAB: F(K+1) = F(K) + DT * [1.5D0*(NLTERM(K)+LTERM(K)) - 0.5D0*(NLTERM(K-1)+LTERM(K-1))]
   interface abab
     module subroutine abab(s, s_p, s_rhs_nonlin, s_rhs_nonlin_p, dt, tfm, is_2nd_svis_p)
@@ -317,7 +317,7 @@ module mlegs_scalar
   !> forward euler - backward euler time advancement (1st semi-implicit order)
   !> note: we solve the following:
   !> d(s)/dt = (s_rhs_nonlin) + visc*del^2(s) + hypervisc*del^p(s)
-  !>           --advct.etc.--   ------- diffusion(linear) --------
+  !>           --advct.term--   ------- diffusion (stiff) --------
   !> FE : F(K+1/2) = F(K) + DT * NLTERM(K)
   !> BE : F(K+1) = F(K+1/2) + DT * LTERM(K+1)
   interface febe
@@ -333,7 +333,7 @@ module mlegs_scalar
   !> adams bashforth - crank nicolson time advancement (2nd semi-implicit order)
   !> note: we solve the following:
   !> d(s)/dt = (s_rhs_nonlin) + visc*del^2(s) + hypervisc*del^p(s)
-  !>           --advct.etc.--   ------- diffusion(linear) --------
+  !>           --advct.term--   ------- diffusion (stiff) --------
   !> AB : F(K+1/2) = F(K) + DT * [1.5D0*NLTERM(K) - 0.5D0*NLTERM(K-1)]
   !> CN : F(K+1) = F(K+1/2) + DT/2 * [LTERM(K+1) + LTERM(K)]
   interface abcn

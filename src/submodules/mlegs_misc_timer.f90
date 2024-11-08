@@ -1,4 +1,4 @@
-submodule (mlegs_misc) mlegs_misc_time
+submodule (mlegs_misc) mlegs_misc_timer
   implicit none
 
 contains

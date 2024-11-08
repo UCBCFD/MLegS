@@ -1,8 +1,8 @@
-program TEST
+program barebone_template
 !> This is a 'barebone' template to run MLegS.
 !> The program will call all MLegS modules and initialize the MPI system 
 !> and the spectral transformation kit on a predefined kit class 'tfm'.
-!> That is it. See further comments if one desires to write an own MLegS program.
+!> That is it. See further comments if one wants to understand what each code block does.
 
 !> First of all, the program calls all MLegS modules (and MPI).
 !> Unless necessary, it is recommended to use all these modules to be hassle-free.
@@ -18,8 +18,8 @@ program TEST
 
 !> This program requires no more program-bound variables as the MPI and kit varaibles
 !> are stored in the module files (see mlegs_envir/mlegs_spectfm).
-!> However, below are some often used program-bound variables for actual programs.
-!> Iterative variables (in each of 3 directions)
+!> Below are some suggestions of program-bound variables for actual programs.
+!> Iterative variables
   ! integer(i4) :: ii, jj, kk
 !> 'Global' array where a locally distribued scalar data are collected
   ! complex(p8), dimension(:,:,:),allocatable :: array_glb
@@ -57,7 +57,7 @@ program TEST
     call read_input('./input.params')
   endif
 
-!> Initialize the global transformation kit
+!> Initialize the global transformation kit 'tfm' (see mlegs_spectfm)
   call tfm%init()
 
 !> Interim time record
@@ -67,49 +67,16 @@ program TEST
     write(*,*) ''
   endif
 
-!!!............ Scalar setup
-!> Allocate global scalar
-  allocate(A_glb(tfm%nrdim, tfm%npdim, tfm%nzdim))
-  A_glb = 0.D0
-  A_glb(10:11, 2:, :) = 1.D0
-
-  !> Make a local scalar in FFF space
-  call s%init((/ tfm%nrdim, tfm%npdim, tfm%nzdim /), (/ 0, 1, 2 /))
-  call s%disassemble(A_glb)
-  call s%exchange(1, 3)
-  s%space = 'FFF'
-  s%ln = -.5D0
-
-  !> Perform forward-backward spectral transformations
-  ! if (rank_glb .eq. 0) call mcat(s%e, width=5)
-  call trans(s, 'PPP', tfm)
-  ! if (rank_glb .eq. 0) call mcat(s%e, width=5)
-  call trans(s, 'FFF', tfm)
-  ! if (rank_glb .eq. 0) call mcat(s%e, width=5)
-  
-  ! !> Assemble local arrays into a global one at proc 0
-  ! call s%exchange(3, 1)
-  ! A_glb = s%assemble()
-  ! if (rank_glb.eq.0)call mcat(A_glb(:,:10,1:2), width=5)
-  ! call s%exchange(1, 3)
-
-  ! !> Save and load scalar data files
-  ! call msave(s, './scalar.dat', is_binary = .true., is_global = .true.)
-  ! call mload('./scalar.dat', s, is_binary = .true., is_global = .true.)
-
-  st = s
-  st = del2(st, tfm)
-  st = idel2(st, tfm, preln=-.5D0)
-
-  !> Assemble local arrays into a global one at proc 0
-  call st%exchange(3, 1)
-  A_glb = st%assemble()
-  if (rank_glb.eq.0)call mcat(A_glb(:,:,:), width=5)
-
-  !> Interim time record
+! ========================================================= !
+! Now this is the part where customized MLegS code snippets !
+! are placed. Define scalars, initialize the distributions, !
+! and conduct some spatial and temporal operations.         !
+! ========================================================= !
   if (rank_glb .eq. 0) then
-    write(*,*) 'Scalar Transformation'
-    write(*,101) toc(); call tic()
+    write(*,*) '*******************************************'
+    write(*,*) 'This program is solely a barebone template.'
+    write(*,*) 'No further computations shall be done.'
+    write(*,*) '*******************************************'
     write(*,*) ''
   endif
 
@@ -117,10 +84,11 @@ program TEST
   !> Finalize MPI
   call MPI_finalize(MPI_err)
 
-!> deallocate any allocated arrays
-  deallocate( A_glb )
-  call s%dealloc()
-  call st%dealloc()
+!> Deallocate any allocated arrays
+!> In order to deallocate a global array,
+  ! deallocate( A_glb )
+!> In order to deallocate a scalar-type variable,
+  ! call s%dealloc()
 
 !> Interim time record
   if (rank_glb .eq. 0) then
@@ -129,12 +97,11 @@ program TEST
     write(*,*) ''
   endif
 
-  !!!............ End of the program
-  !> Finish time record
+!> Finish time record
   if (rank_glb .eq. 0) then
     write(*,*) 'Program Finished'
     write(*,101) toc(); call print_real_time()
   endif
 
-  101 format(' elapsed time: ',F15.6, 'seconds')
+101 format(' elapsed time: ',F15.6, 'seconds')
 end program
