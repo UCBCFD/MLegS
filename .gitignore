@@ -1,6 +1,9 @@
 # directories
-build
-.vscode
+**/build
+**/.vscode
+**/.ipynb_checkpoints
+**/.jekyll-cache
+**/_site
 
 # executables
 *.exe

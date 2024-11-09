@@ -1,6 +1,7 @@
 ---
 title: Home
 layout: home
+nav_order: 1
 ---
 
 # **MLegS**: Modernized and Parallelized **M**apped **Leg**endre **S**pectral Method Code
