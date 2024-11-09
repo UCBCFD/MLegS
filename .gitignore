@@ -1,5 +1,9 @@
-# build directories
-build
+# directories
+**/build
+**/.vscode
+**/.ipynb_checkpoints
+**/.jekyll-cache
+**/_site
 
 # executables
 *.exe
@@ -34,6 +38,7 @@ build
 # outputs
 *.out
 *.log
+*.dat*
 output
 
 # any temporary directories
