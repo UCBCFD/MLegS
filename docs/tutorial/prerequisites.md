@@ -24,12 +24,12 @@ Completing this setup ensures that you’re fully prepared to work with programs
 ## Configure a Compiler and MPI Interfaces
 
 To ensure compatibility with MLegS, use one of the compiler and MPI setups. The following combinations are recommended for compiling and running MLegS:
-1. GNU Fortran compiler `gfortran` <v11.2 or later> with OpenMPI <v4.1 or later>
-2. Intel OneAPI Fortran compiler `ifx` <v2024.1.0 or later> with accompanying Intel MPI
+1. GNU Fortran compiler `gfortran` (v11.2 or later) with OpenMPI (v4.1 or later)
+2. Intel OneAPI Fortran compiler `ifx` (v2024.1.0 or later) with accompanying Intel MPI
 
 While Intel's legacy Fortran compiler, `ifort`, may be used as an alternative, please note that full compatibility has not been tested or guaranteed.
 
-You can install `gfortran` and OpenMPI via your system's package manager (`apt` for Ubuntu/Debian, `yum` for CentOS), as these packages are generally available in official repositories. 
+You can install `gfortran` and OpenMPI via your system's package manager (`apt install gcc` for Ubuntu/Debian, `yum install gcc` for CentOS), as the GNU compiler collection is generally available in official repositories. 
 
 For Intel compilers, download and install the toolkit from [Intel's official download page](https://www.intel.com/content/www/us/en/developer/tools/oneapi/fortran-compiler.html#gs.hbhvru), selecting the distribution that matches your system. After installation, you need to source the Intel environment script (e.g., `source /opt/intel/oneapi/setvars.sh` to set environment variables.
 
@@ -40,7 +40,8 @@ Aftr installation, verify the versions with:
 # for gfortran + OpenMPI
 gfortran --version
 mpirun.openmpi --version
-# # for ifx + IntelMPI
+# for ifx + IntelMPI
+# source /opt/intel/oneapi/setvars.sh
 # ifx --version
 # mpirun --version
 ```
@@ -55,7 +56,7 @@ MLegS depends on several external open-source libraries that provide essential r
 3. Linear Algebra PACKage -- LAPACK (v3.12.0) ([Source](https://www.netlib.org/lapack/))
 
 All required libraries are included in the `[root_dir]/external/` directory of the MLegS package, so manual downloading is not needed. MLegS provides a bash script to compile these libraries in one step, simplifying the setup process. Before running the compilation script, ensure the following prerequisites are met:
-  - `CMake` <v3.10 or later> is installed on your system. You can check if `CMake` is installed and verify the version with:
+  - `CMake` (v3.10 or later) is installed on your system. You can check if `CMake` is installed and verify the version with:
 
 
 ```bash
@@ -136,14 +137,17 @@ cd ../ # Navigate to the root directory, assuming that you were at [root_dir]/ex
 head -n 4 ./Makefile | tail -4
 ```
 
-MLegS, in its most recent version, includes a stack of seven modules designed for MPI-parallelized simulations within a radially unbounded computational domain. These module files are stored in `[root_dir]/src/modules/`, where you can find the header information for all functions and subroutines. The actual numerical calculations and I/O operations are implemented in submodule files located in `[root_dir]/src/submodules/`. While we won’t go into detail about each module's functionality in this tutorial, here’s a brief overview of what each module contains:
-- mlegs_envir.f90: Defines environmental variables (e.g., default precision for integers, complex numbers, and real numbers, as well as simulation time information) and MPI parameters, along with basic auxiliary functions.
-- mlegs_base.f90: Sets up global simulation parameters, including spectral element counts in each direction, time-stepping details, viscosity, and field data I/O.
-- mlegs_misc.f90: Provides miscellaneous utilities, such as timers and generic Fortran array I/O functions.
-- mlegs_genmat.f90: Contains routines for general matrix operations.
-- mlegs_bndmat.f90: Includes operations for banded matrices (e.g., diagonal, tridiagonal).
-- mlegs_spectfm.f90: Contains tools for spectral transformations and related spectral operations.
-- mlegs_scalar.f90: Defines a distributed scalar class with spatially discretized operations and temporal advancement schemes.
+MLegS, in its most recent version, includes a stack of **seven** modules designed for MPI-parallelized simulations within a radially unbounded computational domain. These module files are stored in `[root_dir]/src/modules/`, where you can find the header information for all functions and subroutines. The actual numerical calculations and I/O operations are implemented in submodule files located in `[root_dir]/src/submodules/`. While we won’t go into detail about each module's functionality in this tutorial, here’s a brief overview of what each module contains:
+
+| Module name | Description|
+|:-- |:-- |
+| mlegs_envir.f90 | Defines environmental variables (e.g., default precision for integers, complex numbers, and real numbers, as well as simulation time information) and MPI parameters, along with basic auxiliary functions. |
+| mlegs_base.f90 | Sets up global simulation parameters, including spectral element counts in each direction, time-stepping details, viscosity, and field data I/O. |
+| mlegs_misc.f90 | Provides miscellaneous utilities, such as timers and generic Fortran array I/O functions. |
+| mlegs_genmat.f90 | Contains routines for general matrix operations. |
+| mlegs_bndmat.f90 | Includes operations for banded matrices (e.g., diagonal, tridiagonal). |
+| mlegs_spectfm.f90 | Contains tools for spectral transformations and related spectral operations. |
+| mlegs_scalar.f90 | Defines a distributed scalar class with spatially discretized operations and temporal advancement schemes. |
 
 Inter-module dependencies are specified in `Makefile.dep`, which the `Makefile` instructions use to determine the correct compilation order automatically This setup allows you to compile without worrying about module dependencies. Simply execute the following command: 
 

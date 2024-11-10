@@ -1,4 +1,11 @@
 <footer class="site-footer">
     <button class="btn js-toggle-dark-mode" style="width:100%;">Change to the light mode</button>
-    <script> const toggleDarkMode = document.querySelector('.js-toggle-dark-mode'); jtd.addEvent(toggleDarkMode, 'click', function(){ if (jtd.getTheme() === 'light') { jtd.setTheme('dark'); toggleDarkMode.textContent = 'Change to the light mode'; } else { jtd.setTheme('light'); toggleDarkMode.textContent = 'Change to the dark mode'; } }); </script>
 </footer>
+
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script> const toggleDarkMode = document.querySelector('.js-toggle-dark-mode'); jtd.addEvent(toggleDarkMode, 'click', function(){ if (jtd.getTheme() === 'light') { jtd.setTheme('dark'); localStorage.setItem('darkmode', 'true'); toggleDarkMode.textContent = 'Change to the light mode'; } else { jtd.setTheme('light'); toggleDarkMode.textContent = 'Change to the dark mode'; localStorage.setItem('darkmode', 'false'); } }); if (localStorage.getItem('darkmode') == 'false') { jtd.setTheme('light'); toggleDarkMode.textContent = 'Change to the dark mode'; localStorage.setItem('darkmode', 'false'); }
+    const wholeBody = document.documentElement; toggleDarkMode.addEventListener('click', fadeInRefresh); function fadeInRefresh(event){ event.preventDefault(); wholeBody.animate({ opacity: [0, 1] }, 250).onfinish = () => wholeBody.style.opacity = 1 };
+</script>
+
+<style> * { animation: fadeInAnimation ease .25s; animation-iteration-count: 1; animation-fill-mode: forwards; } @keyframes fadeInAnimation { 0% { opacity: 0; } 100% { opacity: 1; } }
+</style>

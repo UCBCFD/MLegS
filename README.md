@@ -6,7 +6,7 @@ Based on the numerical algorithm proposed by T. Matsushima and P. S. Marcus (199
 Prior to its open-source release, MLegS was successfully used in several vortex dynamics studies in the context of wake vortices in the atmosphere. One example is S. Lee and P. S. Marcus (2023)[^2], where one can find the detailed mathematical formulation of the mapped Legendre (pseudo-)spectral method.
 
 ## Preparation
-Refer to the Notebook tutorial for completing prerequisites (`/tutorials/00_prerequisites.ipynb`).
+Refer to the Notebook tutorial to complete the prerequisites before using MLegS (`/tutorials/00_prerequisites.ipynb`). An online, ready-to-read (though non-interactive) version is available on the MLegS documentation site: [https://ucbcfd.github.io/MLegS/tutorial/prerequisites.html](https://ucbcfd.github.io/MLegS/tutorial/prerequisites.html).
 
 ## Links
 - Code repository: [https://github.com/ucbcfd/MLegS](https://github.com/ucbcfd/MLegS)
