@@ -5,7 +5,7 @@ nav_order: 1
 ---
 
 # **MLegS**: Modernized and Parallelized **M**apped **Leg**endre **S**pectral Method Code
-MLegS (**M**apped **Leg**endre **S**pectral Method Code) is a code package based on a modernized and parallelized spectral method for vortical (swirling) flow simulations in an unbounded domain.
+MLegS (**M**apped **Leg**endre **S**pectral Method Code) is a code package based on a modernized and parallelized spectral method for numerical simulations in a radially unbounded domain.
 
 Based on the numerical algorithm proposed by T. Matsushima and P. S. Marcus (1997)[^1], MLegS incorporates scalable multiprocessing interfaces for high-performance computing. MLegS is written in Modern Fortran; the code package is open-source under a BSD license.
 
@@ -14,8 +14,8 @@ Prior to its open-source release, MLegS was successfully used in several vortex 
 ---
 
 ## Contributors
-- Jinge Wang
-- Sangjoon Lee
+- Jinge Wang (code - parallelization)
+- Sangjoon Lee (code - modernization, documentation)
 - [UC Berkeley CFD Lab](https://cfd.me.berkeley.edu)
 
 ---

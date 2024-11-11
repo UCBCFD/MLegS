@@ -4,18 +4,21 @@ parent: Tutorials
 nav_order: 1
 ---
 
-# MLegS Tutorial #0. Prerequisites
+# MLegS Tutorial 00: Prerequisites
+*Disclaimer: This MLegS tutorial assumes a Linux (or any Unix-based) environment that supports bash terminal commands. If you are using Windows, consider installing the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).*
 
 In this tutorial, you’ll learn how to prepare your environment to work with the MLegS package. By completing these prerequisites, you will be ready to compile and run main programs that use MLegS. The following steps will be covered:
-1. Configure a compiler and MPI (Message Passing Interface)
-  - Ensure you have a compatible compiler installed (e.g., GNU or Intel)
-  - Set up MPI (Message Passing Interface) on your machine, essential for parallel execution.
-2. Set up external libraries required to run MLegS
-  - MLegS relies on certain external libraries for matrix operations, fast Fourier transforms and multi-precision arithmetic.
-  - Install necessary libraries such as LAPACK, FFTE and FM. You do not need to download them; these external libraries, with the compatibility checked for MLegS, are provided in the `[root_dir]/external/` directory.
-3. Compile MLegS modules.
-  - With your compiler, MPI, and external libraries set up, proceed to compile the core MLegS modules.
-  - Use the provided `Makefile` instructions to compile the modules via one-line commands (e.g., `make mods`)
+
+1. **Configure a compiler and MPI (Message Passing Interface)**
+   - Ensure you have a compatible compiler installed (e.g., GNU or Intel)
+   - Set up MPI (Message Passing Interface) on your machine, essential for parallel execution.
+2. **Set up external libraries required to run MLegS**
+   - MLegS relies on certain external libraries for matrix operations, fast Fourier transforms and multi-precision arithmetic.
+   - Install necessary libraries such as LAPACK, FFTE and FM. You do not need to download them; these external libraries, with the compatibility checked for MLegS, are provided in the `[root_dir]/external/` directory. 
+3. **Compile MLegS modules**
+   - With your compiler, MPI, and external libraries set up, proceed to compile the core MLegS modules.
+   - Use the provided `Makefile` instructions to compile the modules via one-line commands (e.g., `make mods`)
+
 
 Completing this setup ensures that you’re fully prepared to work with programs that use the MLegS package.
 
@@ -24,14 +27,14 @@ Completing this setup ensures that you’re fully prepared to work with programs
 ## Configure a Compiler and MPI Interfaces
 
 To ensure compatibility with MLegS, use one of the compiler and MPI setups. The following combinations are recommended for compiling and running MLegS:
-1. GNU Fortran compiler `gfortran` (v11.2 or later) with OpenMPI (v4.1 or later)
-2. Intel OneAPI Fortran compiler `ifx` (v2024.1.0 or later) with accompanying Intel MPI
+1. GNU Fortran compiler `gfortran` <v11.2 or later> with OpenMPI <v4.1 or later>
+2. Intel OneAPI Fortran compiler `ifx` <v2024.1.0 or later> with accompanying Intel MPI
 
 While Intel's legacy Fortran compiler, `ifort`, may be used as an alternative, please note that full compatibility has not been tested or guaranteed.
 
-You can install `gfortran` and OpenMPI via your system's package manager (`apt install gcc` for Ubuntu/Debian, `yum install gcc` for CentOS), as the GNU compiler collection is generally available in official repositories. 
+You can install `gfortran` and OpenMPI via your system's package manager (`apt` for Ubuntu/Debian, `yum` for CentOS), as these packages are generally available in official repositories. 
 
-For Intel compilers, download and install the toolkit from [Intel's official download page](https://www.intel.com/content/www/us/en/developer/tools/oneapi/fortran-compiler.html#gs.hbhvru), selecting the distribution that matches your system. After installation, you need to source the Intel environment script (e.g., `source /opt/intel/oneapi/setvars.sh` to set environment variables.
+For Intel compilers, download and install the toolkit from [Intel's official download page](https://www.intel.com/content/www/us/en/developer/tools/oneapi/fortran-compiler.html#gs.hbhvru), selecting the distribution that matches your system. After installation, you need to source the Intel environment script (e.g., `source /opt/intel/oneapi/setvars.sh`) to set environment variables.
 
 Aftr installation, verify the versions with:
 
@@ -40,10 +43,10 @@ Aftr installation, verify the versions with:
 # for gfortran + OpenMPI
 gfortran --version
 mpirun.openmpi --version
-# for ifx + IntelMPI
-# source /opt/intel/oneapi/setvars.sh
+# # for ifx + IntelMPI
+# source /opt/intel/oneapi/setvars.sh > /dev/null 2>&1; export PATH="/opt/intel/oneapi:$PATH"
 # ifx --version
-# mpirun --version
+# mpiexec --version
 ```
 
 ---
@@ -56,7 +59,7 @@ MLegS depends on several external open-source libraries that provide essential r
 3. Linear Algebra PACKage -- LAPACK (v3.12.0) ([Source](https://www.netlib.org/lapack/))
 
 All required libraries are included in the `[root_dir]/external/` directory of the MLegS package, so manual downloading is not needed. MLegS provides a bash script to compile these libraries in one step, simplifying the setup process. Before running the compilation script, ensure the following prerequisites are met:
-  - `CMake` (v3.10 or later) is installed on your system. You can check if `CMake` is installed and verify the version with:
+  - `CMake` <v3.10 or later> is installed on your system. You can check if `CMake` is installed and verify the version with:
 
 
 ```bash
@@ -137,7 +140,7 @@ cd ../ # Navigate to the root directory, assuming that you were at [root_dir]/ex
 head -n 4 ./Makefile | tail -4
 ```
 
-MLegS, in its most recent version, includes a stack of **seven** modules designed for MPI-parallelized simulations within a radially unbounded computational domain. These module files are stored in `[root_dir]/src/modules/`, where you can find the header information for all functions and subroutines. The actual numerical calculations and I/O operations are implemented in submodule files located in `[root_dir]/src/submodules/`. While we won’t go into detail about each module's functionality in this tutorial, here’s a brief overview of what each module contains:
+MLegS, in its most recent version, includes a stack of seven modules designed for MPI-parallelized simulations within a radially unbounded computational domain. These module files are stored in `[root_dir]/src/modules/`, where you can find the header information for all functions and subroutines. The actual numerical calculations and I/O operations are implemented in submodule files located in `[root_dir]/src/submodules/`. While we won’t go into detail about each module's functionality in this tutorial, here’s a brief overview of what each module contains:
 
 | Module name | Description|
 |:-- |:-- |
