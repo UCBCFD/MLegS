@@ -310,6 +310,7 @@ contains
     if (flddir(len(flddir):len(flddir)) .ne. '/') then
       flddir = trim(adjustl(flddir))//'/'
     endif
+    call execute_command_line('mkdir -p '//flddir)
     read(fu,*) dum; read(fu,*) isfldsav, fldsavintvl
     read(fu,*) dum
 
@@ -318,6 +319,7 @@ contains
     if (logdir(len(logdir):len(logdir)) .ne. '/') then
       logdir = trim(adjustl(logdir))//'/'
     endif
+    call execute_command_line('mkdir -p '//logdir)
     read(fu,*) dum; read(fu,*) islogsav, logsavintvl
     read(fu,*) dum
 
@@ -430,7 +432,7 @@ contains
     character(:), allocatable :: dum1, dum2, bsstr
 
     dum1 = itoa(formatted_num_str_len)
-    dum2 = itoa(formatted_num_str_len - 8)
+    dum2 = itoa(formatted_num_str_len - 9)
     bsstr = '(1PE' // trim(adjustl(dum1)) // '.' // trim(adjustl(dum2)) // 'E3)'
 
     if (is_binary) then
@@ -470,7 +472,7 @@ contains
     character(:), allocatable :: dum1, dum2, dum3, bsstr
 
     dum1 = itoa(formatted_num_str_len)
-    dum2 = itoa(formatted_num_str_len - 8)
+    dum2 = itoa(formatted_num_str_len - 9)
     dum3 = itoa(nj)
     bsstr = '('//trim(adjustl(dum3))//'(1PE'//trim(adjustl(dum1))//'.'//trim(adjustl(dum2))//'E3))'
 
@@ -529,7 +531,7 @@ contains
     character(:), allocatable :: dum1, dum2, bsstr
 
     dum1 = itoa(formatted_num_str_len)
-    dum2 = itoa(formatted_num_str_len - 8)
+    dum2 = itoa(formatted_num_str_len - 9)
     bsstr = '(1PE' // trim(adjustl(dum1)) // '.' // trim(adjustl(dum2)) // 'E3)'
 
     if (is_binary) then
@@ -571,7 +573,7 @@ contains
     real(p8), dimension(:), allocatable :: real_imag_pairs
 
     dum1 = itoa(formatted_num_str_len)
-    dum2 = itoa(formatted_num_str_len - 8)
+    dum2 = itoa(formatted_num_str_len - 9)
     dum3 = itoa(2*nj)
     bsstr = '('//trim(adjustl(dum3))//'(1PE'//trim(adjustl(dum1))//'.'//trim(adjustl(dum2))//'E3))'
 

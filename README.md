@@ -16,7 +16,7 @@ Refer to the Notebook tutorial to complete the prerequisites before using MLegS 
 ## Contributors
 - Jinge Wang (code - parallelization)
 - Sangjoon Lee (code - modernization, documentation)
-- [UC Berkeley CFD Lab](https://cfd.me.berkeley.edu)
+- [UC Berkeley CFD Lab](https://cfd.me.berkeley.edu) (codebase)
 
 [^1]: [*J. Comput. Phys.*, vol. 137, no. 2, 1997, pp. 321-345](https://doi.org/10.1006/jcph.1997.5804)
 [^2]: [*J. Fluid Mech.*, vol. 967, 2023, A2](https://doi.org/10.1017/jfm.2023.455)

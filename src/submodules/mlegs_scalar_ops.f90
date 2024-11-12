@@ -67,8 +67,8 @@ contains
       do while(.true.)
       if (curr_sp .eq. 0) then
         call horizontal_fft_forward(s, tfm)
-        s%space = 'PFP'
         call s%exchange(2,1)
+        s%space = 'PFP'
       endif
       if (curr_sp .eq. 1) then
         do kk = 1, s%loc_sz(3)
@@ -76,10 +76,10 @@ contains
         enddo
         call rtrans_forward(s, tfm)
         s%space = 'FFP'
-        call s%exchange(1,3)
+        if (nz .gt. 1) call s%exchange(1,3)
       endif
       if (curr_sp .eq. 2) then
-        call vertical_fft_forward(s, tfm)
+        if (nz .gt. 1) call vertical_fft_forward(s, tfm)
         s%space = 'FFF'
       endif
       if (curr_sp .eq. 3) exit
@@ -91,11 +91,11 @@ contains
     if (curr_sp .gt. new_sp) then ! backward transforamtion
       do while(.true.)
       if (curr_sp .eq. 3) then
-        call vertical_fft_backward(s, tfm)
+        if (nz .gt. 1) call vertical_fft_backward(s, tfm)
         s%space = 'FFP'
       endif
       if (curr_sp .eq. 2) then
-        call s%exchange(3,1)
+        if (nz .gt. 1) call s%exchange(3,1)
         call rtrans_backward(s, tfm)
         do kk = 1, s%loc_sz(3)
           s%e(:nr, 1, kk) = s%e(:nr, 1, kk) + s%ln*tfm%ln(:nr)
@@ -296,7 +296,7 @@ contains
 
     call so%init(s%glb_sz, s%axis_comm)
     so = s
-    call so%exchange(3,1) ! whole r-data resides locally
+    if (nz .gt. 1) call so%exchange(3,1) ! whole r-data resides locally
 
     so%ln = 0.D0
 
@@ -315,7 +315,7 @@ contains
       so%e(1,1,1) = so%e(1,1,1) + 1.D0/exp(tfm%lognorm(1,1))*s%ln
       so%e(2,1,1) = so%e(2,1,1) + 1.D0/exp(tfm%lognorm(2,1))*s%ln
     endif
-    call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
+    if (NZ .GT. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
 
     return
   end procedure
@@ -338,7 +338,7 @@ contains
 
     call so%init(s%glb_sz, s%axis_comm)
     so = s
-    call so%exchange(3,1) ! whole r-data resides locally
+    if (nz .gt. 1) call so%exchange(3,1) ! whole r-data resides locally
 
     so%ln = 0.D0
 
@@ -365,7 +365,7 @@ contains
       so%e(2,1,1) = so%e(2,1,1) - 2.D0/1.D0/ell**2.D0/exp(tfm%lognorm(2,1))*s%ln
       so%e(3,1,1) = so%e(3,1,1) + 2.D0/3.D0/ell**2.D0/exp(tfm%lognorm(3,1))*s%ln
     endif
-    call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
+    if (NZ .GT. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
 
     return
   end procedure
@@ -389,7 +389,7 @@ contains
 
     call so%init(s%glb_sz, s%axis_comm)
     so = s
-    call so%exchange(3,1) ! whole r-data resides locally
+    if (nz .gt. 1) call so%exchange(3,1) ! whole r-data resides locally
 
     if ((is_warning) .and. (abs(so%ln) .gt. 5.D-14)) then
       write(*,*) '[warning]: idel2: an input scalar has non-zero ln. operation may be inaccurate.'
@@ -451,7 +451,7 @@ contains
     deallocate( del2_bnd%e )
     call MPI_allreduce(so%ln, so%ln, 1, MPI_complex16, MPI_sum, comm_glb, MPI_err)
 
-    call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
+    if (NZ .GT. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
 
     where (abs(real(so%e)) .lt. 5.D-14) so%e = cmplx(0.D0, aimag(so%e), p8)
     where (abs(aimag(so%e)) .lt. 5.D-14) so%e = cmplx(real(so%e), 0.D0, p8)
@@ -478,7 +478,7 @@ contains
 
     call so%init(s%glb_sz, s%axis_comm)
     so = s
-    call so%exchange(3,1) ! whole r-data resides locally
+    if (nz .gt. 1) call so%exchange(3,1) ! whole r-data resides locally
 
     if ((is_warning) .and. (abs(so%ln) .gt. 5.D-14)) then
       write(*,*) '[warning]: idel2: an input scalar has non-zero ln. operation may be inaccurate.'
@@ -535,7 +535,7 @@ contains
     deallocate( del2_bnd%e )
     call MPI_allreduce(so%ln, so%ln, 1, MPI_complex16, MPI_sum, comm_glb, MPI_err)
 
-    call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
+    if (NZ .GT. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
 
     where (abs(real(so%e)) .lt. 5.D-14) so%e = cmplx(0.D0, aimag(so%e), p8)
     where (abs(aimag(so%e)) .lt. 5.D-14) so%e = cmplx(real(so%e), 0.D0, p8)
@@ -593,12 +593,12 @@ contains
 
     call so%init(s%glb_sz, s%axis_comm)
     so = s
-    call so%exchange(3,1) ! whole r-data resides locally
+    if (nz .gt. 1) call so%exchange(3,1) ! whole r-data resides locally
 
     so%ln = s%ln/alpha
 
     if ((so%loc_st(2).eq.0) .and. (so%loc_st(3).eq.0)) then
-      so%e(1,1,1) = so%e(1,1,1) - 4.D0/3.D0/ell**2.D0/exp(tfm%lognorm(1,1))*so%LN
+      so%e(1,1,1) = so%e(1,1,1) - 4.D0/3.D0/ell**2.D0/exp(tfm%lognorm(1,1))*so%ln
       so%e(2,1,1) = so%e(2,1,1) + 2.D0/1.D0/ell**2.D0/exp(tfm%lognorm(2,1))*so%ln
       so%e(3,1,1) = so%e(3,1,1) - 2.D0/3.D0/ell**2.D0/exp(tfm%lognorm(3,1))*so%ln
     endif
@@ -622,7 +622,7 @@ contains
     enddo
     deallocate( helm_bnd%e )
 
-    call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
+    if (NZ .GT. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
 
     where (abs(real(so%e)) .lt. 5.D-14) so%e = cmplx(0.D0, aimag(so%e), p8)
     where (abs(aimag(so%e)) .lt. 5.D-14) so%e = cmplx(real(so%e), 0.D0, p8)
@@ -704,7 +704,7 @@ contains
 
     call so%init(s%glb_sz, s%axis_comm)
     so = s
-    call so%exchange(3,1) ! whole r-data resides locally
+    if (nz .gt. 1) call so%exchange(3,1) ! whole r-data resides locally
 
     so%ln = s%ln/alpha
 
@@ -761,7 +761,7 @@ contains
     deallocate( helmp_bnd%e )
     deallocate( del2_bnd%e )
 
-    call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
+    if (NZ .GT. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
 
     where (abs(real(so%e)) .lt. 5.D-14) so%e = cmplx(0.D0, aimag(so%e), p8)
     where (abs(aimag(so%e)) .lt. 5.D-14) so%e = cmplx(real(so%e), 0.D0, p8)
@@ -792,7 +792,7 @@ contains
         svis = del2(s, tfm)
         svis%e = svis%e * visc
       endif
-    else ! nonzero hypeviscosity -- diffusive operator is visc*del^2 + hypervisc*del^p
+    else ! nonzero hyperviscosity -- diffusive operator is visc*del^2 + hypervisc*del^p
       svis = helmp(s, hyperpow, 0.D0, visc/(hypervisc*(-1.D0)**(hyperpow/2+1)), tfm)
       svis%e = svis%e * (hypervisc*(-1.D0)**(hyperpow/2+1))
     endif
@@ -831,7 +831,7 @@ contains
         svis = del2(s, tfm)
         svis%e = svis%e * visc
       endif
-    else ! nonzero hypeviscosity -- diffusive operator is visc*del^2 + hypervisc*del^p
+    else ! nonzero hyperviscosity -- diffusive operator is visc*del^2 + hypervisc*del^p
       svis = helmp(s, hyperpow, 0.D0, visc/(hypervisc*(-1.D0)**(hyperpow/2+1)), tfm)
       svis%e = svis%e * (hypervisc*(-1.D0)**(hyperpow/2+1))
     endif
@@ -847,7 +847,7 @@ contains
           svis_p = del2(s_p, tfm)
           svis_p%e = svis_p%e * visc
         endif
-      else ! nonzero hypeviscosity -- diffusive operator is visc*del^2 + hypervisc*del^p
+      else ! nonzero hyperviscosity -- diffusive operator is visc*del^2 + hypervisc*del^p
         svis_p = helmp(s_p, hyperpow, 0.D0, visc/(hypervisc*(-1.D0)**(hyperpow/2+1)), tfm)
         svis_p%e = svis_p%e * (hypervisc*(-1.D0)**(hyperpow/2+1))
       endif
@@ -888,7 +888,7 @@ contains
         sh%e = a*sh%e
         s = ihelm(sh, a, tfm)
       endif
-    else ! nonzero hypeviscosity -- diffusive operator is visc*del^2 + hypervisc*del^p
+    else ! nonzero hyperviscosity -- diffusive operator is visc*del^2 + hypervisc*del^p
          ! F(K+1) = (1-DT*VISC*DEL2-DT*VISCP*DELP)^(-1) F(K+1/2)
          ! = [(-DT*VISCP)*(DELP+(VISC/VISCP)*DEL2+(-1/(DT*VISCP)))]^(-1) F(K+1/2)
          ! = IHELMP( (-1/(DT*VISCP))*F(K+1/2)), ALP=(-1/(DT*VISCP)), BET=(VISC/VISCP) )
@@ -929,7 +929,7 @@ contains
         svis = del2(s, tfm)
         svis%e = svis%e * visc
       endif
-    else ! nonzero hypeviscosity -- diffusive operator is visc*del^2 + hypervisc*del^p
+    else ! nonzero hyperviscosity -- diffusive operator is visc*del^2 + hypervisc*del^p
       svis = helmp(s, hyperpow, 0.D0, visc/(hypervisc*(-1.D0)**(hyperpow/2+1)), tfm)
       svis%e = svis%e * (hypervisc*(-1.D0)**(hyperpow/2+1))
     endif
@@ -945,7 +945,7 @@ contains
         sh%e = a*(sh%e + dt_/2.D0*svis%e)
         s = ihelm(s, a, tfm)
       endif
-    else ! nonzero hypeviscosity -- diffusive operator is visc*del^2 + hypervisc*del^p
+    else ! nonzero hyperviscosity -- diffusive operator is visc*del^2 + hypervisc*del^p
          ! F(K+1) = (1-DT/2*VISC*DEL2-DT/2*VISCP*DELP)^(-1) [F(K+1/2) + DT/2*LTERM(K)]
          ! = [(-DT/2*VISCP)*(DELP+(VISC/VISCP)*DEL2+(-2/(DT*VISCP)))]^(-1) [F(K+1/2) + DT/2*LTERM(K)]
          ! = IHELMP((-2/(DT*VISCP))*[F(K+1/2) + DT/2*LTERM(K)]), ALP=(-2/(DT*VISCP)), BET=(VISC/VISCP))

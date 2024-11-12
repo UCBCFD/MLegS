@@ -54,7 +54,7 @@ program barebone_template
 !> Read input paramters. If no input file exists, proceed with default values (see mlegs_base) 
   inquire( file=input_params_file, exist=exists )
   if (exists) then
-    call read_input('./input.params')
+    call read_input(input_params_file)
   endif
 
 !> Initialize the global transformation kit 'tfm' (see mlegs_spectfm)

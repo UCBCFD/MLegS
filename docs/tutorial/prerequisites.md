@@ -20,9 +20,18 @@ In this tutorial, you’ll learn how to prepare your environment to work with th
    - Use the provided `Makefile` instructions to compile the modules via one-line commands (e.g., `make mods`)
 
 
-Completing this setup ensures that you’re fully prepared to work with programs that use the MLegS package.
+Completing this tutorial ensures that you’re fully prepared to work with programs that use the MLegS package.
 
 ---
+
+## Table of Contents
+{: .no_toc .text-delta }
+
+1. TOC
+{:toc}
+
+---
+
 
 ## Configure a Compiler and MPI Interfaces
 
@@ -40,6 +49,7 @@ Aftr installation, verify the versions with:
 
 
 ```bash
+#! bash
 # for gfortran + OpenMPI
 gfortran --version
 mpirun.openmpi --version
@@ -63,6 +73,7 @@ All required libraries are included in the `[root_dir]/external/` directory of t
 
 
 ```bash
+#! bash
 cmake --version
 ```
 
@@ -72,11 +83,13 @@ Once CMake is installed, navigate to the `[root_dir]/external/` directory and ch
 
 
 ```bash
-cd ../external/ # Navigate to the external directory, assuming this notebook is opened in the default directory ([root_dir]/tutorials/).
+#! bash
+cd ../external/ # Navigate to the external directory, assuming the terminal is opened in the default directory ([root_dir]/tutorials/).
 ```
 
 
 ```bash
+#! bash
 chmod +x ./CMake_build.sh # Add the executable option
 # Now let's check that CMake_build.sh is actually executable. If you get something like '-rwxrwxr-x' of 3 x's, then it's executable.
 ls -all | grep CMake_build.sh 
@@ -86,6 +99,7 @@ By default, the script uses `gfortran` (with its compatible C compiler) for comp
 
 
 ```bash
+#! bash
 # in [root_dir]/external/CMake_build.sh, using any preferred text editor, update the following lines if one wants to use Intel
 # ...
 # FC = "gfortran" (-> replace it with "ifx", Intel's oneAPI Fortran compiler)
@@ -102,6 +116,7 @@ You are now ready to run the automated external library compilation script. Exec
 
 
 ```bash
+#! bash
 # Since this script run yields very lengthy outputs, we suppress them here. 
 # Generally this automated compilation task takes up to 5-10 minutes. Take a cup of coffee... :)
 ./CMake_build.sh > /dev/null 2>&1
@@ -111,6 +126,7 @@ If all external libraries are compiled successfully, you will see two new direct
 
 
 ```bash
+#! bash
 # See if the library files are all generated and stored in the lib directory.
 ls ./lib/ ./inc/
 ```
@@ -125,11 +141,13 @@ Before doing so, move to the root directory and ensure that the `Makefile` instr
 
 
 ```bash
-cd ../ # Navigate to the root directory, assuming that you were at [root_dir]/external/.
+#! bash
+cd ../ # Navigate to the root directory.
 ```
 
 
 ```bash
+#! bash
 # in [root_dir]/Makefile, using any preferred text editor, update the following lines if one wants to use Intel
 # ...
 # OMPI_FC = "gfortran" (-> replace it with "ifx", Intel's oneAPI Fortran compiler)
@@ -156,6 +174,7 @@ Inter-module dependencies are specified in `Makefile.dep`, which the `Makefile` 
 
 
 ```bash
+#! bash
 # 'clean' subcommand precedes in case there are old compiled files; this is not required and running only 'make mods' is generally sufficient.
 make clean && make mods
 ```
@@ -164,10 +183,9 @@ If all modules compiled successfully, a new directory `[root_dir]/build/` will b
 
 
 ```bash
+#! bash
 # See if the library files are all generated and stored in the build directory.
 ls ./build/mod/ ./build/obj/
 ```
 
 With this, all preliminary tasks required to use MLegS are complete!
-
----

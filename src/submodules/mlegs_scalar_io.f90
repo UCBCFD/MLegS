@@ -11,7 +11,7 @@ contains
     character(:), allocatable :: dum1, dum2, bsstr
 
     dum1 = itoa(formatted_num_str_len)
-    dum2 = itoa(formatted_num_str_len - 8)
+    dum2 = itoa(formatted_num_str_len - 9)
     bsstr = '(1PE' // trim(adjustl(dum1)) // '.' // trim(adjustl(dum2)) // 'E3)'
 
     fo = 11 + rank_glb
@@ -76,7 +76,6 @@ contains
         write(unit=fo, fmt='(3(1X,I10))') s%glb_sz
         write(unit=fo, fmt='(3(1X,I10))') s%loc_sz
         write(unit=fo, fmt='(3(1X,I10))') s%loc_st 
-        write(fo, *) ''
         do k = 1, s%loc_sz(3)
           do i = 1, s%loc_sz(1)
             do j = 1, s%loc_sz(2)
@@ -108,7 +107,7 @@ contains
     real(p8), dimension(:), allocatable :: real_imag_pairs
 
     dum1 = itoa(formatted_num_str_len)
-    dum2 = itoa(formatted_num_str_len - 8)
+    dum2 = itoa(formatted_num_str_len - 9)
     bsstr = '(1PE'//trim(adjustl(dum1))//'.'//trim(adjustl(dum2))//'E3))'
 
     fo = 11 + rank_glb

@@ -16,15 +16,9 @@ program TEST
   character(len=256) :: input_params_file = './input.params'
   logical :: exists
 
-!> This program requires no more program-bound variables as the MPI and kit varaibles
-!> are stored in the module files (see mlegs_envir/mlegs_spectfm).
-!> However, below are some often used program-bound variables for actual programs.
-!> Iterative variables (in each of 3 directions)
-  ! integer(i4) :: ii, jj, kk
-!> 'Global' array where a locally distribued scalar data are collected
-  ! complex(p8), dimension(:,:,:),allocatable :: array_glb
-!> 'Local' scalar, usually storing physical states of a system to be simulated (e.g., temp, vel, pres)
-  ! type(scalar) :: s
+  integer(i4) :: ii, jj, kk
+  complex(p8), dimension(:,:,:),allocatable :: A_glb
+  type(scalar) :: s, st
 
 !!!............ Pre-initialization for MPI parallelism
 !> Initialize MPI
@@ -54,7 +48,7 @@ program TEST
 !> Read input paramters. If no input file exists, proceed with default values (see mlegs_base) 
   inquire( file=input_params_file, exist=exists )
   if (exists) then
-    call read_input('./input.params')
+    call read_input(input_params_file)
   endif
 
 !> Initialize the global transformation kit
@@ -78,7 +72,7 @@ program TEST
   call s%disassemble(A_glb)
   call s%exchange(1, 3)
   s%space = 'FFF'
-  s%ln = -.5D0
+  s%ln = -.0D0
 
   !> Perform forward-backward spectral transformations
   ! if (rank_glb .eq. 0) call mcat(s%e, width=5)
@@ -99,12 +93,12 @@ program TEST
 
   st = s
   st = del2(st, tfm)
-  st = idel2(st, tfm, preln=-.5D0)
+  st = idel2(st, tfm)
 
   !> Assemble local arrays into a global one at proc 0
   call st%exchange(3, 1)
   A_glb = st%assemble()
-  if (rank_glb.eq.0)call mcat(A_glb(:,:,:), width=5)
+  if (rank_glb.eq.0)call mcat(A_glb(:20,:20,:1), width=5)
 
   !> Interim time record
   if (rank_glb .eq. 0) then
