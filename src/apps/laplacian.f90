@@ -1,7 +1,6 @@
-program forward_trans
-!> This is a tutorial program to demonstrate how to obtain the spectral coefficient information of a scalar when its physical information is given.
-!> Running this program must be followed by its sequel program 'backward_trans'
-!> Further details are presented in Tutorial 02: Spectral Transformation in [root_dir]/tutorials/02_transformation.ipynb
+program laplacian
+!> This is a tutorial program to demonstrate how to obtain Laplacian of a scalar.
+!> Further details are presented in Tutorial 03: Spectral Operation in [root_dir]/tutorials/03_operation.ipynb
 
   use MPI
   use mlegs_envir; use mlegs_base; use mlegs_misc
@@ -14,7 +13,7 @@ program forward_trans
   character(len=256) :: input_params_file = './input_2d.params'
   logical :: exists
 
-!> A distributed scalar 's' is declared, but now we load the 'backward-transformed' scalar output from 'backward_trans'
+!> A distributed scalar 's' is declared, we will load the data generated from the previous tutorial, in '/output/scalar_FFF.dat'
   type(scalar) :: s
 
 !!!............ Pre-initialization for MPI parallelism
@@ -57,18 +56,21 @@ program forward_trans
   endif
 
 !!!............ Load a scalar
-!> First, initialize a scalar. 
+!> Initialize the scalar and load the data
   glb_sz = (/ tfm%nrdim, tfm%npdim, tfm%nzdim /)
-!> If a scalar is in the 'PPP' space, typically the azimuthal information resides locally without distribution.
-!> Thus, (/ 1, 0, 2 /) is the right choice for the second parameter of init()...
-  call s%init(glb_sz, (/ 1, 0, 2 /))
-  s%space = 'PPP'
+  call s%init(glb_sz, (/ 0, 1, 2 /))
+  s%space = 'FFF'
 
-!> Load the 'PPP' data generated from 'backward_trans'.
-!> As is_binary is false, the data is stored in a ASCII-based readable format
-!> As is_global is true, the data is globally collected before save 
-!> If is_global is false, each processor stores locally distributed scalar data (proc 0 saves scalar.dat_0, proc 1 scalar.dat_1, ...) 
-  call mload(trim(adjustl(LOGDIR)) // 'scalar_PPP.dat', s, is_binary = .false., is_global = .true.)
+  inquire (file=trim(adjustl(LOGDIR)) // 'scalar_FFF.dat', exist=exists )
+  if (exists) then
+    call mload(trim(adjustl(LOGDIR)) // 'scalar_FFF.dat', s, is_binary = .false., is_global = .true.)
+  else
+    ! just in case somebody attempts to run this tutorial independently ...
+    s%e = 0.D0
+    if ((s%loc_st(2)+1 .le. 2).and.(2 .le. s%loc_st(2)+s%loc_sz(2))) s%e(2, 2-s%loc_st(2), 1) = 1.D0
+    if ((s%loc_st(2)+1 .le. 3).and.(3 .le. s%loc_st(2)+s%loc_sz(2))) s%e(3, 3-s%loc_st(2), 1) = 1.D0
+    call msave(s, trim(adjustl(LOGDIR)) // 'scalar_FFF.dat', is_binary = .false., is_global = .true.)
+  endif
 
 !> Interim time record
   if (rank_glb .eq. 0) then
@@ -77,20 +79,30 @@ program forward_trans
     write(*,*) ''
   endif
 
-!!!............ Forward spectral transformation
-!> Perform the forward transformation of s, from the 'PPP' space to the 'FFF' space
-  call trans(s, 'FFF', tfm)
+!!!............ Laplacian
+!> Obtain Laplacian of s and replace the data
+  s = del2(s, tfm)
 
 !> Interim time record
   if (rank_glb .eq. 0) then
-    write(*,*) 'Forward Transformation'
+    write(*,*) 'Laplacian Operation'
     write(*,101) toc(); call tic()
     write(*,*) ''
   endif
 
-!> Save the 'FFF' data for comparison purposes.
-!> For direct comparison with the original FFF information, is_global is set to true.
-  call msave(s, trim(adjustl(LOGDIR)) // 'scalar_FFF.dat', is_binary = .false., is_global = .true.)
+!> Save the Laplacian for comparison.
+  call msave(s, trim(adjustl(LOGDIR)) // 'scalar_FFF_Laplacian.dat', is_binary = .false., is_global = .true.)
+
+!> This step is for instructional purposes only -- get the physical form of the scalar to verify that it is 'actually' Laplacian of s.
+  call trans(s, 'PPP' ,tfm)
+  call msave(s, trim(adjustl(LOGDIR)) // 'scalar_PPP_Laplacian.dat', is_binary = .false., is_global = .true.)
+
+!> Interim time record
+  if (rank_glb .eq. 0) then
+    write(*,*) 'Laplacian Data Record'
+    write(*,101) toc(); call tic()
+    write(*,*) ''
+  endif
 
 !!!............ Finalization 
   !> Finalize MPI

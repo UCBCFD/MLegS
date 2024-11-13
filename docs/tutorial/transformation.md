@@ -250,12 +250,11 @@ NR = 32; NP = 48
 f_val = np.loadtxt('../output/dat/scalar_PPP.dat', skiprows=1, max_rows=NR)
 coords_r = np.loadtxt('../output/dat/coords_r.dat', skiprows=1, max_rows=NR)
 coords_p = np.loadtxt('../output/dat/coords_p.dat', skiprows=1, max_rows=NP)
-X_d = []; Y_d = []; Z_d = []; Z_deval = []
-for index, value in np.ndenumerate(f_val[:NR-1, :NP-1]):
+X_d = []; Y_d = []; Z_d = []
+for index, value in np.ndenumerate(f_val[:NR-1, :NP]):
     X_d.append(coords_r[index[0]] * np.cos(coords_p[index[1]]))
     Y_d.append(coords_r[index[0]] * np.sin(coords_p[index[1]]))
     Z_d.append(value)
-    Z_deval.append(f_num(coords_r[index[0]], coords_p[index[1]]))
 
 # Create the 3D plot
 fig = plt.figure(figsize=(10, 10))

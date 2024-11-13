@@ -1,6 +1,6 @@
 program backward_trans
 !> This is a tutorial program to demonstrate how to obtain the physical information of a scalar when its spectral coefficients are given.
-!> Further details are presented in Tutorial 02: Spectral Transformation in [root_dir]/tutorials/02_spectral_trans.ipynb
+!> Further details are presented in Tutorial 02: Spectral Transformation in [root_dir]/tutorials/02_transformation.ipynb
 
   use MPI
   use mlegs_envir; use mlegs_base; use mlegs_misc
