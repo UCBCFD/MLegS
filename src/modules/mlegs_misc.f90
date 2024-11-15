@@ -153,14 +153,21 @@ module mlegs_misc
   public :: mcat
 
   !> integer to string
-  interface itoa
-    module function itoa(i) result(a)
+  interface ntoa
+    module function ntoa(i, fmt) result(a)
       implicit none
-      integer :: i
+      integer(i4) :: i
+      character(len=*), optional :: fmt
+      character(len=36) :: a
+    end function
+    module function ftoa(f, fmt) result(a)
+      implicit none
+      real(p8) :: f
+      character(len=*), optional :: fmt
       character(len=36) :: a
     end function
   end interface
-  public :: itoa
+  public :: ntoa
 
   !> read input parameters in input.params
   interface read_input
@@ -177,5 +184,6 @@ module mlegs_misc
       implicit none
     end subroutine
   end interface
+  public :: timestep_set
 
 end module

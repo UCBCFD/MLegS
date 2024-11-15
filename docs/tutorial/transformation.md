@@ -1,10 +1,10 @@
 ---
-title: '#2. Spectral Transformation'
+title: '#3. Spectral Transformation'
 parent: Tutorials
 nav_order: 3
 ---
 
-# MLegS Tutorial 02: Spectral Transformation
+# MLegS Tutorial 03: Spectral Transformation
 *Disclaimer: This MLegS tutorial assumes a Linux or other Unix-based environment that supports bash terminal commands. If you are using Windows, consider installing the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).*
 
 In this tutorial, you will learn how MLegS converts between the physical representation of a scalar field and its spectral coefficient representation. A scalar field defined in a radially unbounded domain can be expressed either in its original (physical) form in cylindrical coordinates \\( (r, \phi, z) \\) at discretized collocation points, referred to as the *physical* space expression, or as a set of spectral basis function coefficients, referred to as the *spectral* space expression. A **backward** spectral transformation refers to obtaining the physical space expression from the spectral one, while a **forward** spectral transformation involves computing the spectral space expression when the physical form of the scalar is known.

@@ -21,7 +21,7 @@ contains
     !> check whether the old dimension is distributed or not
     if (this%axis_comm(axis_old).ne.0) then
       if (rank_glb.eq.0) write(*,*) &
-      "ERROR: scalar_exchange requires the data to be non-distributed along the old dimension: ",itoa(axis_old)
+      "ERROR: scalar_exchange requires the data to be non-distributed along the old dimension: ",ntoa(axis_old)
       call MPI_abort(comm_glb,error_flag_comm,MPI_err)
     endif
 

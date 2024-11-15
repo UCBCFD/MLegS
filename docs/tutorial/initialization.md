@@ -1,10 +1,10 @@
 ---
-title: '#1. Initialization'
+title: '#2. Initialization'
 parent: Tutorials
 nav_order: 2
 ---
 
-# MLegS Tutorial 01: Initialization
+# MLegS Tutorial 02: Initialization
 *Disclaimer: This MLegS tutorial assumes a Linux or other Unix-based environment that supports bash terminal commands. If you are using Windows, consider installing the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).*
 
 In this tutorial, you will learn the initialization process for MLegS. Within a cylindrical coordinate system \\((r, \phi, z)\\), MLegS discretizes the radial direction \\((0 \le r < \infty)\\) using *mapped Legendre functions* (Lee & Marcus, 2023[^1]) as spectral basis elements. To achieve this, MLegS pre-calculates these functions with appropriate normalization at each collocation point, which is then pre-loaded into the global spectral transformation kit, `tfm`. This tutorial will guide you through the following steps:

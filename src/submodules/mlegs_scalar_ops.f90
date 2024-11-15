@@ -315,7 +315,7 @@ contains
       so%e(1,1,1) = so%e(1,1,1) + 1.D0/exp(tfm%lognorm(1,1))*s%ln
       so%e(2,1,1) = so%e(2,1,1) + 1.D0/exp(tfm%lognorm(2,1))*s%ln
     endif
-    if (NZ .GT. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
+    if (nz .gt. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
 
     return
   end procedure
@@ -365,7 +365,7 @@ contains
       so%e(2,1,1) = so%e(2,1,1) - 2.D0/1.D0/ell**2.D0/exp(tfm%lognorm(2,1))*s%ln
       so%e(3,1,1) = so%e(3,1,1) + 2.D0/3.D0/ell**2.D0/exp(tfm%lognorm(3,1))*s%ln
     endif
-    if (NZ .GT. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
+    if (nz .gt. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
 
     return
   end procedure
@@ -451,7 +451,7 @@ contains
     deallocate( del2_bnd%e )
     call MPI_allreduce(so%ln, so%ln, 1, MPI_complex16, MPI_sum, comm_glb, MPI_err)
 
-    if (NZ .GT. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
+    if (nz .gt. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
 
     where (abs(real(so%e)) .lt. 5.D-14) so%e = cmplx(0.D0, aimag(so%e), p8)
     where (abs(aimag(so%e)) .lt. 5.D-14) so%e = cmplx(real(so%e), 0.D0, p8)
@@ -535,7 +535,7 @@ contains
     deallocate( del2_bnd%e )
     call MPI_allreduce(so%ln, so%ln, 1, MPI_complex16, MPI_sum, comm_glb, MPI_err)
 
-    if (NZ .GT. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
+    if (nz .gt. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
 
     where (abs(real(so%e)) .lt. 5.D-14) so%e = cmplx(0.D0, aimag(so%e), p8)
     where (abs(aimag(so%e)) .lt. 5.D-14) so%e = cmplx(real(so%e), 0.D0, p8)
@@ -622,7 +622,7 @@ contains
     enddo
     deallocate( helm_bnd%e )
 
-    if (NZ .GT. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
+    if (nz .gt. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
 
     where (abs(real(so%e)) .lt. 5.D-14) so%e = cmplx(0.D0, aimag(so%e), p8)
     where (abs(aimag(so%e)) .lt. 5.D-14) so%e = cmplx(real(so%e), 0.D0, p8)
@@ -686,7 +686,7 @@ contains
     real(p8), dimension(:), allocatable :: bl, bl2
     real(p8), dimension(:,:), allocatable :: w
 
-    if (.not. (mod(power,2).eq.0) .and. (power.ge.4)) stop 'ihelmp: even power greater than or equal to 4'
+    if (.not. ((mod(power,2).eq.0) .and. (power.ge.4))) stop 'ihelmp: even power greater than or equal to 4'
     if (power .gt. 8) stop 'ihelmp: power must be less than or equal to 8 (supported power = 4, 6 or 8)'
 
     call chop_glb_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
@@ -733,10 +733,8 @@ contains
             helmp_bnd = leg_del2(m(so%loc_st(2) + mm), ak(so%loc_st(3) + kk), nn, nn, tfm) .mul. helmp_bnd
           enddo
           w = fullmat(helmp_bnd) + beta*fullmat(del2_bnd)
-          do n = 1, np
-            w(n,n) = w(n,n) + alpha
-          enddo
           helmp_bnd = bandmat(w(:nn,:nn), suplen=power, sublen=power)
+          helmp_bnd%e(helmp_bnd%suplen+1,:) = helmp_bnd%e(helmp_bnd%suplen+1,:) + alpha
           deallocate( w )
           call lsolve(helmp_bnd, so%e(:nn,mm,kk))
         enddo
@@ -749,19 +747,17 @@ contains
             helmp_bnd = leg_del2(m(so%loc_st(2) + mm), ak(so%loc_st(3) + kk), nn, nn, tfm) .mul. helmp_bnd
           enddo
           w = fullmat(helmp_bnd) + beta*fullmat(del2_bnd)
-          do n = 1, np
-            w(n,n) = w(n,n) + alpha
-          enddo
           helmp_bnd = bandmat(w(:nn,:nn), suplen=power, sublen=power)
+          helmp_bnd%e(helmp_bnd%suplen+1,:) = helmp_bnd%e(helmp_bnd%suplen+1,:) + alpha
           deallocate( w )
           call lsolve(helmp_bnd, so%e(:nn,mm,kk))
         enddo
       endif
     enddo
-    deallocate( helmp_bnd%e )
-    deallocate( del2_bnd%e )
+    call helmp_bnd%dealloc()
+    call del2_bnd%dealloc()
 
-    if (NZ .GT. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
+    if (nz .gt. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
 
     where (abs(real(so%e)) .lt. 5.D-14) so%e = cmplx(0.D0, aimag(so%e), p8)
     where (abs(aimag(so%e)) .lt. 5.D-14) so%e = cmplx(real(so%e), 0.D0, p8)
@@ -775,6 +771,9 @@ contains
   module procedure fefe
     type(scalar) :: svis
     real(p8) :: dt_
+
+    if (s%space(1:3).ne.'FFF') stop 'fefe: all input scalars must be in FFF for time stepping'
+    if (s_rhs_nonlin%space(1:3).ne.'FFF') stop 'fefe: all input scalars must be in FFF for time stepping'
 
     if (curr_n - ni .eq. totaln) then
       dt_ = totaltime - (totaln-1)*dt ! final timestep's dt adjustment
@@ -808,6 +807,11 @@ contains
     logical :: is_2nd_svis_p_ ! 2nd arg is not s_p but svis_p (so that we skip its calculation)
     type(scalar) :: svis, svis_p
     real(p8) :: dt_
+
+    if (s%space(1:3).ne.'FFF') stop 'fefe: all input scalars must be in FFF for time stepping'
+    if (s_rhs_nonlin%space(1:3).ne.'FFF') stop 'fefe: all input scalars must be in FFF for time stepping'
+    if (s_p%space(1:3).ne.'FFF') stop 'fefe: all input scalars must be in FFF for time stepping'
+    if (s_rhs_nonlin_p%space(1:3).ne.'FFF') stop 'fefe: all input scalars must be in FFF for time stepping'
 
     if (present(is_2nd_svis_p)) then
       is_2nd_svis_p_ = is_2nd_svis_p
@@ -865,6 +869,9 @@ contains
     type(scalar) :: sh
     real(p8) :: dt_, a, b
 
+    if (s%space(1:3).ne.'FFF') stop 'fefe: all input scalars must be in FFF for time stepping'
+    if (s_rhs_nonlin%space(1:3).ne.'FFF') stop 'fefe: all input scalars must be in FFF for time stepping'
+
     if (curr_n - ni .eq. totaln) then
       dt_ = totaltime - (totaln-1)*dt ! final timestep's dt adjustment
     else
@@ -906,6 +913,11 @@ contains
   module procedure abcn
     type(scalar) :: sh, svis
     real(p8) :: dt_, a, b
+
+    if (s%space(1:3).ne.'FFF') stop 'fefe: all input scalars must be in FFF for time stepping'
+    if (s_rhs_nonlin%space(1:3).ne.'FFF') stop 'fefe: all input scalars must be in FFF for time stepping'
+    if (s_p%space(1:3).ne.'FFF') stop 'fefe: all input scalars must be in FFF for time stepping'
+    if (s_rhs_nonlin_p%space(1:3).ne.'FFF') stop 'fefe: all input scalars must be in FFF for time stepping'
 
     if (curr_n - ni .eq. totaln) then
       dt_ = totaltime - (totaln-1)*dt ! final timestep's dt adjustment
@@ -1000,6 +1012,38 @@ contains
 
   !   return
   ! end subroutine
+
+  !> volume integration of s over r in [0, inf], phi in [0, 2pi] and z in [0, ZLEN]
+  ! function integ(s) result(itg) 
+  !   implicit none
+  !   type(scalar) :: s, s2
+  !   real(p8) :: itg
+  !   integer(i4) :: mm, kk
+
+  !   itg = 0.D0
+
+  !   call s2%init(s%glb_sz, s%axis_comm)
+  !   s2 = s
+  !   call trans(s2, 'PFP', tfm)
+
+  !   do mm = 1, s2%loc_sz(2)
+  !     do kk = 1, s2%loc_sz(3)
+  !       s2%e(:nr, mm, kk) = s2%e(:nr, mm, kk) / (1.D0 - tfm%x(1:nr))**2.D0
+  !     enddo
+  !   enddo
+
+  !   call trans(s2, 'FFF', tfm)
+
+  !   if ((s2%loc_st(1) .eq. 0) .and. (s2%loc_st(2) .eq. 0) .and. (s2%loc_st(3) .eq. 0)) then
+  !     itg = 4.D0*pi*zlen*ell**2.D0*s2%e(1,1,1)*exp(tfm%lognorm(1,1))
+  !   endif
+
+  !   call MPI_allreduce(itg, itg, 1, MPI_real8, MPI_sum, comm_glb, MPI_err)
+
+  !   call s2%dealloc()
+
+  !   return
+  ! end function
 
 ! ======================================================================================================== !
 ! VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV INTERNAL (PRIVATE) SUBROUTINES/FUNCTIONS VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV !

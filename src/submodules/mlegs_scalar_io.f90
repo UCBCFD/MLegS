@@ -10,8 +10,8 @@ contains
     integer(i4) :: status, i, j, k, fo
     character(:), allocatable :: dum1, dum2, bsstr
 
-    dum1 = itoa(formatted_num_str_len)
-    dum2 = itoa(formatted_num_str_len - 9)
+    dum1 = ntoa(formatted_num_str_len)
+    dum2 = ntoa(formatted_num_str_len - 9)
     bsstr = '(1PE' // trim(adjustl(dum1)) // '.' // trim(adjustl(dum2)) // 'E3)'
 
     fo = 11 + rank_glb
@@ -64,14 +64,14 @@ contains
       deallocate( a )
     else
       if (is_binary_) then
-        open(newunit=fo, file=trim(adjustl(fn))//'_'//trim(adjustl(itoa(rank_glb))), &
+        open(newunit=fo, file=trim(adjustl(fn))//'_'//trim(adjustl(ntoa(rank_glb))), &
              form='unformatted', access='stream', status='replace')
         write(fo) s%glb_sz, s%loc_sz, s%loc_st
         write(fo) s%e
         write(fo) s%ln, s%nrchop_offset, s%npchop_offset, s%nzchop_offset
         write(fo) s%space
       else
-        open(newunit=fo, file=trim(adjustl(fn))//'_'//trim(adjustl(itoa(rank_glb))), &
+        open(newunit=fo, file=trim(adjustl(fn))//'_'//trim(adjustl(ntoa(rank_glb))), &
              status='unknown')
         write(unit=fo, fmt='(3(1X,I10))') s%glb_sz
         write(unit=fo, fmt='(3(1X,I10))') s%loc_sz
@@ -106,8 +106,8 @@ contains
     character(:), allocatable :: dum1, dum2, bsstr
     real(p8), dimension(:), allocatable :: real_imag_pairs
 
-    dum1 = itoa(formatted_num_str_len)
-    dum2 = itoa(formatted_num_str_len - 9)
+    dum1 = ntoa(formatted_num_str_len)
+    dum2 = ntoa(formatted_num_str_len - 9)
     bsstr = '(1PE'//trim(adjustl(dum1))//'.'//trim(adjustl(dum2))//'E3))'
 
     fo = 11 + rank_glb
@@ -159,7 +159,7 @@ contains
           allocate(real_imag_pairs(2*s%glb_sz(2)))
           do k = 1, s%glb_sz(3)
             do i = 1, s%glb_sz(1)
-              read(unit=fo, fmt='('//trim(adjustl(itoa(2*s%glb_sz(2))))//bsstr) real_imag_pairs
+              read(unit=fo, fmt='('//trim(adjustl(ntoa(2*s%glb_sz(2))))//bsstr) real_imag_pairs
               do j = 1, s%glb_sz(2)
                 a(i,j,k) = real_imag_pairs(2*j-1) + iu * real_imag_pairs(2*j)
               enddo
@@ -177,7 +177,7 @@ contains
       deallocate( a )
     else
       if (is_binary_) then
-        open(newunit=fo, file=trim(adjustl(fn))//'_'//trim(adjustl(itoa(rank_glb))), &
+        open(newunit=fo, file=trim(adjustl(fn))//'_'//trim(adjustl(ntoa(rank_glb))), &
              form='unformatted', access='stream', status='old', iostat=is, action='read')
         if (is .ne. 0) then
           write(*,*) 'mload_scalar: cannot open ', fn
@@ -196,7 +196,7 @@ contains
         read(fo) s%ln, s%nrchop_offset, s%npchop_offset, s%nzchop_offset
         read(fo) s%space
       else
-        open(newunit=fo, file=trim(adjustl(fn))//'_'//trim(adjustl(itoa(rank_glb))), &
+        open(newunit=fo, file=trim(adjustl(fn))//'_'//trim(adjustl(ntoa(rank_glb))), &
              status='old')
         i = s%loc_sz(1); j = s%loc_sz(2); k = s%loc_sz(3)
         read(unit=fo, fmt='(3(1X,I10))') s%glb_sz
@@ -212,7 +212,7 @@ contains
         allocate(real_imag_pairs(2*s%loc_sz(2)))
         do k = 1, s%loc_sz(3)
           do i = 1, s%loc_sz(1)
-            read(unit=fo, fmt='('//trim(adjustl(itoa(2*s%loc_sz(2))))//bsstr) real_imag_pairs
+            read(unit=fo, fmt='('//trim(adjustl(ntoa(2*s%loc_sz(2))))//bsstr) real_imag_pairs
             do j = 1, s%loc_sz(2)
               s%e(i,j,k) = real_imag_pairs(2*j-1) + iu * real_imag_pairs(2*j)
             enddo

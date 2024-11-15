@@ -276,8 +276,31 @@ contains
     call mcatc(a, width_, precision_)
   end procedure
 
-  module procedure itoa
-    write(a, '(i36)') i
+  module procedure ntoa
+    implicit none
+    character(len=256) :: fmt_
+
+    if (present(fmt)) then
+      fmt_ = fmt
+    else
+      fmt_ = '(i36)'
+    endif
+
+    write(a, trim(adjustl(fmt_))) i
+    a = trim(adjustl(a))
+  end procedure
+
+  module procedure ftoa
+    implicit none
+    character(len=256) :: fmt_
+
+    if (present(fmt)) then
+      fmt_ = fmt
+    else
+      fmt_ = '(f10.6)'
+    endif
+
+    write(a, trim(adjustl(fmt_))) f
     a = trim(adjustl(a))
   end procedure
 
@@ -365,8 +388,8 @@ contains
     nk = size(a,3)
 
     fmt1 = '(I4, A)'
-    fmt2 = '(5X, '//trim(itoa(width))//'I'//trim(itoa(precision+9))//')'
-    fmt3 = '(I4, ":", 1P'//trim(itoa(width))//'E'//trim(itoa(precision+9))//'.'//trim(itoa(precision))&
+    fmt2 = '(5X, '//trim(ntoa(width))//'I'//trim(ntoa(precision+9))//')'
+    fmt3 = '(I4, ":", 1P'//trim(ntoa(width))//'E'//trim(ntoa(precision+9))//'.'//trim(ntoa(precision))&
                                                                                                      //'E3)'
 
     do k = 1, nk
@@ -400,9 +423,9 @@ contains
     nk = size(a,3)
 
     fmt1 = '(I4, A)'
-    fmt2 = '(5X, '//trim(itoa(2*width))//'I'//trim(itoa(2*precision+9+8+1))//')'
-    fmt3 = '(I4, ":", 1P'//trim(itoa(2*width))//'(S,E'//trim(itoa(precision+9))//'.'//trim(itoa(precision))&
-                                //'E3,SP,E'//trim(itoa(precision+8))//'.'//trim(itoa(precision))//'E3,"i"))'
+    fmt2 = '(5X, '//trim(ntoa(2*width))//'I'//trim(ntoa(2*precision+9+8+1))//')'
+    fmt3 = '(I4, ":", 1P'//trim(ntoa(2*width))//'(S,E'//trim(ntoa(precision+9))//'.'//trim(ntoa(precision))&
+                                //'E3,SP,E'//trim(ntoa(precision+8))//'.'//trim(ntoa(precision))//'E3,"i"))'
 
     do k = 1, nk
     if (nk .gt. 1) write(*, fmt1) k, ' (Axis 3): '
@@ -431,8 +454,8 @@ contains
     integer(i4) :: i, j, k, fo = 11
     character(:), allocatable :: dum1, dum2, bsstr
 
-    dum1 = itoa(formatted_num_str_len)
-    dum2 = itoa(formatted_num_str_len - 9)
+    dum1 = ntoa(formatted_num_str_len)
+    dum2 = ntoa(formatted_num_str_len - 9)
     bsstr = '(1PE' // trim(adjustl(dum1)) // '.' // trim(adjustl(dum2)) // 'E3)'
 
     if (is_binary) then
@@ -471,9 +494,9 @@ contains
     integer(i4) :: i, j, k, is, fo = 11
     character(:), allocatable :: dum1, dum2, dum3, bsstr
 
-    dum1 = itoa(formatted_num_str_len)
-    dum2 = itoa(formatted_num_str_len - 9)
-    dum3 = itoa(nj)
+    dum1 = ntoa(formatted_num_str_len)
+    dum2 = ntoa(formatted_num_str_len - 9)
+    dum3 = ntoa(nj)
     bsstr = '('//trim(adjustl(dum3))//'(1PE'//trim(adjustl(dum1))//'.'//trim(adjustl(dum2))//'E3))'
 
     ni = size(a,1)
@@ -530,8 +553,8 @@ contains
     integer(i4) :: i, j, k, fo = 11
     character(:), allocatable :: dum1, dum2, bsstr
 
-    dum1 = itoa(formatted_num_str_len)
-    dum2 = itoa(formatted_num_str_len - 9)
+    dum1 = ntoa(formatted_num_str_len)
+    dum2 = ntoa(formatted_num_str_len - 9)
     bsstr = '(1PE' // trim(adjustl(dum1)) // '.' // trim(adjustl(dum2)) // 'E3)'
 
     if (is_binary) then
@@ -572,9 +595,9 @@ contains
     character(:), allocatable :: dum1, dum2, dum3, bsstr
     real(p8), dimension(:), allocatable :: real_imag_pairs
 
-    dum1 = itoa(formatted_num_str_len)
-    dum2 = itoa(formatted_num_str_len - 9)
-    dum3 = itoa(2*nj)
+    dum1 = ntoa(formatted_num_str_len)
+    dum2 = ntoa(formatted_num_str_len - 9)
+    dum3 = ntoa(2*nj)
     bsstr = '('//trim(adjustl(dum3))//'(1PE'//trim(adjustl(dum1))//'.'//trim(adjustl(dum2))//'E3))'
 
     ni = size(a,1)

@@ -1,10 +1,10 @@
 ---
-title: '#0. Prerequisites'
+title: '#1. Prerequisites'
 parent: Tutorials
 nav_order: 1
 ---
 
-# MLegS Tutorial 00: Prerequisites
+# MLegS Tutorial 01: Prerequisites
 *Disclaimer: This MLegS tutorial assumes a Linux (or any Unix-based) environment that supports bash terminal commands. If you are using Windows, consider installing the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).*
 
 In this tutorial, you’ll learn how to prepare your environment to work with the MLegS package. By completing these prerequisites, you will be ready to compile and run main programs that use MLegS. The following steps will be covered:

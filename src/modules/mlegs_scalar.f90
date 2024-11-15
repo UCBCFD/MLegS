@@ -296,6 +296,7 @@ module mlegs_scalar
       class(tfm_kit) :: tfm
     end subroutine
   end interface
+  public :: fefe
 
   !> adams bashforth - adams bashforth time advancement (2nd explicit order)
   !> note: we solve the following:
@@ -313,6 +314,7 @@ module mlegs_scalar
       logical, optional :: is_2nd_svis_p
     end subroutine
   end interface
+  public :: abab
 
   !> forward euler - backward euler time advancement (1st semi-implicit order)
   !> note: we solve the following:
@@ -329,6 +331,7 @@ module mlegs_scalar
       class(tfm_kit) :: tfm
     end subroutine
   end interface
+  public :: febe
 
   !> adams bashforth - crank nicolson time advancement (2nd semi-implicit order)
   !> note: we solve the following:
@@ -346,6 +349,7 @@ module mlegs_scalar
       class(tfm_kit) :: tfm
     end subroutine
   end interface
+  public :: abcn
 
   !> i/o save
   interface msave

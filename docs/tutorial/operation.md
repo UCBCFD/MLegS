@@ -1,10 +1,10 @@
 ---
-title: '#3. Spectral Operation'
+title: '#4. Spectral Operation'
 parent: Tutorials
 nav_order: 4
 ---
 
-# MLegS Tutorial 03: Spectral Operation
+# MLegS Tutorial 04: Spectral Operation
 *Disclaimer: This MLegS tutorial assumes a Linux or other Unix-based environment that supports bash terminal commands. If you are using Windows, consider installing the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).*
 
 In this tutorial, you will apply a differentiation operation to a scalar field in spectral space. Spectral space operations that convert one set of spectral coefficients to another generally provide more accurate results than physical space operations, such as finite differences or other collocation point-based methods. Many differentiation operations can be performed directly within the spectral space, especially for linear operations like the Laplacian \\( \nabla^2 \equiv \frac{1}{r} \frac{\partial}{\partial r} \left( r \frac{\partial}{\partial r} \right) + \frac{1}{r^2} \frac{\partial^2}{\partial \phi^2} + \frac{\partial^2}{\partial z^2} \\).

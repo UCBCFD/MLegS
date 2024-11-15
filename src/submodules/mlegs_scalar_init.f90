@@ -115,10 +115,10 @@ contains
       if ((is_warning).and.(rank_glb.eq.0)) write(*,*) &
       "WARNING: scalar_copy has inconsistent communicator layout and/or data size - reset target scalar ", &
       "with axis_comm configuration: OLD(", &
-      trim(adjustl(itoa(this%axis_comm(1)))), ",", trim(adjustl(itoa(this%axis_comm(2)))), ",", &
-      trim(adjustl(itoa(this%axis_comm(3)))), ") to NEW(", &
-      trim(adjustl(itoa(that%axis_comm(1)))), ",", trim(adjustl(itoa(that%axis_comm(2)))), ",", &
-      trim(adjustl(itoa(that%axis_comm(3)))), ")"
+      trim(adjustl(ntoa(this%axis_comm(1)))), ",", trim(adjustl(ntoa(this%axis_comm(2)))), ",", &
+      trim(adjustl(ntoa(this%axis_comm(3)))), ") to NEW(", &
+      trim(adjustl(ntoa(that%axis_comm(1)))), ",", trim(adjustl(ntoa(that%axis_comm(2)))), ",", &
+      trim(adjustl(ntoa(that%axis_comm(3)))), ")"
       call this%dealloc()
       call this%init(that%glb_sz,that%axis_comm)
     endif
