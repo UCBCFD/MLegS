@@ -12,24 +12,24 @@ nav_order: 2
 #! bash
 np=$(nproc)
 make scalar_diffusion_2d
-mpirun.openmpi -n $np --oversubscribe ./build/bin/barebone_template
+mpirun.openmpi -n $np --oversubscribe ./build/bin/scalar_diffusion_2d
 # if using IntelMPI
-# mpiexec -n $np ./build/bin/barebone_template
+# mpiexec -n $np ./build/bin/scalar_diffusion_2d
 ```
 
 ## Description
 The sample program in `[root_dir]/src/apps/scalar_diffusion_2d.f90` demonstrates how to simulate a scalar diffusion process in a transient manner. It solves for a scalar field \\( s(r,\phi,t) \\), with the initial condition \\( s(r,\phi, t=0) = s_0 \\), governed by the following equation:
 
 $$
-\frac{\partial s}{\partial t} = \rm{VISC} \nabla^2 s
+\frac{\partial s}{\partial t} = {\rm{VISC}}  \nabla^2 s ,
 $$
 
-In the sample program, the initial scalar distribution \\( s_0(r, \phi) \\) is defined as:
+where \\( {\rm{VISC}} \\) indicates the diffusion constant. In the sample program, the initial scalar distribution \\( s_0(r, \phi) \\) is defined as:
 
 $$
 \displaylines{ 
-s_0 (r, \phi) = \max \left(1 - \left[ (r \cos \phi - 0.5)^2 + (r \sin \phi - 0.5)^2 \right], 0\right) \\ 
-+ \max \left(0.5 - 0.5\left[ (r \cos \phi + 0.5)^2 + (r \sin \phi + 0.5)^2 \right], 0\right),
+s_0 (r, \phi) = \max \left(1 - \left[ (r \cos \phi - 0.5)^8 + (r \sin \phi - 0.5)^8 \right], \right. \\
+\left. 0.5 - 0.5\left[ (r \cos \phi + 0.5)^8 + (r \sin \phi + 0.5)^8 \right], 0\right),
 }
 $$
 
@@ -73,7 +73,6 @@ The default input parameters are defined in `[root_dir]/input_2d.params`:
 ```
 
 From these parameters, the simulation is set as follows:
-- The diffusion constant is \\( \rm{VISC} = 0.005 \\).
 - Collocation points in physical space: \\( NR = 32 \\), \\( NP = 48 \\).
 - Spectral elements in spectral space: \\( NRCHOP = 32 \\), \\( NPCHOP = 25 \\).
 - Mapping parameter: \\( L = 1.0 \\).
@@ -81,7 +80,7 @@ From these parameters, the simulation is set as follows:
   - Time step: \\( dt = 0.001 \\).
   - Initial time: \\( t_0 = 0 \\) (0th step).
   - Final time: \\( t_f = 10 \\) (10,000th step).
-- Scalar field properties: \\( \rm{VISC} = 0.005 \\) and no hyperdiffusion[^1].
+- Scalar field properties: \\( \rm{VISC} = 0.005 \\) and no hyperdiffusion.
 - Field information is stored at every 100 steps in `[root_dir]/output/fld/`.
 - Log information is stored at every 100 steps in `[root_dir]/output/dat/`.
 
@@ -98,11 +97,6 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 from matplotlib.colors import Normalize
 
-# Ensure the animation will display correctly in Jupyter
-plt.rcParams["animation.html"] = "jshtml"
-plt.rcParams["animation.embed_limit"] = 30  # Limit in MB
-plt.rcParams['animation.ffmpeg_path'] = '/usr/bin/ffmpeg'
-
 # Load static data outside the animate function
 NR = 32; NP = 48
 dt = 1.E-3; dn = 1E2
@@ -110,7 +104,7 @@ coords_r = np.loadtxt('../output/dat/coords_r.dat', skiprows=1, max_rows=NR)
 coords_p = np.loadtxt('../output/dat/coords_p.dat', skiprows=1, max_rows=NP)
 
 # Initialize the figure and 3D axis once
-fig = plt.figure(figsize=(10, 6), facecolor='none')
+fig = plt.figure(figsize=(6, 8), facecolor='none')
 ax = fig.add_subplot(projection='3d', facecolor='none')
 xlim = 5; ylim = 5
 ax.set_xlim(-xlim, xlim)
@@ -130,7 +124,7 @@ sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 sm.set_array([])
 
 # Add the static colorbar
-cbar = fig.colorbar(sm, ax=ax, orientation='vertical')
+cbar = fig.colorbar(sm, ax=ax, orientation='horizontal')
 cbar.set_label('Scalar Value')
 
 # Animation function
@@ -175,5 +169,6 @@ anim = animation.FuncAnimation(fig, animate, frames=range(0, 101), interval=50)
 anim.save('animation.mp4', writer='ffmpeg', fps=30, dpi=150)
 ```
 
----
-[^1]: In the absence of a physical diffusion term, numerical solutions often become unstable because high-wavenumber motions do not dissipate and instead accumulate at the highest wavenumbers due to the discretization limits of computation. Hyperdiffusion (or hyperviscosity) mitigates these numerical artifacts by selectively dissipating energy at high wavenumbers. Mathematically, it introduces an additional term: \\( \nu_h \nabla^{p} \\), where \\( \nu_h \\) and \\( p \\) are determined by the parameters `HYPERVISC` and `HYPERPOW`, respectively.
+<video controls loop class="d-block mx-auto" style="width:100%; max-width:480px">
+  <source src="{{ '/assets/videos/scalar_diffusion_result.mp4' | relative_url }}" type="video/mp4">
+</video>
