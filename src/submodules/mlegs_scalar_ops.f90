@@ -66,8 +66,8 @@ contains
     if (curr_sp .lt. new_sp) then ! forward transforamtion
       do while(.true.)
       if (curr_sp .eq. 0) then
-        call horizontal_fft_forward(s, tfm)
-        call s%exchange(2,1)
+        if (np .gt. 1) call horizontal_fft_forward(s, tfm)
+        if (np .gt. 1) call s%exchange(2,1)
         s%space = 'PFP'
       endif
       if (curr_sp .eq. 1) then
@@ -103,8 +103,8 @@ contains
         s%space = 'PFP'
       endif
       if (curr_sp .eq. 1) then
-        call s%exchange(1,2)
-        call horizontal_fft_backward(s, tfm)
+        if (np .gt. 1) call s%exchange(1,2)
+        if (np .gt. 1) call horizontal_fft_backward(s, tfm)
         s%space = 'PPP'
       endif
       if (curr_sp .eq. 0) exit

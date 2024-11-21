@@ -75,7 +75,7 @@ The default input parameters are defined in `[root_dir]/input_2d.params`:
 From these parameters, the simulation is set as follows:
 - Collocation points in physical space: \\( NR = 32 \\), \\( NP = 48 \\).
 - Spectral elements in spectral space: \\( NRCHOP = 32 \\), \\( NPCHOP = 25 \\).
-- Mapping parameter: \\( L = 1.0 \\).
+- Mapping parameter: \\( L = 1.0 \\) (one-half of \\(NR \\) are in \\( 0 \le r \le 1.0 \\)).
 - Time integration parameters:
   - Time step: \\( dt = 0.001 \\).
   - Initial time: \\( t_0 = 0 \\) (0th step).
@@ -93,7 +93,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.patches as mpatches
-from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 from matplotlib.colors import Normalize
 
