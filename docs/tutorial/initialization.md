@@ -140,7 +140,7 @@ The associated Legendre functions are solutions to the general Legendre equation
 
 $$ \frac{d}{dx} \left[ (1-x^2) \frac{d}{dx} P_n^m (x) \right] + \left[ n(n+1) - \frac{m^2}{1-x^2} \right] P_n^m (x) = 0, $$
 
-where the indices \\(n \\) and  \\(m \\) are the degree and order of the associated Legendre function \\( P_n^m (x) \\). In MLegS, these functions are algebraically mapped from \\( x \in [-1, 1) \\) to \\( r \in [0, \infty) \\) using the map parameter \\( L > 0 \\) such that \\( x = (r^2 + L^2)/(r^2 - L^2) \\). The mapped Legendre functions thus vary with the choice of \\( L \\) and are often denoted \\( P_{L_n}^m (r) \\). Now, \\( P_{L_n}^m (r) \\) is the solution to the following second-order differential equation:
+where the indices \\(n \\) and  \\(m \\) are the degree and order of the associated Legendre function \\( P_n^m (x) \\). In MLegS, these functions are algebraically mapped from \\( x \in [-1, 1) \\) to \\( r \in [0, \infty) \\) using the map parameter \\( L > 0 \\) such that \\( x = (r^2 - L^2)/(r^2 + L^2) \\). The mapped Legendre functions thus vary with the choice of \\( L \\) and are often denoted \\( P_{L_n}^m (r) \\). Now, \\( P_{L_n}^m (r) \\) is the solution to the following second-order differential equation:
 
 $$ \frac{d}{dr} \left[ r \frac{d}{dr} P_{L_n}^m (r) \right] - \frac{m^2}{r} P_{L_n}^m (r) + \frac{4n(n+1)L^2 r}{(L^2 + r^2)^2} P_{L_n}^m (r) = 0. $$
 

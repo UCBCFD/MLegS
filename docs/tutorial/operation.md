@@ -15,7 +15,7 @@ MLegS, in its most recent version, provides essential spectral operations common
    - Given a scalar field \\(s \\), its Laplacian, \\( \nabla^2 s \\), is obtainable via the MLegS built-in subroutine `del2()`.
    - The operation does not require the scalar's physical form and is directly converted in the spectral space.
 2. **Get Acquainted with Other Built-In MLegS Spectral Differentiation Operators**
-   - MLegS also provides the 2-dimensional Laplacian operator \\( \nabla_\perp^2 \equiv \frac{1}{r} \frac{\partial}{\partial r} \left( r \frac{\partial}{\partial r} \right) + \frac{1}{r^2} \frac{\partial^2}{\partial \phi^2} \\), the Helmholtz operator \\( \nabla^2 + \alpha I \\), and the powered Helmholtz operator \\( \nabla^{h} + \beta \nabla^2 + \alpha I \\) for \\( h = 4, 6, 8 \\).
+   - MLegS provides additional differentiation operators, such as the Helmholtz operator \\( \nabla^2 + \alpha I \\) and the powered Helmholtz operator \\( \nabla^{h} + \beta \nabla^2 + \alpha I \\) for \\( h = 4, 6, 8 \\).
    - Their mathematical definitions and typical usage in MLegS are presented.
 
 Completing this tutorial will help you apply spectral differentiation operators in MLegS with confidence.
@@ -284,17 +284,29 @@ If you want to modify the constant field \\( C_1 \\), simply adjust the value co
 
 ## Get Acquainted with Other Built-In MLegS Spectral Differentiation Operators
 
-### 2-Dimensional Laplacian \\( \nabla_\perp^2 \\)
+### Scaled 2D Laplacian \\( (1-x)^{-2} \nabla_\perp^2  \\)
 
-2-Dimensional Laplacian is similar to Laplacian, but it removes the double derivative term in \\( z \\):
+Using the fact that \\( P_{L_n}^m (r) \\) satisfies the Sturm-Liouville equation:
 
-$$ \nabla_\perp^2 \equiv \frac{1}{r} \frac{\partial}{\partial r} \left( r \frac{\partial}{\partial r} \right) + \frac{1}{r^2} \frac{\partial^2}{\partial \phi^2} $$
+$$ \frac{d}{dr} \left[ r \frac{d}{dr} P_{L_n}^m (r) \right] - \frac{m^2}{r} P_{L_n}^m (r) + \frac{4n(n+1)L^2 r}{(L^2 + r^2)^2} P_{L_n}^m (r) = 0, $$
+
+it is possible to derive the following equality for any \\( n \\) and \\( m \\):
+
+$$ \left(\frac{L^2 + r^2}{2 L^2}\right)^2 \cdot \left[ \frac{1}{r} \frac{d}{dr} \left[ r \frac{d}{dr} P_{L_n}^m (r) \right] - \frac{m^2}{r^2} P_{L_n}^m (r) \right] = - \frac{n(n+1)}{L^2} P_{L_n}^m (r). $$
+
+Thus, applying the left-hand side differentiation operator with the algebraic multiplication \\( \left[ (L^2 + r^2)/(2 L^2)\right]^2 \\) to \\( P_{L_n}^m (r) \\) reduces to a simple multiplication by the factor \\( -n(n+1)/L^2 \\).
+
+Since \\( x \equiv (r^2 - L^2)/(r^2 + L^2) \\), it follows that \\( 1-x = (2L^2) / (r^2 + L^2 ) \\). Consequently, the left-hand side operation can be expressed as:
+
+$$ (1-x)^{-2} \nabla_\perp^2 \equiv \left(\frac{L^2 + r^2}{2 L^2}\right)^2 \cdot \left[ \frac{1}{r} \frac{\partial}{\partial r} \left( r \frac{\partial}{\partial r} \right) + \frac{1}{r^2} \frac{\partial^2}{\partial \phi^2} \right]. $$
+
+Note that \\( \nabla_\perp^2 \\) indicates \\( \frac{1}{r} \frac{\partial}{\partial r} \left( r \frac{\partial}{\partial r} \right) + \frac{1}{r^2} \frac{\partial^2}{\partial \phi^2} \\), which is the 2-dimensional Laplacian that only lacks the derivative in \\( z \\).
 
 This operation is performed via `delsqp()` in MLegS:
 
 ```fortran
 !# Fortran
-s = delsqp(s, tfm) ! corresp. inversion operation is idelsqp(s, tfm)
+s = delsqp(s, tfm) ! corresponding inversion operation is idelsqp(s, tfm)
 ```
 
 ### Radial Derivative \\( rD_r \\)

@@ -1,7 +1,8 @@
-program scalar_diffusion_2d
-!> This program is to demonstrate how to simulate the scalar diffusion process in a transient manner.
-!> Governing equation: For a scalar field s(r,p,z,t), ds/dt = VISC*del2(s).
-!> Initial condition: s(r(x,y),p(x,y),z,t=0) = translate( max(1-r^8, 0), xc = 0.5, yc = 0.5) + translate( 0.5* max(1-r^8, 0), xc = -0.5, yc = -0.5)
+program time_integration_first
+!> This is a tutorial program to demonstrate the first-order built-in time integration scheme.
+!> It solves for a simple 2-dimensional axissymmetric vorticity equation, governed by dw/dt = VISC*del2(w).
+!> Initial condition is: w(r,t=0) = 1/(2*pi) * exp(-r^2 / 2), whose analytic solution in time is w(r,t) = 1/(2*pi+(1+2*VISC*t)) * exp( -r^2 / (2*(1+2*VISC*t)) ).
+!> Further details are presented in Tutorial 05: Time Integration in [root_dir]/tutorials/05_time_integration.ipynb
 
   use MPI
   use mlegs_envir; use mlegs_base; use mlegs_misc
@@ -11,13 +12,13 @@ program scalar_diffusion_2d
   implicit none
 
   integer(i4), dimension(3) :: glb_sz
-  integer(i4) :: stepping_notice = 1000
-  real(p8) :: origin_val, tsum = 0.D0
-  character(len=256) :: input_params_file = './input_2d.params'
+  integer(i4) :: stepping_notice = 1000 ! in order to suppress time stepping print-outs
+  real(p8) :: origin_val, tsum = 0.D0 ! origin_val stores the vorticity value at origin in terms of time
+  character(len=256) :: input_params_file = './input_tutorial.params' ! must be created in advance. Refer to the tutorial ipynb.
   logical :: exists
 
-!> A distributed scalar 's' is declared, we will load the data generated from the previous tutorial, in '/output/scalar_FFF.dat'
-  type(scalar) :: s, nls
+!> w stores the vorticity scalar field, while nlw stores the advection term, which in this tutorial is just zero.
+  type(scalar) :: w, nlw
 
 !!!............ Pre-initialization for MPI parallelism
 !> Initialize MPI
@@ -42,44 +43,12 @@ program scalar_diffusion_2d
   endif
 
 !!!............ Initialization for spectral transformation
-!> Read input paramters. If no input file exists, proceed with default values (see mlegs_base) 
-
-!> The default input parameter setup, for animations on the documentation site, is as follows:
-
-!> ./input_2d.params
-
-! !!! COMPUTATIONAL DOMAIN INFO !!!
-! # ---------- NR ----------- NP ----------- NZ ---------------------------------- 
-!              32             48              1    
-! # ------ NRCHOP ------- NPCHOP ------- NZCHOP ---------------------------------- 
-!              32             25              1    
-! # --------- ELL --------- ZLEN ------ ZLENxPI ---(IF ZLENxPI==T, ZLEN=ZLEN*PI)-- 
-!            1.D0           1.D0              F
-! #
-! !!! TIME STEPPING INFO !!!
-! # ---------- DT ----------- TI --------- TOTT ----------- NI --------- TOTN ----
-!           1.D-3           0.D0          1.D+1              0          10000
-! #
-! !!! FIELD PROPERTY INFO !!!
-! # -------- VISC ----- HYPERPOW ---- HYPERVISC ----------------------------------
-!           5.D-3              0           0.D0
-! #
-! !!! FIELD SAVE INFO !!!
-! # --------------------- FLDDIR -------------------------------------------------
-!                   ./output/fld
-! # ---- ISFLDSAV -- FLDSAVINTVL ---(IF ISFLDSAV!=T, FIELDS ARE NOT SAVED)--------
-!               T            100
-! #
-! !!! DATA LOGGING INFO !!!
-! # --------------------- LOGDIR -------------------------------------------------
-!                   ./output/dat
-! # ---- ISLOGSAV -- LOGSAVINTVL ---(IF ISLOGSAV!=T, LOGS ARE NOT GENERATED)------
-!               T            100
-! /* ------------------------------ END OF INPUT ------------------------------ */
-
   inquire( file=input_params_file, exist=exists )
   if (exists) then
     call read_input(input_params_file)
+  else
+    stop 'time_integration_first: This tutorial requires the preset input params. ' // &
+         'Follow the instructions in [root_dir]/tutorials/05_time_integration.ipynb'
   endif
 
 !> As the program runs transient simulations, simulation stepping and time variables are set
@@ -101,26 +70,28 @@ program scalar_diffusion_2d
 !!!............ Declare a scalar field and initialize its distribution
 !> Initialize the scalar
   glb_sz = (/ tfm%nrdim, tfm%npdim, tfm%nzdim /)
-  call s%init(glb_sz, (/ 1, 0, 2 /)); call nls%init(glb_sz, (/1, 0, 2/))
-  s%space = 'PPP'; nls%space='PPP'
+  call w%init(glb_sz, (/ 1, 0, 2 /)); call nlw%init(glb_sz, (/1, 0, 2/))
+  w%space = 'PPP'; nlw%space='PPP'
 
-!> Load an initial distribution of scalar, s(r,p,z,t=0) = max(1-r^2, 0)
-  call init_dist(s) ! this is a program-dependent subroutine; see below
+!> Load an initial distribution of scalar, w(r,p,z,t=0) = 1/(2*pi) * exp(-r^2 / 2)
+  call init_dist(w) ! this is a program-dependent subroutine; see below
 
 !> Store the initial distribution data
-  call msave(s, trim(adjustl(FLDDIR)) // 'sfld' // trim(adjustl(ntoa(curr_n,'(i0.6)'))) // '_' // s%space, &
+  call msave(w, trim(adjustl(FLDDIR)) // 'sfld' // trim(adjustl(ntoa(curr_n,'(i0.6)'))) // '_' // w%space, &
              is_binary = .false., is_global = .true.)
 
 !> Interim time record
   if (rank_glb .eq. 0) then
     write(*,*) 'Scalar Loaded with its Initial Distribution'
-    write(*,*) 's(r,p,z,t=0) = max(1-r^2, 0)'
+    write(*,*) 'w(r,p,z,t=0) = 1/(2*pi) * exp(-r^2 / 2)'
     write(*,101) toc(); call tic()
     write(*,*) ''
   endif
 
 !> Open log files in case some data are logged:
-  open(12, file=trim(adjustl(LOGDIR)) // 'sval_origin.dat', status="replace", action="write")
+  open(12, file=trim(adjustl(LOGDIR)) // 'sval_origin_dt1e-4.dat', status="replace", action="write")
+  open(13, file=trim(adjustl(LOGDIR)) // 'sval_origin_dt1e-3.dat', status="replace", action="write")
+  open(14, file=trim(adjustl(LOGDIR)) // 'sval_origin_dt1e-2.dat', status="replace", action="write")
 
 !!!............ Time stepping
   do while (curr_n .lt. ni + totaln)
@@ -128,24 +99,26 @@ program scalar_diffusion_2d
     if (curr_n - ni .eq. totaln) dt = totaltime-(totaln-1)*dt
     curr_t = curr_t + dt
 
-    call nonlinear_rhs(s, nls) ! compute the nonlinear term in rhs (in the current case nls is simply zero)
+    call nonlinear_rhs(w, nlw) ! compute the nonlinear term in rhs (in the current case nls is simply zero)
 !> For time integration, all scalar inputs must be in the FFF space form.
 !> If they are already in the FFF space form, the below transformation will do nothing, but just ensure that they are FFF
-    call trans(s, 'FFF', tfm); call trans(nls, 'FFF', tfm)
-    call febe(s, nls, dt, tfm) ! forward euler - backward euler time integration by dt
+    call trans(w, 'FFF', tfm); call trans(nlw, 'FFF', tfm)
+
+!> Run the first-order time stepping
+    call febe(w, nlw, dt, tfm) ! forward euler - backward euler time integration by dt
 
     if (isfldsav) then
 !> Make the field stored in the PPP format (for more straightforward visualization)
-      call trans(s, 'PPP', tfm)
+      call trans(w, 'PPP', tfm)
       if (mod(curr_n, fldsavintvl) .eq. 0) then
-        call msave(s, trim(adjustl(FLDDIR)) // 'sfld' // trim(adjustl(ntoa(curr_n,'(i0.6)'))) // '_' // s%space, &
+        call msave(w, trim(adjustl(FLDDIR)) // 'sfld' // trim(adjustl(ntoa(curr_n,'(i0.6)'))) // '_' // w%space, &
              is_binary = .false., is_global = .true.)
       endif
     endif
 
     if (islogsav) then
       if (mod(curr_n, logsavintvl) .eq. 0) then
-        origin_val = origin_eval(s) ! this is a program-dependent subroutine to calculate volume integral of s in the entire domain.
+        origin_val = origin_eval(w) ! this is a program-dependent subroutine to calculate volume integral of s in the entire domain.
         if (rank_glb .eq. 0) then
           write(12, 103) curr_n, curr_t, origin_val
         endif
@@ -164,13 +137,87 @@ program scalar_diffusion_2d
     endif
   enddo
 
+!!!............ Re-do the simulation, with increasing dt of 1e-3 and 1e-2. Only the origin scalar data will be logged, for the sake of error comparison
+
+!> Reset the time variables, and change the time stepping variables to adapt dt = 1.D-3
+  dt = 1.D-3; totaltime = 1.D0; ni = 0; totaln = 1000
+  call timestep_set()
+  logsavintvl = 10
+  call trans(w, 'PPP', tfm)
+  call mload(trim(adjustl(FLDDIR)) // 'sfld' // trim(adjustl(ntoa(curr_n,'(i0.6)'))) // '_' // w%space, w, &
+             is_binary = .false., is_global = .true.)
+  call trans(nlw, 'PPP', tfm); nlw%e = 0.D0
+
+!> Do the time stepping w/ dt = 1.D-3
+  do while (curr_n .lt. ni + totaln)
+    curr_n = curr_n + 1
+    if (curr_n - ni .eq. totaln) dt = totaltime-(totaln-1)*dt
+    curr_t = curr_t + dt
+
+    call nonlinear_rhs(w, nlw) ! compute the nonlinear term in rhs (in the current case nls is simply zero)
+    call trans(w, 'FFF', tfm); call trans(nlw, 'FFF', tfm)
+    call febe(w, nlw, dt, tfm) ! forward euler - backward euler time integration by dt
+
+    if (islogsav) then
+      if (mod(curr_n, logsavintvl) .eq. 0) then
+        origin_val = origin_eval(w) ! this is a program-dependent subroutine to calculate volume integral of s in the entire domain.
+        if (rank_glb .eq. 0) then
+          write(13, 103) curr_n, curr_t, origin_val
+        endif
+      endif
+    endif
+  enddo
+
+!> Interim time record
+  if (rank_glb .eq. 0) then
+    write(*,*) 'Re-do the simulation with x10 dt (dt=0.001)'
+    write(*,101) toc(); call tic()
+    write(*,*) ''
+  endif
+
+!> Reset the time varaibles, and change the time stepping variables to adapt dt = 1.D-2
+  dt = 1.D-2; totaltime = 1.D0; ni = 0; totaln = 100
+  call timestep_set()
+  logsavintvl = 1
+  call trans(w, 'PPP', tfm)
+  call mload(trim(adjustl(FLDDIR)) // 'sfld' // trim(adjustl(ntoa(curr_n,'(i0.6)'))) // '_' // w%space, w, &
+             is_binary = .false., is_global = .true.)
+  call trans(nlw, 'PPP', tfm); nlw%e = 0.D0
+
+!> Do the time stepping w/ dt = 1.D-2
+  do while (curr_n .lt. ni + totaln)
+    curr_n = curr_n + 1
+    if (curr_n - ni .eq. totaln) dt = totaltime-(totaln-1)*dt
+    curr_t = curr_t + dt
+
+    call nonlinear_rhs(w, nlw) ! compute the nonlinear term in rhs (in the current case nls is simply zero)
+    call trans(w, 'FFF', tfm); call trans(nlw, 'FFF', tfm)
+    call febe(w, nlw, dt, tfm) ! forward euler - backward euler time integration by dt
+
+    if (islogsav) then
+      if (mod(curr_n, logsavintvl) .eq. 0) then
+        origin_val = origin_eval(w) ! this is a program-dependent subroutine to calculate volume integral of s in the entire domain.
+        if (rank_glb .eq. 0) then
+          write(14, 103) curr_n, curr_t, origin_val
+        endif
+      endif
+    endif
+  enddo
+
+!> Interim time record
+  if (rank_glb .eq. 0) then
+    write(*,*) 'Re-do the simulation with x10 dt (dt=0.01)'
+    write(*,101) toc(); call tic()
+    write(*,*) ''
+  endif
+
 !!!............ Finalization 
   !> Finalize MPI
   call MPI_finalize(MPI_err)
 
 !> Deallocate any allocated arrays
-  call s%dealloc()
-  call nls%dealloc()
+  call w%dealloc()
+  call nlw%dealloc()
 
 !> Interim time record
   if (rank_glb .eq. 0) then
@@ -181,6 +228,8 @@ program scalar_diffusion_2d
 
 !> Close log files
   close(12)
+  close(13)
+  close(14)
 
 !> Finish time record
   if (rank_glb .eq. 0) then
@@ -190,7 +239,7 @@ program scalar_diffusion_2d
 
 101 format(' elapsed time: ',f15.6, 'seconds')
 102 format(a48, 1x, f13.6, ' seconds per step')
-103 format(i10, ' ', f10.6, ' ', 1pe13.4)
+103 format(i10, ' ', f10.6, ' ', 1pe23.14)
 
 contains
 !> program-dependent subroutines/functions
@@ -213,7 +262,7 @@ contains
 
   end subroutine
 
-  subroutine init_dist(s) !> set an initial distribution of s. In the current example, s(r,p,z,t=0) = translate( max(1-r^8, 0), xc = 0.5, yc =0)
+  subroutine init_dist(s) !> set an initial distribution of s.
     implicit none
     type(scalar), intent(inout) :: s
     complex(p8), dimension(:,:,:), allocatable :: glb
@@ -227,8 +276,8 @@ contains
 
     if (s%space .ne. 'PPP') stop
 
-    xo = .5D0 ! (.5, .5) is the center
-    yo = .5D0
+    xo = .0D0 ! origin is the center
+    yo = .0D0
 
     do i = 1, nr
       do j = 1, np/2
@@ -237,25 +286,9 @@ contains
                    +(tfm%r(i)*sin(tfm%p(2*j-1))-yo)**2.D0 )
           ri = sqrt((tfm%r(i)*cos(tfm%p(2*j  ))-xo)**2.D0 & ! imag part of the j-th entry corresponds to azim. angle p(2*j)
                    +(tfm%r(i)*sin(tfm%p(2*j  ))-yo)**2.D0 )
-          glb(i,j,k) = cmplx(max(1.D0 - rr**8.D0, 0.D0) , &
-                             max(1.D0 - ri**8.D0, 0.D0) , P8)
-        enddo
-      enddo
-    enddo
-
-    xo = -.5D0 ! (.5, .5) is the center
-    yo = -.5D0
-
-    do i = 1, nr
-      do j = 1, np/2
-        do k = 1, nz
-          rr = sqrt((tfm%r(i)*cos(tfm%p(2*j-1))-xo)**2.D0 & ! real part of the j-th entry corresponds to azim. angle p(2*j-1)
-                   +(tfm%r(i)*sin(tfm%p(2*j-1))-yo)**2.D0 )
-          ri = sqrt((tfm%r(i)*cos(tfm%p(2*j  ))-xo)**2.D0 & ! imag part of the j-th entry corresponds to azim. angle p(2*j)
-                   +(tfm%r(i)*sin(tfm%p(2*j  ))-yo)**2.D0 )
-          glb(i,j,k) = cmplx( max(real(glb(i,j,k)), .5D0 * (1.D0 - rr**8.D0), 0.D0), &
-                              max(aimag(glb(i,j,k)), .5D0 * (1.D0 - ri**8.D0), 0.D0), P8) 
-        enddo
+          glb(i,j,k) = cmplx( exp(-(rr**2.D0)/2.D0) , &
+                              exp(-(rr**2.D0)/2.D0) , P8) / (2.D0*pi)
+        enddo ! w(r,p,z,t=0) = 1/(2*pi) * exp(-r^2 / 2)
       enddo
     enddo
 
@@ -279,11 +312,11 @@ contains
   function origin_eval(s) result(itg)
     implicit none
     type(scalar) :: s
+    complex(p8), dimension(:), allocatable :: calc
     real(p8) :: itg
 
-    itg = 0.D0
-    if ((s%loc_st(1).eq.0) .and. (s%loc_st(2).eq.0) .and. (s%loc_st(3).eq.0)) itg = s%e(1,1,1)
-    call MPI_allreduce(itg, itg, 1, MPI_real8, MPI_sum, comm_glb, MPI_err)
+    calc = calcat0(s, tfm)
+    itg = calc(1)
 
   end function
 

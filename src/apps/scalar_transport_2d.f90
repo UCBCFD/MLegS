@@ -206,11 +206,11 @@ contains
         call msave(tfm%r, trim(adjustl(LOGDIR)) // 'coords_r.dat')
       type is (tfm_kit_2d)
         call msave(tfm%r, trim(adjustl(LOGDIR)) // 'coords_r.dat')
-        if (size(tfm%p) .gt. 1) call msave(tfm%p,  trim(adjustl(LOGDIR)) // 'coords_p.dat')
+        if (np .gt. 1) call msave(tfm%p,  trim(adjustl(LOGDIR)) // 'coords_p.dat')
       type is (tfm_kit_3d)
         call msave(tfm%r, trim(adjustl(LOGDIR)) // 'coords_r.dat')
-        if (size(tfm%p) .gt. 1) call msave(tfm%p, trim(adjustl(LOGDIR)) // 'coords_p.dat')
-        if (size(tfm%z) .gt. 1) call msave(tfm%z, trim(adjustl(LOGDIR)) // 'coords_z.dat')
+        if (np .gt. 1) call msave(tfm%p, trim(adjustl(LOGDIR)) // 'coords_p.dat')
+        if (nz .gt. 1) call msave(tfm%z, trim(adjustl(LOGDIR)) // 'coords_z.dat')
     end select
 
   end subroutine
