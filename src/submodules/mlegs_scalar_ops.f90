@@ -860,6 +860,9 @@ contains
     s%e = s%e + dt_ * (1.5D0*(s_rhs_nonlin%e + svis%e) - .5D0*(s_rhs_nonlin_p%e + svis_p%e))
     s%ln = s%ln + dt_ * (1.5D0*(s_rhs_nonlin%ln + svis%ln) - .5D0*(s_rhs_nonlin_p%ln + svis_p%ln))
 
+    s_p = s
+    s_rhs_nonlin_p = s_rhs_nonlin
+
     call svis%dealloc()
     call svis_p%dealloc()
 
@@ -955,7 +958,7 @@ contains
         a = -2.D0 / (dt_*visc)
         sh%ln = a*(sh%ln + dt_/2.D0*svis%ln)
         sh%e = a*(sh%e + dt_/2.D0*svis%e)
-        s = ihelm(s, a, tfm)
+        s = ihelm(sh, a, tfm)
       endif
     else ! nonzero hyperviscosity -- diffusive operator is visc*del^2 + hypervisc*del^p
          ! F(K+1) = (1-DT/2*VISC*DEL2-DT/2*VISCP*DELP)^(-1) [F(K+1/2) + DT/2*LTERM(K)]
@@ -968,82 +971,13 @@ contains
       s = ihelmp(sh, hyperpow, a, b, tfm)
     endif
 
+    s_p = s
+    s_rhs_nonlin_p = s_rhs_nonlin
+
     call sh%dealloc()
     call svis%dealloc()
 
   end procedure
-
-  ! !> richardson extrapolation (2nd order) for initial bootstrapping
-  ! subroutine richardson(s, s_rhs_linear, s_rhs_nonlin)
-  !   implicit none
-  !   class(scalar), intent(inout) :: s
-
-  !   type(scalar) :: s1, s2
-  !   integer(i4) :: i
-  !   real(p8) :: dto, ddt, ddth
-
-  !   if (ni .ne. curr_n) stop 'richardson: bootstrapping unnecessary except for the initial step'
-  !   dto = dt
-
-  !   ddt = dt/2
-  !   ddth = ddt/2
-
-  !   dt = ddt ! subtime stepping
-  !   call s1%init(s%glb_sz, s%axis_comm)
-  !   s1 = s
-  !   do i = 1,2
-  !     call febe(s1, s_rhs_linear, s_rhs_nonlin)
-  !     ! rhs must be updated that is problem-specific
-  !   enddo
-
-  !   dt = ddth ! half-subtime stepping
-  !   call s2%init(s%glb_sz, s%axis_comm)
-  !   s2 = s
-  !   do i = 1,4
-  !     call febe(s2, s_rhs_linear, s_rhs_nonlin)
-  !     ! rhs must be updated that is problem-specific
-  !   enddo
-
-  !   c%e = 2.D0*c2%e - c1%e
-  !   dt = dto ! recover original dt
-
-  !   call s1%dealloc()
-  !   call s2%dealloc()
-
-  !   return
-  ! end subroutine
-
-  !> volume integration of s over r in [0, inf], phi in [0, 2pi] and z in [0, ZLEN]
-  ! function integ(s) result(itg) 
-  !   implicit none
-  !   type(scalar) :: s, s2
-  !   real(p8) :: itg
-  !   integer(i4) :: mm, kk
-
-  !   itg = 0.D0
-
-  !   call s2%init(s%glb_sz, s%axis_comm)
-  !   s2 = s
-  !   call trans(s2, 'PFP', tfm)
-
-  !   do mm = 1, s2%loc_sz(2)
-  !     do kk = 1, s2%loc_sz(3)
-  !       s2%e(:nr, mm, kk) = s2%e(:nr, mm, kk) / (1.D0 - tfm%x(1:nr))**2.D0
-  !     enddo
-  !   enddo
-
-  !   call trans(s2, 'FFF', tfm)
-
-  !   if ((s2%loc_st(1) .eq. 0) .and. (s2%loc_st(2) .eq. 0) .and. (s2%loc_st(3) .eq. 0)) then
-  !     itg = 4.D0*pi*zlen*ell**2.D0*s2%e(1,1,1)*exp(tfm%lognorm(1,1))
-  !   endif
-
-  !   call MPI_allreduce(itg, itg, 1, MPI_real8, MPI_sum, comm_glb, MPI_err)
-
-  !   call s2%dealloc()
-
-  !   return
-  ! end function
 
 ! ======================================================================================================== !
 ! VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV INTERNAL (PRIVATE) SUBROUTINES/FUNCTIONS VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV !

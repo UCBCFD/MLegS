@@ -11,8 +11,9 @@ program time_integration_second
 
   implicit none
 
+  integer(i4) :: i, j, k
   integer(i4), dimension(3) :: glb_sz
-  integer(i4) :: stepping_notice = 1000 ! in order to suppress time stepping print-outs
+  integer(i4) :: stepping_notice = 10 ! in order to suppress time stepping print-outs
   real(p8) :: origin_val, tsum = 0.D0 ! origin_val stores the vorticity value at origin in terms of time
   character(len=256) :: input_params_file = './input_tutorial.params' ! must be created in advance. Refer to the tutorial ipynb.
   logical :: exists
@@ -92,9 +93,9 @@ program time_integration_second
   endif
 
 !> Open log files in case some data are logged:
-  open(12, file=trim(adjustl(LOGDIR)) // 'sval_origin_dt1e-4.dat', status="replace", action="write")
-  open(13, file=trim(adjustl(LOGDIR)) // 'sval_origin_dt1e-3.dat', status="replace", action="write")
-  open(14, file=trim(adjustl(LOGDIR)) // 'sval_origin_dt1e-2.dat', status="replace", action="write")
+  open(12, file=trim(adjustl(LOGDIR)) // 'sval_origin_dt2e-1.dat', status="replace", action="write")
+  open(13, file=trim(adjustl(LOGDIR)) // 'sval_origin_dt4e-1.dat', status="replace", action="write")
+  open(14, file=trim(adjustl(LOGDIR)) // 'sval_origin_dt1e-0.dat', status="replace", action="write")
 
 !!!............ Time stepping
 
@@ -109,14 +110,16 @@ program time_integration_second
   call w_rich%init(w%glb_sz, w%axis_comm)
   w_rich = w ! w_rich stores w_0
   call trans(w_rich, 'FFF', tfm); call trans(nlw, 'FFF', tfm)
-  call febe(w_rich, nlw, dt, tfm) ! forward euler - backward euler time integration by dt
-
+  do i = 1, 1
+    call febe(w_rich, nlw, dt, tfm) ! forward euler - backward euler time integration by dt
+    call nonlinear_rhs(w_rich, nlw)
+  enddo
   call trans(w, 'FFF', tfm)
-  call febe(w, nlw, dt/2, tfm) ! forward euler - backward euler time integration by dt/2
-  call nonlinear_rhs(w, nlw)
-  call febe(w, nlw, dt/2, tfm) ! forward euler - backward euler time integration by dt/2
-
-  w%e = 4.D0/3.D0*w%e - 1.D0/3.D0*w_rich%e ! Richardson extrapolation to ensure w ~ O(dt^3)
+  do i = 1, 2
+    call febe(w, nlw, dt/2, tfm) ! forward euler - backward euler time integration by dt/2
+    call nonlinear_rhs(w, nlw)
+  enddo
+  w%e = 2.D0/1.D0*w%e - 1.D0/1.D0*w_rich%e ! Richardson extrapolation to ensure w ~ O(dt^2)
   call w_rich%dealloc()
   curr_n = 1; curr_t = dt
 
@@ -131,21 +134,14 @@ program time_integration_second
     if (curr_n - ni .eq. totaln) dt = totaltime-(totaln-1)*dt
     curr_t = curr_t + dt
 
-    call nonlinear_rhs(w, nlw) ! compute the nonlinear term in rhs (in the current case nls is simply zero)
 !> For time integration, all scalar inputs must be in the FFF space form.
 !> If they are already in the FFF space form, the below transformation will do nothing, but just ensure that they are FFF
     call trans(w, 'FFF', tfm); call trans(nlw, 'FFF', tfm)
     call trans(w_prev, 'FFF', tfm); call trans(nlw_prev, 'FFF', tfm)
 
-  if (rank_glb.eq.0 .and. curr_n.eq.2) call mcat(w_prev%e(:1,:1,1), width=10, precision=15)
-  if (rank_glb.eq.0 .and. curr_n.eq.2) call mcat(w%e(:1,:1,1), width=10, precision=15)
-
 !> Run the second-order time stepping
+    call nonlinear_rhs(w, nlw) ! compute the nonlinear term in rhs (in the current case nls is simply zero)
     call abcn(w, w_prev, nlw, nlw_prev, dt, tfm) ! forward euler - backward euler time integration by dt
-    w_prev = w; nlw_prev = nlw
-
-  if (rank_glb.eq.0 .and. curr_n.eq.2) call mcat(w_prev%e(:1,:1,1), width=10, precision=15)
-  if (rank_glb.eq.0 .and. curr_n.eq.2) call mcat(w%e(:1,:1,1), width=10, precision=15)
 
     if (isfldsav) then
 !> Make the field stored in the PPP format (for more straightforward visualization)
@@ -177,59 +173,10 @@ program time_integration_second
     endif
   enddo
 
-!!!............ Re-do the simulation, with increasing dt of 1e-3 and 1e-2. Only the origin scalar data will be logged, for the sake of error comparison
+!!!............ Re-do the simulation, with increasing dt of 4e-1 and 1e-0. Only the origin scalar data will be logged, for the sake of error comparison
 
-!> Reset the time varaibles, and change the time stepping variables to adapt dt = 1.D-3
-  dt = 1.D-3; totaltime = 1.D0; ni = 0; totaln = 1000
-  call timestep_set()
-  logsavintvl = 10
-  call trans(w, 'PPP', tfm)
-  call mload(trim(adjustl(FLDDIR)) // 'sfld' // trim(adjustl(ntoa(curr_n,'(i0.6)'))) // '_' // w%space, w, &
-             is_binary = .false., is_global = .true.)
-  call trans(nlw, 'PPP', tfm); call nonlinear_rhs(w_prev, nlw_prev)
-
-!> Richardson Bootstrapping
-  call trans(w_prev, 'PPP', tfm)
-  w_prev = w ! w_prev stores w_0
-  call trans(nlw_prev, 'PPP', tfm)
-  nlw_prev = nlw ! nlw_prev stores nlw_0
-  call w_rich%init(w%glb_sz, w%axis_comm)
-  w_rich = w ! w_rich stores w_0
-  call trans(w_rich, 'FFF', tfm); call trans(nlw, 'FFF', tfm)
-  call febe(w_rich, nlw, dt, tfm) ! forward euler - backward euler time integration by dt
-  call trans(w, 'FFF', tfm)
-  call febe(w, nlw, dt/2, tfm) ! forward euler - backward euler time integration by dt/2
-  call nonlinear_rhs(w, nlw)
-  call febe(w, nlw, dt/2, tfm) ! forward euler - backward euler time integration by dt/2
-  w%e = 4.D0/3.D0*w%e - 1.D0/3.D0*w_rich%e ! Richardson extrapolation to ensure w ~ O(dt^3)
-  call w_rich%dealloc()
-  curr_n = 1; curr_t = dt
-
-!> Do the time stepping w/ dt = 1.D-3
-  do while (curr_n .lt. ni + totaln)
-    curr_n = curr_n + 1
-    if (curr_n - ni .eq. totaln) dt = totaltime-(totaln-1)*dt
-    curr_t = curr_t + dt
-
-    call nonlinear_rhs(w, nlw) ! compute the nonlinear term in rhs (in the current case nls is simply zero)
-    call trans(w, 'FFF', tfm); call trans(nlw, 'FFF', tfm)
-    call trans(w_prev, 'FFF', tfm); call trans(nlw_prev, 'FFF', tfm)
-
-    call abcn(w, w_prev, nlw, nlw_prev, dt, tfm) ! forward euler - backward euler time integration by dt
-    w_prev = w; nlw_prev = nlw
-
-    if (islogsav) then
-      if (mod(curr_n, logsavintvl) .eq. 0) then
-        origin_val = origin_eval(w) ! this is a program-dependent subroutine to calculate volume integral of s in the entire domain.
-        if (rank_glb .eq. 0) then
-          write(13, 103) curr_n, curr_t, origin_val
-        endif
-      endif
-    endif
-  enddo
-
-!> Reset the time varaibles, and change the time stepping variables to adapt dt = 1.D-2
-  dt = 1.D-2; totaltime = 1.D0; ni = 0; totaln = 100
+!> Reset the time varaibles, and change the time stepping variables to adapt dt = 4.D-1
+  dt = 4.D-1; totaltime = 1.D1; ni = 0; totaln = 25
   call timestep_set()
   logsavintvl = 1
   call trans(w, 'PPP', tfm)
@@ -245,12 +192,16 @@ program time_integration_second
   call w_rich%init(w%glb_sz, w%axis_comm)
   w_rich = w ! w_rich stores w_0
   call trans(w_rich, 'FFF', tfm); call trans(nlw, 'FFF', tfm)
-  call febe(w_rich, nlw, dt, tfm) ! forward euler - backward euler time integration by dt
+  do i = 1, 1
+    call febe(w_rich, nlw, dt, tfm) ! forward euler - backward euler time integration by dt
+    call nonlinear_rhs(w_rich, nlw)
+  enddo
   call trans(w, 'FFF', tfm)
-  call febe(w, nlw, dt/2, tfm) ! forward euler - backward euler time integration by dt/2
-  call nonlinear_rhs(w, nlw)
-  call febe(w, nlw, dt/2, tfm) ! forward euler - backward euler time integration by dt/2
-  w%e = 4.D0/3.D0*w%e - 1.D0/3.D0*w_rich%e ! Richardson extrapolation to ensure w ~ O(dt^3)
+  do i = 1, 2
+    call febe(w, nlw, dt/2, tfm) ! forward euler - backward euler time integration by dt/2
+    call nonlinear_rhs(w, nlw)
+  enddo
+  w%e = 2.D0/1.D0*w%e - 1.D0/1.D0*w_rich%e ! Richardson extrapolation to ensure w ~ O(dt^2)
   call w_rich%dealloc()
   curr_n = 1; curr_t = dt
 
@@ -260,12 +211,70 @@ program time_integration_second
     if (curr_n - ni .eq. totaln) dt = totaltime-(totaln-1)*dt
     curr_t = curr_t + dt
 
-    call nonlinear_rhs(w, nlw) ! compute the nonlinear term in rhs (in the current case nls is simply zero)
     call trans(w, 'FFF', tfm); call trans(nlw, 'FFF', tfm)
     call trans(w_prev, 'FFF', tfm); call trans(nlw_prev, 'FFF', tfm)
 
+    call nonlinear_rhs(w, nlw) ! compute the nonlinear term in rhs (in the current case nls is simply zero)
     call abcn(w, w_prev, nlw, nlw_prev, dt, tfm) ! forward euler - backward euler time integration by dt
-    w_prev = w; nlw_prev = nlw
+
+    if (islogsav) then
+      if (mod(curr_n, logsavintvl) .eq. 0) then
+        origin_val = origin_eval(w) ! this is a program-dependent subroutine to calculate volume integral of s in the entire domain.
+        if (rank_glb .eq. 0) then
+          write(13, 103) curr_n, curr_t, origin_val
+        endif
+      endif
+    endif
+  enddo
+
+!> Interim time record
+  if (rank_glb .eq. 0) then
+    write(*,*) 'Re-do the simulation with x2 dt (dt=0.2)'
+    write(*,101) toc(); call tic()
+    write(*,*) ''
+  endif
+
+!> Reset the time varaibles, and change the time stepping variables to adapt dt = 1.D-0
+  dt = 1.D-0; totaltime = 1.D1; ni = 0; totaln = 10
+  call timestep_set()
+  logsavintvl = 1
+  call trans(w, 'PPP', tfm)
+  call mload(trim(adjustl(FLDDIR)) // 'sfld' // trim(adjustl(ntoa(curr_n,'(i0.6)'))) // '_' // w%space, w, &
+             is_binary = .false., is_global = .true.)
+  call trans(nlw, 'PPP', tfm); call nonlinear_rhs(w_prev, nlw_prev)
+
+!> Richardson Bootstrapping
+  call trans(w_prev, 'PPP', tfm)
+  w_prev = w ! w_prev stores w_0
+  call trans(nlw_prev, 'PPP', tfm)
+  nlw_prev = nlw ! nlw_prev stores nlw_0
+  call w_rich%init(w%glb_sz, w%axis_comm)
+  w_rich = w ! w_rich stores w_0
+  call trans(w_rich, 'FFF', tfm); call trans(nlw, 'FFF', tfm)
+  do i = 1, 1
+    call febe(w_rich, nlw, dt, tfm) ! forward euler - backward euler time integration by dt
+    call nonlinear_rhs(w_rich, nlw)
+  enddo
+  call trans(w, 'FFF', tfm)
+  do i = 1, 2
+    call febe(w, nlw, dt/2, tfm) ! forward euler - backward euler time integration by dt/2
+    call nonlinear_rhs(w, nlw)
+  enddo
+  w%e = 2.D0/1.D0*w%e - 1.D0/1.D0*w_rich%e ! Richardson extrapolation to ensure w ~ O(dt^2)
+  call w_rich%dealloc()
+  curr_n = 1; curr_t = dt
+
+!> Do the time stepping w/ dt = 1.D-2
+  do while (curr_n .lt. ni + totaln)
+    curr_n = curr_n + 1
+    if (curr_n - ni .eq. totaln) dt = totaltime-(totaln-1)*dt
+    curr_t = curr_t + dt
+
+    call trans(w, 'FFF', tfm); call trans(nlw, 'FFF', tfm)
+    call trans(w_prev, 'FFF', tfm); call trans(nlw_prev, 'FFF', tfm)
+
+    call nonlinear_rhs(w, nlw) ! compute the nonlinear term in rhs (in the current case nls is simply zero)
+    call abcn(w, w_prev, nlw, nlw_prev, dt, tfm) ! forward euler - backward euler time integration by dt
 
     if (islogsav) then
       if (mod(curr_n, logsavintvl) .eq. 0) then
@@ -277,10 +286,9 @@ program time_integration_second
     endif
   enddo
 
-
 !> Interim time record
   if (rank_glb .eq. 0) then
-    write(*,*) 'Re-do the simulation with x10 dt (dt=0.001)'
+    write(*,*) 'Re-do the simulation with x2 dt (dt=0.4)'
     write(*,101) toc(); call tic()
     write(*,*) ''
   endif

@@ -12,7 +12,7 @@ program time_integration_first
   implicit none
 
   integer(i4), dimension(3) :: glb_sz
-  integer(i4) :: stepping_notice = 1000 ! in order to suppress time stepping print-outs
+  integer(i4) :: stepping_notice = 10 ! in order to suppress time stepping print-outs
   real(p8) :: origin_val, tsum = 0.D0 ! origin_val stores the vorticity value at origin in terms of time
   character(len=256) :: input_params_file = './input_tutorial.params' ! must be created in advance. Refer to the tutorial ipynb.
   logical :: exists
@@ -89,9 +89,9 @@ program time_integration_first
   endif
 
 !> Open log files in case some data are logged:
-  open(12, file=trim(adjustl(LOGDIR)) // 'sval_origin_dt1e-4.dat', status="replace", action="write")
-  open(13, file=trim(adjustl(LOGDIR)) // 'sval_origin_dt1e-3.dat', status="replace", action="write")
-  open(14, file=trim(adjustl(LOGDIR)) // 'sval_origin_dt1e-2.dat', status="replace", action="write")
+  open(12, file=trim(adjustl(LOGDIR)) // 'sval_origin_dt2e-1.dat', status="replace", action="write")
+  open(13, file=trim(adjustl(LOGDIR)) // 'sval_origin_dt4e-1.dat', status="replace", action="write")
+  open(14, file=trim(adjustl(LOGDIR)) // 'sval_origin_dt1e-0.dat', status="replace", action="write")
 
 !!!............ Time stepping
   do while (curr_n .lt. ni + totaln)
@@ -137,12 +137,12 @@ program time_integration_first
     endif
   enddo
 
-!!!............ Re-do the simulation, with increasing dt of 1e-3 and 1e-2. Only the origin scalar data will be logged, for the sake of error comparison
+!!!............ Re-do the simulation, with increasing dt of 2e-1 and 1e-0. Only the origin scalar data will be logged, for the sake of error comparison
 
-!> Reset the time variables, and change the time stepping variables to adapt dt = 1.D-3
-  dt = 1.D-3; totaltime = 1.D0; ni = 0; totaln = 1000
+!> Reset the time variables, and change the time stepping variables to adapt dt = 2.D-1
+  dt = 4.D-1; totaltime = 1.D1; ni = 0; totaln = 25
   call timestep_set()
-  logsavintvl = 10
+  logsavintvl = 1
   call trans(w, 'PPP', tfm)
   call mload(trim(adjustl(FLDDIR)) // 'sfld' // trim(adjustl(ntoa(curr_n,'(i0.6)'))) // '_' // w%space, w, &
              is_binary = .false., is_global = .true.)
@@ -170,13 +170,13 @@ program time_integration_first
 
 !> Interim time record
   if (rank_glb .eq. 0) then
-    write(*,*) 'Re-do the simulation with x10 dt (dt=0.001)'
+    write(*,*) 'Re-do the simulation with dt=0.4'
     write(*,101) toc(); call tic()
     write(*,*) ''
   endif
 
-!> Reset the time varaibles, and change the time stepping variables to adapt dt = 1.D-2
-  dt = 1.D-2; totaltime = 1.D0; ni = 0; totaln = 100
+!> Reset the time varaibles, and change the time stepping variables to adapt dt = 1.D-0
+  dt = 1.D-0; totaltime = 1.D1; ni = 0; totaln = 10
   call timestep_set()
   logsavintvl = 1
   call trans(w, 'PPP', tfm)
@@ -206,7 +206,7 @@ program time_integration_first
 
 !> Interim time record
   if (rank_glb .eq. 0) then
-    write(*,*) 'Re-do the simulation with x10 dt (dt=0.01)'
+    write(*,*) 'Re-do the simulation with dt=1.0'
     write(*,101) toc(); call tic()
     write(*,*) ''
   endif

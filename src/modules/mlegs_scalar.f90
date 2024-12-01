@@ -73,13 +73,13 @@ module mlegs_scalar
     module recursive function scalar_assemble(this,axis_input) result(array_glb)
       implicit none
       class(scalar), intent(in) :: this
-      complex(P8), dimension(:,:,:), allocatable :: array_glb
+      complex(p8), dimension(:,:,:), allocatable :: array_glb
       integer(i4), optional :: axis_input
     end function
     module recursive subroutine scalar_disassemble(this,array_glb,axis_input)
       implicit none
       class(scalar), intent(inout) :: this
-      complex(P8), dimension(:,:,:), allocatable :: array_glb
+      complex(p8), dimension(:,:,:), allocatable :: array_glb
       integer(i4), optional :: axis_input
     end subroutine
     !> set up new chopping offsets for a scalar field
@@ -306,9 +306,8 @@ module mlegs_scalar
   interface abab
     module subroutine abab(s, s_p, s_rhs_nonlin, s_rhs_nonlin_p, dt, tfm, is_2nd_svis_p)
       implicit none
-      class(scalar), intent(inout) :: s
-      class(scalar), intent(in) :: s_p
-      class(scalar), intent(in) :: s_rhs_nonlin, s_rhs_nonlin_p
+      class(scalar), intent(inout) :: s, s_rhs_nonlin
+      class(scalar), intent(inout) :: s_p, s_rhs_nonlin_p
       real(p8), intent(in) :: dt
       class(tfm_kit) :: tfm
       logical, optional :: is_2nd_svis_p
@@ -342,9 +341,8 @@ module mlegs_scalar
   interface abcn
     module subroutine abcn(s, s_p, s_rhs_nonlin, s_rhs_nonlin_p, dt, tfm)
       implicit none
-      class(scalar), intent(inout) :: s
-      class(scalar), intent(in) :: s_p
-      class(scalar), intent(in) :: s_rhs_nonlin, s_rhs_nonlin_p
+      class(scalar), intent(inout) :: s, s_rhs_nonlin
+      class(scalar), intent(inout) :: s_p, s_rhs_nonlin_p
       real(p8), intent(in) :: dt
       class(tfm_kit) :: tfm
     end subroutine

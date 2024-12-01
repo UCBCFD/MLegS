@@ -50,3 +50,6 @@ Thumbs.db
 ehthumbs.db
 .DS_Store
 ._*
+
+# interim tutorial files
+input_tutorial.params
