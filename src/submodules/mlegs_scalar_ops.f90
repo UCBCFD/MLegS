@@ -219,7 +219,7 @@ contains
     enddo
 
     if ((so%loc_st(1) .eq. 0) .and. (so%loc_st(2) .eq. 0)) then
-      so%e(1,1,1) = s%ln/ell**2.D0/exp(tfm%lognorm(1,1))
+      so%e(1,1,1) = 1.D0/ell**2.D0/exp(tfm%lognorm(1,1))*s%ln
     endif
 
     return
@@ -1237,9 +1237,9 @@ contains
     call up%init(psi%glb_sz, psi%axis_comm)
     call uz%init(del2chi%glb_sz, del2chi%axis_comm)
 
-    ur = del2chi; call ur%chop_offset(3) 
-    up = psi    ; call up%chop_offset(3) 
-    uz = del2chi; call uz%chop_offset(3) 
+    call ur%chop_offset(3); ur = del2chi
+    call up%chop_offset(3); up = psi
+    call uz%chop_offset(3); uz = del2chi
 
     call chop_index(ur, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
@@ -1325,17 +1325,15 @@ contains
 
     call or%init(psi%glb_sz, psi%axis_comm)
     call op%init(del2chi%glb_sz, del2chi%axis_comm)
-    call oz%init(psi%glb_sz, psi%axis_comm)
+    call oz%init(del2chi%glb_sz, del2chi%axis_comm)
 
-    or = psi    ; call or%chop_offset(3)
-    op = del2chi; call op%chop_offset(3)
-    oz = psi    ; call oz%chop_offset(3)
+    call or%chop_offset(3); call op%chop_offset(3); call oz%chop_offset(3)
 
     call chop_index(or, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
-    oz = oz            ! oz now stores psi
-    or = xxdx(or, tfm) ! or now actually stores r*d(psi)/dr
-    op = xxdx(op, tfm) ! op now actually stores r*d(del2(chi))/dr
+    oz = del2chi ! oz now stores del2(chi)
+    or = xxdx(psi, tfm) ! or now actually stores r*d(psi)/dr
+    op = xxdx(del2chi, tfm) ! op now actually stores r*d(del2(chi))/dr
 
     do mm = 1, min(or%loc_sz(2), npc - or%loc_st(2))
       nn = nrcs(or%loc_st(2) + mm)
@@ -1343,8 +1341,8 @@ contains
       do kk = 1, nzdim
         if ((kk .le. nzc) .or. (kk .ge. nzcu)) then
           kv = ak(kk)
-          or%e(:nn,mm,kk) = -iu*mv*del2chi%e(:nn,mm,kk)+iu*kv*or%e(:nn,mm,kk) ! or now stores -d(del2(chi))/dp + r*d/dr(d/dz(psi))
-          op%e(:nn,mm,kk) = op%e(:nn,mm,kk)-mv*kv*oz%e(:nn,mm,kk) ! op now stores r*d(del2(chi))/dr + d/dp(d/dz(psi))
+          or%e(:nn,mm,kk) = -iu*mv*oz%e(:nn,mm,kk)+iu*kv*or%e(:nn,mm,kk) ! or now stores -d(del2(chi))/dp + r*d/dr(d/dz(psi))
+          op%e(:nn,mm,kk) = op%e(:nn,mm,kk)-mv*kv*psi%e(:nn,mm,kk) ! op now stores r*d(del2(chi))/dr + d/dp(d/dz(psi))
         endif
       enddo
     enddo
@@ -1373,7 +1371,7 @@ contains
       enddo
     endif
 
-    oz = del2h(oz, tfm) ! now oz stores del2h(psi)
+    oz = del2h(psi, tfm) ! now oz stores del2h(psi)
     oz%e = -oz%e ! now oz stores -del2h(psi)
 
     call oz%chop_offset(0)
