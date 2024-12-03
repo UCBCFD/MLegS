@@ -1,10 +1,10 @@
 ---
-title: '#6. Handling Vector Fields'
+title: '#6. Vector Field Manipulation'
 parent: Tutorials
 nav_order: 6
 ---
 
-# MLegS Tutorial 06: Handling Vector Fields
+# MLegS Tutorial 06: Vector Field Manipulation
 *Disclaimer: This MLegS tutorial assumes a Linux or other Unix-based environment that supports bash terminal commands. If you are using Windows, consider installing the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).*
 
 **Under Construction**

@@ -10,7 +10,7 @@ contains
     real(p8), dimension(:), allocatable :: ak
     integer(i4) :: mm, kk
 
-    call chop_glb_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
+    call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
     if (s%space(1:1) .eq. 'F') then
       do mm = 1, s%loc_sz(2)
@@ -122,7 +122,10 @@ contains
     call st%init(s%glb_sz, s%axis_comm)
     st = s
 
-    call trans(st, 'FFF', tfm)
+    if ((.not.(st%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
+      write(*,*) '[warning] calcat0: an input scalar is not FFF; additional operations needed for tfm'
+      call trans(st, 'FFF', tfm)
+    endif
 
     allocate( calc(nz) )
     if (s%loc_st(2) .eq. 0) then
@@ -193,7 +196,7 @@ contains
     real(p8), dimension(:), allocatable :: ak
     integer(i4) :: mm, nn, n
 
-    call chop_glb_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
+    call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
     if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
       write(*,*) '[warning] delsqp: an input scalar is not FFF; additional operations needed for tfm'
@@ -216,7 +219,7 @@ contains
     enddo
 
     if ((so%loc_st(1) .eq. 0) .and. (so%loc_st(2) .eq. 0)) then
-      so%e(1,1,1) = 1.D0/ell**2.D0/exp(tfm%lognorm(1,1))*s%ln
+      so%e(1,1,1) = s%ln/ell**2.D0/exp(tfm%lognorm(1,1))
     endif
 
     return
@@ -229,7 +232,7 @@ contains
     real(p8), dimension(:), allocatable :: ak
     integer(i4) :: mm, nn, n
 
-    call chop_glb_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
+    call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
     if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
       write(*,*) '[warning] idelsqp: an input scalar is not FFF; additional operations needed for tfm'
@@ -286,7 +289,7 @@ contains
     integer(i4) :: mm, nn, n
     type(real_bndm) :: xxdx_bnd
 
-    call chop_glb_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
+    call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
     if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
       write(*,*) '[warning] xxdx: an input scalar is not FFF; additional operations needed for tfm'
@@ -320,6 +323,56 @@ contains
     return
   end procedure
 
+  module procedure del2h
+    integer(i4) :: nrdim, npdim, nzdim
+    integer(i4) :: nrc, npc, nzc, nzcu
+    integer(i4), dimension(:), allocatable :: nrcs, m
+    real(p8), dimension(:), allocatable :: ak
+    integer(i4) :: mm, nn, kk, n
+    type(real_bndm) :: del2h_bnd
+
+    call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
+
+    if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
+      write(*,*) '[warning] del2: an input scalar is not FFF; additional operations needed for tfm'
+      write(*,*) '                after this operation, both input and output scalar resides in FFF'
+      call trans(s, 'FFF', tfm)
+    endif
+
+    call so%init(s%glb_sz, s%axis_comm)
+    so = s
+    if (nz .gt. 1) call so%exchange(3,1) ! whole r-data resides locally
+
+    so%ln = 0.D0
+
+    do mm = 1, min(so%loc_sz(2), npc - so%loc_st(2))
+      nn = nrcs(so%loc_st(2) + mm)
+      if (1 .le. min(so%loc_sz(3), nzc - so%loc_st(3))) then
+        do kk = 1, min(so%loc_sz(3), nzc - so%loc_st(3))
+          del2h_bnd = leg_del2h(m(so%loc_st(2) + mm), nn, nn, tfm)
+          so%e(:nn, mm, kk) = del2h_bnd .mul. so%e(:nn, mm, kk)
+        enddo
+      endif
+      if (max(nzcu - so%loc_st(3), 1) .le. so%loc_sz(3)) then
+        do kk = max(nzcu - so%loc_st(3), 1), so%loc_sz(3)
+          del2h_bnd = leg_del2h(m(so%loc_st(2) + mm), nn, nn, tfm)
+          so%e(:nn, mm, kk) = del2h_bnd .mul. so%e(:nn, mm, kk)
+        enddo
+      endif
+    enddo
+    deallocate( del2h_bnd%e )
+
+    ! 1/r*d(r*d(P_L(r))/dr)/dr = 4/3*P_L_0^0(r) - 2*P_L_1^0(r) + 2/3*P_L_2^0(r)
+    if ((so%loc_st(2).eq.0) .and. (so%loc_st(3).eq.0)) then
+      so%e(1,1,1) = so%e(1,1,1) + 4.D0/3.D0/ell**2.D0/exp(tfm%lognorm(1,1))*s%ln
+      so%e(2,1,1) = so%e(2,1,1) - 2.D0/1.D0/ell**2.D0/exp(tfm%lognorm(2,1))*s%ln
+      so%e(3,1,1) = so%e(3,1,1) + 2.D0/3.D0/ell**2.D0/exp(tfm%lognorm(3,1))*s%ln
+    endif
+    if (nz .gt. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
+
+    return
+  end procedure
+
   module procedure del2
     integer(i4) :: nrdim, npdim, nzdim
     integer(i4) :: nrc, npc, nzc, nzcu
@@ -328,7 +381,7 @@ contains
     integer(i4) :: mm, nn, kk, n
     type(real_bndm) :: del2_bnd
 
-    call chop_glb_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
+    call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
     if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
       write(*,*) '[warning] del2: an input scalar is not FFF; additional operations needed for tfm'
@@ -379,7 +432,7 @@ contains
     type(real_bndm) :: del2_bnd
     real(p8), dimension(:,:), allocatable :: del2_pre
 
-    call chop_glb_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
+    call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
     if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
       write(*,*) '[warning] idel2: an input scalar is not FFF; additional operations needed for tfm'
@@ -468,7 +521,7 @@ contains
     type(real_bndm) :: del2_bnd
     real(p8), dimension(:,:), allocatable :: del2_pre
 
-    call chop_glb_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
+    call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
     if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
       write(*,*) '[warning] idel2: an input scalar is not FFF; additional operations needed for tfm'
@@ -549,7 +602,7 @@ contains
     integer(i4), dimension(:), allocatable :: nrcs, m
     real(p8), dimension(:), allocatable :: ak
 
-    call chop_glb_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
+    call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
     if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
       write(*,*) '[warning] helm: an input scalar is not FFF; additional operations needed for tfm'
@@ -578,7 +631,7 @@ contains
     integer(i4) :: mm, nn, kk, n
     type(real_bndm) :: helm_bnd
 
-    call chop_glb_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
+    call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
     if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
       write(*,*) '[warning] ihelm: an input scalar is not FFF; additional operations needed for tfm'
@@ -642,7 +695,7 @@ contains
     if (.not. (mod(power,2).eq.0) .and. (power.ge.4)) stop 'helmp: even power greater than or equal to 4'
     if (power .gt. 8) stop 'helmp: power must be less than or equal to 8 (supported power = 4, 6 or 8)'
 
-    call chop_glb_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
+    call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
     if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
       write(*,*) '[warning] helmp: an input scalar is not FFF; additional operations needed for tfm'
@@ -689,7 +742,7 @@ contains
     if (.not. ((mod(power,2).eq.0) .and. (power.ge.4))) stop 'ihelmp: even power greater than or equal to 4'
     if (power .gt. 8) stop 'ihelmp: power must be less than or equal to 8 (supported power = 4, 6 or 8)'
 
-    call chop_glb_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
+    call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
     if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
       write(*,*) '[warning] ihelmp: an input scalar is not FFF; additional operations needed for tfm'
@@ -979,6 +1032,366 @@ contains
 
   end procedure
 
+  module procedure vector_product
+    integer(i4) :: mm, nn, kk
+    real(p8) :: a1, a2, a3, c1, c2, c3, b1, b2, b3, d1, d2, d3
+
+    if (vr%space(1:3).ne.'PPP') stop 'vector_product: to compute v x u, vr must be in PPP'
+    if (vp%space(1:3).ne.'PPP') stop 'vector_product: to compute v x u, vp must be in PPP'
+    if (vz%space(1:3).ne.'PPP') stop 'vector_product: to compute v x u, vz must be in PPP'
+    if (ur%space(1:3).ne.'PPP') stop 'vector_product: to compute v x u, ur must be in PPP'
+    if (up%space(1:3).ne.'PPP') stop 'vector_product: to compute v x u, up must be in PPP'
+    if (uz%space(1:3).ne.'PPP') stop 'vector_product: to compute v x u, uz must be in PPP'
+
+    do kk = 1, min(vr%loc_sz(3), nz - vr%loc_st(3))
+      do mm = 1, min(vr%loc_sz(2), np/2 - vr%loc_st(2))
+        do nn = 1, min(vr%loc_sz(1), nr - vr%loc_st(1))
+          a1 = real(vr%e(nn,mm,kk)); a2 = real(vp%e(nn,mm,kk)); a3 = real(vz%e(nn,mm,kk))
+          b1 = real(ur%e(nn,mm,kk)); b2 = real(up%e(nn,mm,kk)); b3 = real(uz%e(nn,mm,kk))
+          c1 = aimag(vr%e(nn,mm,kk)); c2 = aimag(vp%e(nn,mm,kk)); c3 = aimag(vz%e(nn,mm,kk))
+          d1 = aimag(ur%e(nn,mm,kk)); d2 = aimag(up%e(nn,mm,kk)); d3 = aimag(uz%e(nn,mm,kk))
+          vr%e(nn,mm,kk) = cmplx(a2*b3-a3*b2, c2*d3-c3*d2, p8)
+          vp%e(nn,mm,kk) = cmplx(a3*b1-a1*b3, c3*d1-c1*d3, p8)
+          vz%e(nn,mm,kk) = cmplx(a1*b2-a2*b1, c1*d2-c2*d1, p8)
+        enddo
+      enddo
+    enddo
+  end procedure
+
+  module procedure vector_projection
+    integer(i4) :: mm, nn, kk, i, n, mv
+    real(p8) :: kv
+    real(p8), dimension(:), allocatable :: r, fff
+    real(p8), dimension(:,:), allocatable :: v, d, t, pfd
+    complex(p8), dimension(:), allocatable :: inf, w1, w2
+
+    integer(i4) :: nrdim, npdim, nzdim
+    integer(i4) :: nrc, npc, nzc, nzcu
+    integer(i4), dimension(:), allocatable :: nrcs, m
+    real(p8), dimension(:), allocatable :: ak
+
+    type(scalar) :: ur, up, uz
+
+    r = ell*sqrt((1.D0+tfm%x)/(1.D0-tfm%x))
+
+    if (vr%space(1:3).ne.'PPP') stop 'vector_projection: vr must be in PPP'
+    if (vp%space(1:3).ne.'PPP') stop 'vector_projection: vr must be in PPP'
+    if (vz%space(1:3).ne.'PPP') stop 'vector_projection: vz must be in PPP'
+    if (psi%space(1:3).ne.'FFF') stop 'vector_projection: psi must be in FFF'
+    if (del2chi%space(1:3).ne.'FFF') stop 'vector_projection: del2chi must be in FFF'
+
+    psi%e = 0.D0; del2chi%e = 0.D0
+    call ur%init(vr%glb_sz, vr%axis_comm); ur = vr
+    call up%init(vr%glb_sz, vr%axis_comm); up = vp
+    call uz%init(vr%glb_sz, vr%axis_comm); uz = vz
+
+    if (ur%loc_st(1)+1 .le. nr) then
+      do mm = 1, ur%loc_sz(2)
+        do kk = 1, ur%loc_sz(3)
+          ur%e(1:min(ur%loc_sz(1), nr-ur%loc_st(1)), mm, kk) = &
+          ur%e(1:min(ur%loc_sz(1), nr-ur%loc_st(1)), mm, kk) &
+          * r(ur%loc_st(1)+1:min(ur%loc_st(1)+ur%loc_sz(1), nr)) ! now ur actually stores r*ur
+        enddo
+      enddo
+    endif
+
+    if (up%loc_st(1)+1 .le. nr) then
+      do mm = 1, up%loc_sz(2)
+        do kk = 1, up%loc_sz(3)
+          up%e(1:min(up%loc_sz(1), nr-up%loc_st(1)), mm, kk) = &
+          up%e(1:min(up%loc_sz(1), nr-up%loc_st(1)), mm, kk) &
+          * r(up%loc_st(1)+1:min(up%loc_st(1)+up%loc_sz(1), nr)) ! now up actually stores r*up
+        enddo
+      enddo
+    endif
+
+    call trans(ur, 'PFP', tfm)
+    if (nz .gt. 1) then
+      call ur%exchange(1,3)
+      call vertical_fft_forward(ur, tfm)
+      call ur%exchange(3,1)
+    endif
+    ur%space = 'PFF' ! this in non-standard yet neccesary for calculation in this subroutine
+
+    call trans(up, 'FFF', tfm)
+    inf = calcat1(up, tfm)
+    psi%ln = -1.D0/2.D0*real(sum(inf)/size(inf))
+    if (nz .gt. 1) call up%exchange(3,1)
+    call rtrans_backward(up, tfm)
+    up%space = 'PFF' ! this in non-standard yet neccesary for calculation in this subroutine
+    if ((up%loc_st(2) .eq. 0) .and. (up%loc_st(3) .eq. 0)) then
+      up%e(:nr, 1, 1) = up%e(:nr, 1, 1) + psi%ln*(1.D0 + tfm%x)
+    endif
+
+    call trans(uz, 'PFP', tfm)
+    if (nz .gt. 1) then
+      call uz%exchange(1,3)
+      call vertical_fft_forward(uz, tfm)
+      call uz%exchange(3,1)
+    endif
+    uz%space = 'PFF' ! this in non-standard yet neccesary for calculation in this subroutine
+
+    call ur%chop_offset(3)
+    call up%chop_offset(3)
+    call uz%chop_offset(3)
+
+    call chop_index(ur, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
+
+    allocate( fff(nr/2) )
+    allocate( v(nrc, nr/2) )
+    allocate( d(nrc, nr/2) )
+    allocate( t(nrc, nr/2) )
+    allocate( pfd(nr/2, nrc+1) )
+    allocate( w1(nrc) )
+    allocate( w2(nrc) )
+
+    fff = (1.D0 - tfm%x(:nr/2)**2.D0) / tfm%w(:nr/2)
+
+    do mm = 1, min(ur%loc_sz(2), npc - ur%loc_st(2))
+      nn = nrcs(ur%loc_st(2) + mm)
+      mv = m(ur%loc_st(2) + mm)
+      pfd(:nr/2, :nn+1) = tfm%pf(:nr/2, :nn+1, mm) .mul. leg_xxdx(mv, nn+1, nn+1, tfm)
+      do i = 1, nn
+        n = max(1, mv+i-1)
+        v(i,:nr/2) = tfm%pf(:nr/2,i,mm)/n/(n+1)/fff
+        d(i,:nr/2) = pfd(:nr/2,i)/n/(n+1)/fff
+        t(i,:nr/2) = tfm%pf(:nr/2,i,mm)*tfm%w(:nr/2)
+      enddo
+
+      if (1 .le. min(ur%loc_sz(3), nzc - ur%loc_st(3))) then
+        do kk = 1, min(ur%loc_sz(3), nzc - ur%loc_st(3))
+          w1 = 0.D0; w2 = 0.D0
+          if (mv .ne. 0) call eomul(v(:nn,:), ur%e(:nr,mm,kk), w1(:nn))
+          call oemul(d(:nn,:), up%e(:nr,mm,kk), w2(:nn))
+          psi%e(:nn,mm,kk) = -iu*mv*w1(:nn) - w2(:nn)
+
+          w1 = 0.D0; w2 = 0.D0
+          call oemul(d(:nn,:), ur%e(:nr,mm,kk), w1(:nn))
+          if (mv .ne. 0) then
+            call eomul(v(:nn,:), up%e(:nr,mm,kk), w2(:nn))
+          endif
+          call eomul(t(:nn,:), uz%e(:nr,mm,kk), del2chi%e(:nn,mm,kk))
+          kv = ak(ur%loc_st(3) + kk)
+          del2chi%e(:nn,mm,kk) = iu*kv*w1(:nn)+mv*kv*w2(:nn)-del2chi%e(:nn,mm,kk)
+        enddo
+      endif
+      if (max(nzcu - ur%loc_st(3), 1) .le. ur%loc_sz(3)) then
+        do kk = max(nzcu - ur%loc_st(3), 1), ur%loc_sz(3)
+          w1 = 0.D0; w2 = 0.D0
+          if (mv .ne. 0) call eomul(v(:nn,:), ur%e(:nr,mm,kk), w1(:nn))
+          call oemul(d(:nn,:), up%e(:nr,mm,kk), w2(:nn))
+          psi%e(:nn,mm,kk) = -iu*mv*w1(:nn) - w2(:nn)
+
+          w1 = 0.D0; w2 = 0.D0
+          call oemul(d(:nn,:), ur%e(:nr,mm,kk), w1(:nn))
+          if (mv .ne. 0) then
+            call eomul(v(:nn,:), up%e(:nr,mm,kk), w2(:nn))
+          endif
+          call eomul(t(:nn,:), uz%e(:nr,mm,kk), del2chi%e(:nn,mm,kk))
+          kv = ak(ur%loc_st(3) + kk)
+          del2chi%e(:nn,mm,kk) = iu*kv*w1(:nn)+mv*kv*w2(:nn)-del2chi%e(:nn,mm,kk)
+        enddo
+      endif
+    enddo
+
+    deallocate( fff, v, d, t, pfd, w1, w2 )
+
+    call psi%chop_offset(0); call del2chi%chop_offset(0)
+    call chop(psi, tfm); call chop(del2chi, tfm)
+
+    call zeroat1(psi, tfm)
+
+    where (abs(real(psi%e)) .lt. 5.D-14) psi%e = cmplx(0.D0, aimag(psi%e), p8)
+    where (abs(aimag(psi%e)) .lt. 5.D-14) psi%e = cmplx(real(psi%e), 0.D0, p8)
+
+    where (abs(real(del2chi%e)) .lt. 5.D-14) del2chi%e = cmplx(0.D0, aimag(del2chi%e), p8)
+    where (abs(aimag(del2chi%e)) .lt. 5.D-14) del2chi%e = cmplx(real(del2chi%e), 0.D0, p8)
+
+    call ur%dealloc()
+    call up%dealloc()
+    call uz%dealloc()
+
+  end procedure
+
+  module procedure vector_reconstruction
+    integer(i4) :: mm, nn, kk, mv
+    real(p8) :: kv
+    type(scalar) :: ur, up, uz
+
+    real(p8), dimension(:), allocatable :: r
+
+    integer(i4) :: nrdim, npdim, nzdim
+    integer(i4) :: nrc, npc, nzc, nzcu
+    integer(i4), dimension(:), allocatable :: nrcs, m
+    real(p8), dimension(:), allocatable :: ak
+
+    r = ell*sqrt((1.D0+tfm%x)/(1.D0-tfm%x))
+
+    if (psi%space(1:3).ne.'FFF') stop 'vector_projection: psi must be in FFF'
+    if (del2chi%space(1:3).ne.'FFF') stop 'vector_projection: del2chi must be in FFF'
+    if (vr%space(1:3).ne.'PPP') stop 'vector_projection: vr must be in PPP'
+    if (vp%space(1:3).ne.'PPP') stop 'vector_projection: vp must be in PPP'
+    if (vz%space(1:3).ne.'PPP') stop 'vector_projection: vz must be in PPP'
+
+    call ur%init(del2chi%glb_sz, del2chi%axis_comm)
+    call up%init(psi%glb_sz, psi%axis_comm)
+    call uz%init(del2chi%glb_sz, del2chi%axis_comm)
+
+    ur = del2chi; call ur%chop_offset(3) 
+    up = psi    ; call up%chop_offset(3) 
+    uz = del2chi; call uz%chop_offset(3) 
+
+    call chop_index(ur, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
+
+    uz = idel2_proln(uz, tfm) ! uz now stores chi
+    call zeroat1(uz, tfm)
+
+    ur = xxdx(uz, tfm) ! ur now actually stores r*d(chi)/dr
+    up = xxdx(up, tfm) ! up now actually stores r*d(psi)/dr
+
+    do mm = 1, min(ur%loc_sz(2), npc - ur%loc_st(2))
+      nn = nrcs(ur%loc_st(2) + mm)
+      mv = m(ur%loc_st(2) + mm)
+      do kk = 1, nzdim
+        if ((kk .le. nzc) .or. (kk .ge. nzcu)) then
+          kv = ak(kk)
+          ur%e(:nn,mm,kk) = iu*mv*psi%e(:nn,mm,kk)+iu*kv*ur%e(:nn,mm,kk) ! ur now stores d(psi)/dp + r*d/dr(d/dz(chi))
+          up%e(:nn,mm,kk) = -up%e(:nn,mm,kk)-mv*kv*uz%e(:nn,mm,kk) ! up now stores -r*d(psi)/dr + d/dp(d/dz(chi))
+        endif
+      enddo
+    enddo
+
+    call ur%chop_offset(0); call up%chop_offset(0)
+    call chop(ur, tfm); call chop(up, tfm)
+
+    call trans(ur, 'PPP', tfm); call trans(up, 'PPP', tfm)
+    if (ur%loc_st(1)+1 .le. nr) then
+      do mm = 1, ur%loc_sz(2)
+        do kk = 1, ur%loc_sz(3)
+          ur%e(1:min(ur%loc_sz(1), nr-ur%loc_st(1)), mm, kk) = &
+          ur%e(1:min(ur%loc_sz(1), nr-ur%loc_st(1)), mm, kk) &
+          / r(ur%loc_st(1)+1:min(ur%loc_st(1)+ur%loc_sz(1), nr)) ! now ur stores 1/r*d(psi)/dp + d/dr(d/dz(chi))
+        enddo
+      enddo
+    endif
+
+    if (up%loc_st(1)+1 .le. nr) then
+      do mm = 1, up%loc_sz(2)
+        do kk = 1, up%loc_sz(3)
+          up%e(1:min(up%loc_sz(1), nr-up%loc_st(1)), mm, kk) = &
+          up%e(1:min(up%loc_sz(1), nr-up%loc_st(1)), mm, kk) &
+          / r(up%loc_st(1)+1:min(up%loc_st(1)+up%loc_sz(1), nr)) ! now up stores -d(psi)/dr + 1/r*d/dp(d/dz(chi))
+        enddo
+      enddo
+    endif
+
+    uz = del2h(uz, tfm) ! now uz stores del2h(chi)
+    uz%e = -uz%e ! now uz stores -del2h(chi)
+
+    call uz%chop_offset(0)
+    call chop(uz, tfm)
+
+    call trans(uz, 'PPP', tfm)
+
+    vr = ur
+    vp = up
+    vz = uz
+
+    call ur%dealloc()
+    call up%dealloc()
+    call uz%dealloc()
+
+  end procedure
+
+  module procedure curl_vector_reconstruction
+    integer(i4) :: mm, nn, kk, mv
+    real(p8) :: kv
+    type(scalar) :: or, op, oz
+
+    real(p8), dimension(:), allocatable :: r
+
+    integer(i4) :: nrdim, npdim, nzdim
+    integer(i4) :: nrc, npc, nzc, nzcu
+    integer(i4), dimension(:), allocatable :: nrcs, m
+    real(p8), dimension(:), allocatable :: ak
+
+    r = ell*sqrt((1.D0+tfm%x)/(1.D0-tfm%x))
+
+    if (psi%space(1:3).ne.'FFF') stop 'curl_vector_projection: psi must be in FFF'
+    if (del2chi%space(1:3).ne.'FFF') stop 'curl_vector_projection: del2chi must be in FFF'
+    if (wr%space(1:3).ne.'PPP') stop 'curl_vector_projection: wr must be in PPP'
+    if (wp%space(1:3).ne.'PPP') stop 'curl_vector_projection: wp must be in PPP'
+    if (wz%space(1:3).ne.'PPP') stop 'curl_vector_projection: wz must be in PPP'
+
+    call or%init(psi%glb_sz, psi%axis_comm)
+    call op%init(del2chi%glb_sz, del2chi%axis_comm)
+    call oz%init(psi%glb_sz, psi%axis_comm)
+
+    or = psi    ; call or%chop_offset(3)
+    op = del2chi; call op%chop_offset(3)
+    oz = psi    ; call oz%chop_offset(3)
+
+    call chop_index(or, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
+
+    oz = oz            ! oz now stores psi
+    or = xxdx(or, tfm) ! or now actually stores r*d(psi)/dr
+    op = xxdx(op, tfm) ! op now actually stores r*d(del2(chi))/dr
+
+    do mm = 1, min(or%loc_sz(2), npc - or%loc_st(2))
+      nn = nrcs(or%loc_st(2) + mm)
+      mv = m(or%loc_st(2) + mm)
+      do kk = 1, nzdim
+        if ((kk .le. nzc) .or. (kk .ge. nzcu)) then
+          kv = ak(kk)
+          or%e(:nn,mm,kk) = -iu*mv*del2chi%e(:nn,mm,kk)+iu*kv*or%e(:nn,mm,kk) ! or now stores -d(del2(chi))/dp + r*d/dr(d/dz(psi))
+          op%e(:nn,mm,kk) = op%e(:nn,mm,kk)-mv*kv*oz%e(:nn,mm,kk) ! op now stores r*d(del2(chi))/dr + d/dp(d/dz(psi))
+        endif
+      enddo
+    enddo
+
+    call or%chop_offset(0); call op%chop_offset(0)
+    call chop(or, tfm); call chop(op, tfm)
+
+    call trans(or, 'PPP', tfm); call trans(op, 'PPP', tfm)
+    if (or%loc_st(1)+1 .le. nr) then
+      do mm = 1, or%loc_sz(2)
+        do kk = 1, or%loc_sz(3)
+          or%e(1:min(or%loc_sz(1), nr-or%loc_st(1)), mm, kk) = &
+          or%e(1:min(or%loc_sz(1), nr-or%loc_st(1)), mm, kk) &
+          / r(or%loc_st(1)+1:min(or%loc_st(1)+or%loc_sz(1), nr)) ! now or stores -1/r*d(del2(chi))/dp + d/dr(d/dz(psi))
+        enddo
+      enddo
+    endif
+
+    if (op%loc_st(1)+1 .le. nr) then
+      do mm = 1, op%loc_sz(2)
+        do kk = 1, op%loc_sz(3)
+          op%e(1:min(op%loc_sz(1), nr-op%loc_st(1)), mm, kk) = &
+          op%e(1:min(op%loc_sz(1), nr-op%loc_st(1)), mm, kk) &
+          / r(op%loc_st(1)+1:min(op%loc_st(1)+op%loc_sz(1), nr)) ! now op stores d(del2(chi))/dr + 1/r*d/dp(d/dz(psi))
+        enddo
+      enddo
+    endif
+
+    oz = del2h(oz, tfm) ! now oz stores del2h(psi)
+    oz%e = -oz%e ! now oz stores -del2h(psi)
+
+    call oz%chop_offset(0)
+    call chop(oz, tfm)
+
+    call trans(oz, 'PPP', tfm)
+
+    wr = or
+    wp = op
+    wz = oz
+
+    call or%dealloc()
+    call op%dealloc()
+    call oz%dealloc()
+
+  end procedure
+
+
 ! ======================================================================================================== !
 ! VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV INTERNAL (PRIVATE) SUBROUTINES/FUNCTIONS VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV !
 ! ======================================================================================================== !
@@ -1259,7 +1672,6 @@ contains
 
   end subroutine
 
-
 ! ======================================================================================================== !
 
   subroutine rtrans_forward(s, tfm)
@@ -1422,7 +1834,8 @@ contains
 
 ! ======================================================================================================== !
 
-  subroutine chop_glb_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
+  subroutine chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
+    implicit none
     class(scalar) :: s
     class(tfm_kit) :: tfm
     integer(i4), intent(inout) :: nrdim, npdim, nzdim
@@ -1472,6 +1885,88 @@ contains
     nrcs(npc+1:) = 0
 
     return
+  end subroutine
+
+! ======================================================================================================== !
+
+  subroutine eomul(a,b,c)
+! [usage]:
+! compute c(:ni) = a(:ni, :nj) .mul. b(:nj) where a has pattern as follows:
+! a(2*i  :j) =  a(2*i  :nj-j+1) and
+! a(2*i-1:j) = -a(2*i-1:nj-j+1)
+! only half of a should be given on input.
+! [variables]:
+! a >> a special real-valued matrix with the pattern above. dim: ni x nj/2
+! b >> a matrix (vector) of the dimension nj x 1
+! c >> a .mul. b
+  implicit none
+
+  real(p8), dimension(:,:), intent(in)   :: a
+  complex(p8), dimension(:), intent(in)  :: b
+  complex(p8), dimension(:), intent(out) :: c
+
+  complex(p8), dimension(:), allocatable :: be, bo
+  integer                                :: ni, nj, njh
+
+  ni = size(a,1)
+  njh = size(a,2)
+  nj = size(b,1)
+
+  if (njh*2 .ne. nj) stop 'eomul: size mismatch.'
+
+  allocate( be(njh) )
+  allocate( bo(njh) )
+
+  be = b(1:njh) + b(nj:njh+1:-1)
+  bo = b(1:njh) - b(nj:njh+1:-1)
+
+  c(1::2) = a(1::2,:) .mul. be
+  if (ni .gt. 1) c(2::2) = a(2::2,:) .mul. bo
+
+  deallocate( be, bo )
+
+  return
+  end subroutine
+
+! ======================================================================================================== !
+
+  subroutine oemul(a,b,c)
+! [usage]:
+! compute c(:ni) = a(:ni, :nj) .mul. b(:nj) where a has pattern as follows:
+! a(2*i  :j) = -a(2*i  :nj-j+1) and
+! a(2*i-1:j) =  a(2*i-1:nj-j+1)
+! only half of a should be given on input.
+! [variables]:
+! a >> a special real-valued matrix with the pattern above. dim: ni x nj/2
+! b >> a matrix (vector) of the dimension nj x 1
+! c >> a .mul. b
+  implicit none
+
+  real(p8), dimension(:,:), intent(in)   :: a
+  complex(p8), dimension(:), intent(in)  :: b
+  complex(p8), dimension(:), intent(out) :: c
+
+  complex(p8), dimension(:), allocatable :: be, bo
+  integer                                :: ni, nj, njh
+
+  ni = size(a,1)
+  njh = size(a,2)
+  nj = size(b,1)
+
+  if (njh*2 .ne. nj) stop 'oemul: size mismatch.'
+
+  allocate( be(njh) )
+  allocate( bo(njh) )
+
+  be = b(1:njh) + b(nj:njh+1:-1)
+  bo = b(1:njh) - b(nj:njh+1:-1)
+
+  c(1::2) = a(1::2,:) .mul. bo
+  if (ni .gt. 1) c(2::2) = a(2::2,:) .mul. be
+
+  deallocate( be, bo )
+
+  return
   end subroutine
 
 end submodule

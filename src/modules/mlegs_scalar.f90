@@ -90,11 +90,6 @@ module mlegs_scalar
       integer(i4), optional :: iof2 ! offset of npchop (default is 0)
       integer(i4), optional :: iof3 ! offset of nzchop (default is 0)
     end subroutine
-    !> set up new chopping offsets for a scalar field
-    module subroutine scalar_chop_do(this)
-      implicit none
-      class(scalar), intent(inout) :: this
-    end subroutine
   end interface
 
   !> copy a scalar
@@ -170,7 +165,7 @@ module mlegs_scalar
   end interface
   public :: zeroat1
 
-  !> del^2_perp
+  !> (1-x)^(-2)*del^2_perp
   interface delsqp
     module function delsqp(s, tfm) result(so)
       implicit none
@@ -181,7 +176,7 @@ module mlegs_scalar
   end interface
   public :: delsqp
 
-  !> inverse of del^2_perp
+  !> inverse of (1-x)^(-2)*del^2_perp
   interface idelsqp
     module function idelsqp(s, tfm) result(so)
       implicit none
@@ -202,6 +197,17 @@ module mlegs_scalar
     end function
   end interface
   public :: xxdx
+
+  !> del^2_perp
+  interface del2h
+    module function del2h(s, tfm) result(so)
+      implicit none
+      class(scalar) :: s
+      class(tfm_kit) :: tfm
+      type(scalar) :: so
+    end function
+  end interface
+  public :: del2h
 
   !> del^2
   interface del2
@@ -348,6 +354,58 @@ module mlegs_scalar
     end subroutine
   end interface
   public :: abcn
+
+  !> vector field outer product, CROSS(vec(v), vec(u))
+  !> vr, vp, vz, ur, up and uz must be in PPP
+  !> (vxu)r, (vxu)p, (vxu)z are stored in vr, vp, vz, respectively
+  interface vecprod
+    module subroutine vector_product(vr, vp, vz, ur, up, uz, tfm)
+      implicit none
+      class(scalar), intent(inout) :: vr, vp, vz
+      class(scalar), intent(in) :: ur, up, uz
+      class(tfm_kit) :: tfm
+    end subroutine
+  end interface
+  public :: vecprod
+
+  !> vector field projection to its toroidal and poloidal scalars
+  !> vr, vp and vz must be in PPP
+  !> psi and del2chi will be in FFF
+  interface vec2tp
+    module subroutine vector_projection(vr, vp, vz, psi, del2chi, tfm)
+      implicit none
+      class(scalar), intent(in) :: vr, vp, vz
+      class(scalar), intent(inout) :: psi, del2chi
+      class(tfm_kit) :: tfm
+    end subroutine
+  end interface
+  public :: vec2tp
+
+  !> (solenoidal) vector field reconstruction from its toroidal and poloidal scalars
+  !> psi and del2chi must be in FFF
+  !> vr, vp and vz will be in PPP
+  interface tp2vec
+    module subroutine vector_reconstruction(psi, del2chi, vr, vp, vz, tfm)
+      implicit none
+      class(scalar), intent(in) :: psi, del2chi
+      class(scalar), intent(inout) :: vr, vp, vz
+      class(tfm_kit) :: tfm
+    end subroutine
+  end interface
+  public:: tp2vec 
+
+  !> (solenoidal) curl(vector) from the vector field's toroidal and poloidal scalars
+  !> psi and del2chi must be in FFF
+  !> wr, wp and wz will be in PPP
+  interface tp2curlvec
+    module subroutine curl_vector_reconstruction(psi, del2chi, wr, wp, wz, tfm)
+      implicit none
+      class(scalar), intent(in) :: psi, del2chi
+      class(scalar), intent(inout) :: wr, wp, wz
+      class(tfm_kit) :: tfm
+    end subroutine
+  end interface
+  public:: tp2curlvec
 
   !> i/o save
   interface msave

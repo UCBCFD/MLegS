@@ -309,6 +309,19 @@ This operation is performed via `delsqp()` in MLegS:
 s = delsqp(s, tfm) ! corresponding inversion operation is idelsqp(s, tfm)
 ```
 
+### 2D Laplacian \\( \nabla_\perp^2 \\)
+
+2D Laplacian of a scalar can be performed as a spectral space operation: 
+
+$$ \nabla_\perp^2 \equiv \frac{1}{r} \frac{\partial}{\partial r} \left( r \frac{\partial}{\partial r} \right) + \frac{1}{r^2} \frac{\partial^2}{\partial \phi^2} $$
+
+This operation is performed via `del2h()` in MLegS:
+
+```fortran
+!# Fortran
+s = del2h(s, tfm)
+```
+
 ### Radial Derivative \\( rD_r \\)
 
 Radial derivative of a scalar with the multiplication of \\( r \\) can be performed as a spectral space operation: 
