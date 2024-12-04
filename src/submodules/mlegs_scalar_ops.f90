@@ -119,17 +119,25 @@ contains
     type(scalar) :: st
     complex(p8), dimension(:), allocatable :: calc_
 
+    integer(i4) :: nrdim, npdim, nzdim
+    integer(i4) :: nrc, npc, nzc, nzcu
+    integer(i4), dimension(:), allocatable :: nrcs, m
+    real(p8), dimension(:), allocatable :: ak
+
+    call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
+
     call st%init(s%glb_sz, s%axis_comm)
     st = s
 
-    if ((.not.(st%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
+    if ((.not.(s%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
       write(*,*) '[warning] calcat0: an input scalar is not FFF; additional operations needed for tfm'
-      call trans(st, 'FFF', tfm)
     endif
+    call trans(st, 'FFF', tfm)
 
     allocate( calc(nz) )
-    if (s%loc_st(2) .eq. 0) then
-      calc = transpose(st%e(1:st%loc_sz(1),1,:)) .mul. tfm%at0(st%loc_st(1)+1:st%loc_st(1)+st%loc_sz(1))
+    if (st%loc_st(2) .eq. 0) then
+      calc = transpose(st%e(1:min(st%loc_sz(1),nrc-st%loc_st(1)), 1, :)) .mul. &
+                       tfm%at0(st%loc_st(1)+1:min(st%loc_st(1)+st%loc_sz(1),nrc))
     else
       calc = 0.D0
     endif
@@ -148,17 +156,25 @@ contains
     type(scalar) :: st
     complex(p8), dimension(:), allocatable :: calc_
 
+    integer(i4) :: nrdim, npdim, nzdim
+    integer(i4) :: nrc, npc, nzc, nzcu
+    integer(i4), dimension(:), allocatable :: nrcs, m
+    real(p8), dimension(:), allocatable :: ak
+
+    call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
+
     call st%init(s%glb_sz, s%axis_comm)
     st = s
 
-    if ((.not.(st%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
+    if ((.not.(s%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
       write(*,*) '[warning] calcat1: an input scalar is not FFF; additional operations needed for tfm'
-      call trans(st, 'FFF', tfm)
     endif
+    call trans(st, 'FFF', tfm)
 
     allocate( calc(nz) )
-    if (s%loc_st(2) .eq. 0) then
-      calc = transpose(st%e(1:st%loc_sz(1),1,:)) .mul. tfm%at1(st%loc_st(1)+1:st%loc_st(1)+st%loc_sz(1))
+    if (st%loc_st(2) .eq. 0) then
+      calc = transpose(st%e(1:min(st%loc_sz(1),nrc-st%loc_st(1)), 1, :)) .mul. &
+                       tfm%at1(st%loc_st(1)+1:min(st%loc_st(1)+st%loc_sz(1),nrc))
     else
       calc = 0.D0
     endif
@@ -214,7 +230,7 @@ contains
     do mm = 1, min(so%loc_sz(2), npc - so%loc_st(2))
       do nn = 1, min(so%loc_sz(1), nrcs(so%loc_st(2) + mm) - so%loc_sz(1))
         n = m(so%loc_st(2) + mm) + (so%loc_st(1) + nn) - 1
-        so%e(nn,mm,:) = -s%e(nn,mm,:)*n*(n+1)/ell**2.D0
+        so%e(nn,mm,:) = -s%e(nn,mm,:)*n*(n+1.D0)/(ell**2.D0)
       enddo
     enddo
 
@@ -248,34 +264,17 @@ contains
     if ((so%loc_st(1) .eq. 0) .and. (so%loc_st(2) .eq. 0)) then
       so%ln = s%e(1,1,1)*ell**2.D0*exp(tfm%lognorm(1,1))
     endif
-    call MPI_allreduce(so%ln, so%ln, 1, MPI_complex16, MPI_sum, comm_glb, MPI_err)
+    call MPI_allreduce(so%ln, so%ln, 1, MPI_real8, MPI_sum, comm_glb, MPI_err)
 
-    if (so%loc_st(2) .eq. 0) then
-      if (so%loc_st(1) .eq. 0) then
-        so%e(1,1,:) = 0.D0
-        do nn = 2, min(so%loc_sz(1), nrcs(1) - so%loc_sz(1))
-          n = nn - 1
-          so%e(nn, 1, :) = -s%e(nn, 1, :)/n/(n+1)*ell**2.D0
-        enddo
-      else
-        do nn = 1, min(so%loc_sz(1), nrcs(so%loc_st(2) + 1) - so%loc_sz(1))
-          n = (so%loc_st(1) + nn) - 1
-          so%e(nn, 1, :) = -s%e(nn, 1, :)/n/(n+1)*ell**2.D0
-        enddo
-      endif
-      do mm = 2, min(so%loc_sz(2), npc)
-        do nn = 1, min(so%loc_sz(1), nrcs(mm) - so%loc_sz(1))
-          n = m(mm) + (so%loc_st(1) + nn) - 1
-          so%e(nn,mm,:) = -s%e(nn,mm,:)/n/(n+1)*ell**2.D0
-        enddo
+    do mm = 1, min(so%loc_sz(2), npc - so%loc_st(2))
+      do nn = 1, min(so%loc_sz(1), nrcs(so%loc_st(2) + mm) - so%loc_st(1))
+        n = m(so%loc_st(2) + mm) + (so%loc_st(1) + nn) - 1
+        so%e(nn,mm,:) = -s%e(nn,mm,:)/n/(n+1.D0)*(ell**2.D0)
       enddo
-    else
-      do mm = 1, min(so%loc_sz(2), npc - so%loc_st(2))
-        do nn = 1, min(so%loc_sz(1), nrcs(so%loc_st(2) + mm) - so%loc_st(1))
-          n = m(so%loc_st(2) + mm) + (so%loc_st(1) + nn) - 1
-          so%e(nn,mm,:) = -s%e(nn,mm,:)/n/(n+1)*ell**2.D0
-        enddo
-      enddo
+    enddo
+
+    if ((so%loc_st(1) .eq. 0) .and. (so%loc_st(2) .eq. 0)) then
+      so%e(1,1,:) = 0.D0
     endif
 
     return
@@ -502,12 +501,12 @@ contains
       enddo
     endif
     deallocate( del2_bnd%e )
-    call MPI_allreduce(so%ln, so%ln, 1, MPI_complex16, MPI_sum, comm_glb, MPI_err)
+    call MPI_allreduce(so%ln, so%ln, 1, MPI_real8, MPI_sum, comm_glb, MPI_err)
 
     if (nz .gt. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
 
-    where (abs(real(so%e)) .lt. 5.D-14) so%e = cmplx(0.D0, aimag(so%e), p8)
-    where (abs(aimag(so%e)) .lt. 5.D-14) so%e = cmplx(real(so%e), 0.D0, p8)
+    ! where (abs(real(so%e)) .lt. 5.D-14) so%e = cmplx(0.D0, aimag(so%e), p8)
+    ! where (abs(aimag(so%e)) .lt. 5.D-14) so%e = cmplx(real(so%e), 0.D0, p8)
 
     return
   end procedure
@@ -586,12 +585,12 @@ contains
       enddo
     endif
     deallocate( del2_bnd%e )
-    call MPI_allreduce(so%ln, so%ln, 1, MPI_complex16, MPI_sum, comm_glb, MPI_err)
+    call MPI_allreduce(so%ln, so%ln, 1, MPI_real8, MPI_sum, comm_glb, MPI_err)
 
     if (nz .gt. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
 
-    where (abs(real(so%e)) .lt. 5.D-14) so%e = cmplx(0.D0, aimag(so%e), p8)
-    where (abs(aimag(so%e)) .lt. 5.D-14) so%e = cmplx(real(so%e), 0.D0, p8)
+    ! where (abs(real(so%e)) .lt. 5.D-14) so%e = cmplx(0.D0, aimag(so%e), p8)
+    ! where (abs(aimag(so%e)) .lt. 5.D-14) so%e = cmplx(real(so%e), 0.D0, p8)
 
     return
   end procedure
@@ -677,8 +676,8 @@ contains
 
     if (nz .gt. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
 
-    where (abs(real(so%e)) .lt. 5.D-14) so%e = cmplx(0.D0, aimag(so%e), p8)
-    where (abs(aimag(so%e)) .lt. 5.D-14) so%e = cmplx(real(so%e), 0.D0, p8)
+    ! where (abs(real(so%e)) .lt. 5.D-14) so%e = cmplx(0.D0, aimag(so%e), p8)
+    ! where (abs(aimag(so%e)) .lt. 5.D-14) so%e = cmplx(real(so%e), 0.D0, p8)
 
     return
   end procedure
@@ -812,8 +811,8 @@ contains
 
     if (nz .gt. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
 
-    where (abs(real(so%e)) .lt. 5.D-14) so%e = cmplx(0.D0, aimag(so%e), p8)
-    where (abs(aimag(so%e)) .lt. 5.D-14) so%e = cmplx(real(so%e), 0.D0, p8)
+    ! where (abs(real(so%e)) .lt. 5.D-14) so%e = cmplx(0.D0, aimag(so%e), p8)
+    ! where (abs(aimag(so%e)) .lt. 5.D-14) so%e = cmplx(real(so%e), 0.D0, p8)
 
     deallocate( bl )
     deallocate( bl2 )
@@ -1081,6 +1080,8 @@ contains
     if (del2chi%space(1:3).ne.'FFF') stop 'vector_projection: del2chi must be in FFF'
 
     psi%e = 0.D0; del2chi%e = 0.D0
+    psi%ln = 0.D0; del2chi%ln = 0.D0
+
     call ur%init(vr%glb_sz, vr%axis_comm); ur = vr
     call up%init(vr%glb_sz, vr%axis_comm); up = vp
     call uz%init(vr%glb_sz, vr%axis_comm); uz = vz
@@ -1107,16 +1108,16 @@ contains
 
     call trans(ur, 'PFP', tfm)
     if (nz .gt. 1) then
-      call ur%exchange(1,3)
+      call ur%exchange(1, 3)
       call vertical_fft_forward(ur, tfm)
-      call ur%exchange(3,1)
+      call ur%exchange(3, 1)
     endif
     ur%space = 'PFF' ! this in non-standard yet neccesary for calculation in this subroutine
 
     call trans(up, 'FFF', tfm)
     inf = calcat1(up, tfm)
-    psi%ln = -1.D0/2.D0*real(sum(inf)/size(inf))
-    if (nz .gt. 1) call up%exchange(3,1)
+    psi%ln = -1.D0/2.D0*real(inf(1))
+    if (nz .gt. 1) call up%exchange(3, 1)
     call rtrans_backward(up, tfm)
     up%space = 'PFF' ! this in non-standard yet neccesary for calculation in this subroutine
     if ((up%loc_st(2) .eq. 0) .and. (up%loc_st(3) .eq. 0)) then
@@ -1125,15 +1126,13 @@ contains
 
     call trans(uz, 'PFP', tfm)
     if (nz .gt. 1) then
-      call uz%exchange(1,3)
+      call uz%exchange(1, 3)
       call vertical_fft_forward(uz, tfm)
-      call uz%exchange(3,1)
+      call uz%exchange(3, 1)
     endif
     uz%space = 'PFF' ! this in non-standard yet neccesary for calculation in this subroutine
 
-    call ur%chop_offset(3)
-    call up%chop_offset(3)
-    call uz%chop_offset(3)
+    call ur%chop_offset(3); call up%chop_offset(3); call uz%chop_offset(3)
 
     call chop_index(ur, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
@@ -1145,72 +1144,62 @@ contains
     allocate( w1(nrc) )
     allocate( w2(nrc) )
 
-    fff = (1.D0 - tfm%x(:nr/2)**2.D0) / tfm%w(:nr/2)
+    fff = (1.D0 - tfm%x(:nr/2)**2.D0)/tfm%w(:nr/2)
 
-    do mm = 1, min(ur%loc_sz(2), npc - ur%loc_st(2))
+    if (nz .gt. 1) then
+      call psi%exchange(3, 1)
+      call del2chi%exchange(3, 1)
+    endif
+
+    do mm = 1, min(ur%loc_sz(2), npc-ur%loc_st(2))
       nn = nrcs(ur%loc_st(2) + mm)
       mv = m(ur%loc_st(2) + mm)
-      pfd(:nr/2, :nn+1) = tfm%pf(:nr/2, :nn+1, mm) .mul. leg_xxdx(mv, nn+1, nn+1, tfm)
+      pfd(:nr/2, :nn+1) = tfm%pf(:nr/2, :nn+1, mm+ur%loc_st(2)) .mul. leg_xxdx(mv, nn+1, nn+1, tfm)
       do i = 1, nn
         n = max(1, mv+i-1)
-        v(i,:nr/2) = tfm%pf(:nr/2,i,mm)/n/(n+1)/fff
+        v(i,:nr/2) = tfm%pf(:nr/2,i,mm+ur%loc_st(2))/n/(n+1)/fff
         d(i,:nr/2) = pfd(:nr/2,i)/n/(n+1)/fff
-        t(i,:nr/2) = tfm%pf(:nr/2,i,mm)*tfm%w(:nr/2)
+        t(i,:nr/2) = tfm%pf(:nr/2,i,mm+ur%loc_st(2))*tfm%w(:nr/2)
       enddo
 
-      if (1 .le. min(ur%loc_sz(3), nzc - ur%loc_st(3))) then
-        do kk = 1, min(ur%loc_sz(3), nzc - ur%loc_st(3))
-          w1 = 0.D0; w2 = 0.D0
-          if (mv .ne. 0) call eomul(v(:nn,:), ur%e(:nr,mm,kk), w1(:nn))
+      if (1 .le. min(psi%loc_sz(3), nzc - psi%loc_st(3))) then
+        do kk = 1, min(psi%loc_sz(3), nzc - psi%loc_st(3))
+          w1 = 0.D0; w2 = 0.D0; if (mv .ne. 0) call eomul(v(:nn,:), ur%e(:nr,mm,kk), w1(:nn))
           call oemul(d(:nn,:), up%e(:nr,mm,kk), w2(:nn))
           psi%e(:nn,mm,kk) = -iu*mv*w1(:nn) - w2(:nn)
-
-          w1 = 0.D0; w2 = 0.D0
-          call oemul(d(:nn,:), ur%e(:nr,mm,kk), w1(:nn))
-          if (mv .ne. 0) then
-            call eomul(v(:nn,:), up%e(:nr,mm,kk), w2(:nn))
-          endif
+          w1 = 0.D0; w2 = 0.D0; call oemul(d(:nn,:), ur%e(:nr,mm,kk), w1(:nn))
+          if (mv .ne. 0) call eomul(v(:nn,:), up%e(:nr,mm,kk), w2(:nn))
           call eomul(t(:nn,:), uz%e(:nr,mm,kk), del2chi%e(:nn,mm,kk))
-          kv = ak(ur%loc_st(3) + kk)
+          kv = ak(psi%loc_st(3) + kk)
           del2chi%e(:nn,mm,kk) = iu*kv*w1(:nn)+mv*kv*w2(:nn)-del2chi%e(:nn,mm,kk)
         enddo
       endif
-      if (max(nzcu - ur%loc_st(3), 1) .le. ur%loc_sz(3)) then
-        do kk = max(nzcu - ur%loc_st(3), 1), ur%loc_sz(3)
-          w1 = 0.D0; w2 = 0.D0
-          if (mv .ne. 0) call eomul(v(:nn,:), ur%e(:nr,mm,kk), w1(:nn))
+      if (max(nzcu - psi%loc_st(3), 1) .le. psi%loc_sz(3)) then
+        do kk = max(nzcu - psi%loc_st(3), 1), psi%loc_sz(3)
+          w1 = 0.D0; w2 = 0.D0; if (mv .ne. 0) call eomul(v(:nn,:), ur%e(:nr,mm,kk), w1(:nn))
           call oemul(d(:nn,:), up%e(:nr,mm,kk), w2(:nn))
           psi%e(:nn,mm,kk) = -iu*mv*w1(:nn) - w2(:nn)
-
-          w1 = 0.D0; w2 = 0.D0
-          call oemul(d(:nn,:), ur%e(:nr,mm,kk), w1(:nn))
-          if (mv .ne. 0) then
-            call eomul(v(:nn,:), up%e(:nr,mm,kk), w2(:nn))
-          endif
+          w1 = 0.D0; w2 = 0.D0; call oemul(d(:nn,:), ur%e(:nr,mm,kk), w1(:nn))
+          if (mv .ne. 0) call eomul(v(:nn,:), up%e(:nr,mm,kk), w2(:nn))
           call eomul(t(:nn,:), uz%e(:nr,mm,kk), del2chi%e(:nn,mm,kk))
-          kv = ak(ur%loc_st(3) + kk)
+          kv = ak(psi%loc_st(3) + kk)
           del2chi%e(:nn,mm,kk) = iu*kv*w1(:nn)+mv*kv*w2(:nn)-del2chi%e(:nn,mm,kk)
         enddo
       endif
+
     enddo
+
+    if (nz .gt. 1) then
+      call psi%exchange(1, 3)
+      call del2chi%exchange(1, 3)
+    endif
 
     deallocate( fff, v, d, t, pfd, w1, w2 )
 
     call psi%chop_offset(0); call del2chi%chop_offset(0)
     call chop(psi, tfm); call chop(del2chi, tfm)
 
-    call zeroat1(psi, tfm)
-
-    where (abs(real(psi%e)) .lt. 5.D-14) psi%e = cmplx(0.D0, aimag(psi%e), p8)
-    where (abs(aimag(psi%e)) .lt. 5.D-14) psi%e = cmplx(real(psi%e), 0.D0, p8)
-
-    where (abs(real(del2chi%e)) .lt. 5.D-14) del2chi%e = cmplx(0.D0, aimag(del2chi%e), p8)
-    where (abs(aimag(del2chi%e)) .lt. 5.D-14) del2chi%e = cmplx(real(del2chi%e), 0.D0, p8)
-
-    call ur%dealloc()
-    call up%dealloc()
-    call uz%dealloc()
-
+    call ur%dealloc(); call up%dealloc(); call uz%dealloc()
   end procedure
 
   module procedure vector_reconstruction
@@ -1238,8 +1227,8 @@ contains
     call uz%init(del2chi%glb_sz, del2chi%axis_comm)
 
     ur = del2chi; call ur%chop_offset(3) 
-    up = psi    ; call up%chop_offset(3) 
-    uz = del2chi; call uz%chop_offset(3) 
+    up = psi; call up%chop_offset(3) 
+    uz = del2chi; call uz%chop_offset(3)
 
     call chop_index(ur, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
@@ -1255,8 +1244,12 @@ contains
       do kk = 1, nzdim
         if ((kk .le. nzc) .or. (kk .ge. nzcu)) then
           kv = ak(kk)
-          ur%e(:nn,mm,kk) = iu*mv*psi%e(:nn,mm,kk)+iu*kv*ur%e(:nn,mm,kk) ! ur now stores d(psi)/dp + r*d/dr(d/dz(chi))
-          up%e(:nn,mm,kk) = -up%e(:nn,mm,kk)-mv*kv*uz%e(:nn,mm,kk) ! up now stores -r*d(psi)/dr + d/dp(d/dz(chi))
+          ur%e(:min(ur%loc_sz(1), nn-ur%loc_st(1)),mm,kk) = &
+          iu*mv*psi%e(:min(psi%loc_sz(1), nn-psi%loc_st(1)),mm,kk) + &
+          iu*kv*ur%e(:min(ur%loc_sz(1), nn-ur%loc_st(1)),mm,kk) ! ur now stores d(psi)/dp + r*d/dr(d/dz(chi))
+          up%e(:min(up%loc_sz(1), nn-up%loc_st(1)),mm,kk) = &
+          -up%e(:min(up%loc_sz(1), nn-up%loc_st(1)),mm,kk) - &
+          mv*kv*uz%e(:min(uz%loc_sz(1), nn-uz%loc_st(1)),mm,kk) ! up now stores -r*d(psi)/dr + d/dp(d/dz(chi))
         endif
       enddo
     enddo
@@ -1265,6 +1258,7 @@ contains
     call chop(ur, tfm); call chop(up, tfm)
 
     call trans(ur, 'PPP', tfm); call trans(up, 'PPP', tfm)
+    
     if (ur%loc_st(1)+1 .le. nr) then
       do mm = 1, ur%loc_sz(2)
         do kk = 1, ur%loc_sz(3)
@@ -1334,7 +1328,8 @@ contains
     call chop_index(or, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
     oz = oz            ! oz now stores psi
-    or = xxdx(or, tfm) ! or now actually stores r*d(psi)/dr
+
+    or = xxdx(oz, tfm) ! or now actually stores r*d(psi)/dr
     op = xxdx(op, tfm) ! op now actually stores r*d(del2(chi))/dr
 
     do mm = 1, min(or%loc_sz(2), npc - or%loc_st(2))
@@ -1343,8 +1338,12 @@ contains
       do kk = 1, nzdim
         if ((kk .le. nzc) .or. (kk .ge. nzcu)) then
           kv = ak(kk)
-          or%e(:nn,mm,kk) = -iu*mv*del2chi%e(:nn,mm,kk)+iu*kv*or%e(:nn,mm,kk) ! or now stores -d(del2(chi))/dp + r*d/dr(d/dz(psi))
-          op%e(:nn,mm,kk) = op%e(:nn,mm,kk)-mv*kv*oz%e(:nn,mm,kk) ! op now stores r*d(del2(chi))/dr + d/dp(d/dz(psi))
+          or%e(:min(or%loc_sz(1), nn-or%loc_st(1)),mm,kk) = &
+          -iu*mv*del2chi%e(:min(del2chi%loc_sz(1), nn-del2chi%loc_st(1)),mm,kk) + &
+          iu*kv*or%e(:min(or%loc_sz(1), nn-or%loc_st(1)),mm,kk) ! or now stores -d(del2(chi))/dp + r*d/dr(d/dz(psi))
+          op%e(:min(op%loc_sz(1), nn-op%loc_st(1)),mm,kk) = &
+          op%e(:min(op%loc_sz(1), nn-op%loc_st(1)),mm,kk) - &
+          mv*kv*oz%e(:min(oz%loc_sz(1), nn-oz%loc_st(1)),mm,kk) ! op now stores r*d(del2(chi))/dr + d/dp(d/dz(psi))
         endif
       enddo
     enddo
@@ -1353,6 +1352,7 @@ contains
     call chop(or, tfm); call chop(op, tfm)
 
     call trans(or, 'PPP', tfm); call trans(op, 'PPP', tfm)
+    
     if (or%loc_st(1)+1 .le. nr) then
       do mm = 1, or%loc_sz(2)
         do kk = 1, or%loc_sz(3)
@@ -1465,8 +1465,8 @@ contains
     deallocate( b )
     deallocate( c )
 
-    where (abs(real(s%e)) .lt. 5.D-14) s%e = cmplx(0.D0, aimag(s%e), p8)
-    where (abs(aimag(s%e)) .lt. 5.D-14) s%e = cmplx(real(s%e), 0.D0, p8)
+    ! where (abs(real(s%e)) .lt. 5.D-14) s%e = cmplx(0.D0, aimag(s%e), p8)
+    ! where (abs(aimag(s%e)) .lt. 5.D-14) s%e = cmplx(real(s%e), 0.D0, p8)
 
   end subroutine
 
@@ -1539,8 +1539,8 @@ contains
     deallocate( b )
     deallocate( c )
 
-    where (abs(real(s%e)) .lt. 5.D-14) s%e = cmplx(0.D0, aimag(s%e), p8)
-    where (abs(aimag(s%e)) .lt. 5.D-14) s%e = cmplx(real(s%e), 0.D0, p8)
+    ! where (abs(real(s%e)) .lt. 5.D-14) s%e = cmplx(0.D0, aimag(s%e), p8)
+    ! where (abs(aimag(s%e)) .lt. 5.D-14) s%e = cmplx(real(s%e), 0.D0, p8)
 
   end subroutine
 
@@ -1603,8 +1603,8 @@ contains
     deallocate( b )
     deallocate( c )
 
-    where (abs(real(s%e)) .lt. 5.D-14) s%e = cmplx(0.D0, aimag(s%e), p8)
-    where (abs(aimag(s%e)) .lt. 5.D-14) s%e = cmplx(real(s%e), 0.D0, p8)
+    ! where (abs(real(s%e)) .lt. 5.D-14) s%e = cmplx(0.D0, aimag(s%e), p8)
+    ! where (abs(aimag(s%e)) .lt. 5.D-14) s%e = cmplx(real(s%e), 0.D0, p8)
 
   end subroutine
 
@@ -1667,8 +1667,8 @@ contains
     deallocate( b )
     deallocate( c )
 
-    where (abs(real(s%e)) .lt. 5.D-14) s%e = cmplx(0.D0, aimag(s%e), p8)
-    where (abs(aimag(s%e)) .lt. 5.D-14) s%e = cmplx(real(s%e), 0.D0, p8)
+    ! where (abs(real(s%e)) .lt. 5.D-14) s%e = cmplx(0.D0, aimag(s%e), p8)
+    ! where (abs(aimag(s%e)) .lt. 5.D-14) s%e = cmplx(real(s%e), 0.D0, p8)
 
   end subroutine
 
@@ -1746,8 +1746,8 @@ contains
     deallocate( bo )
     deallocate( se )
 
-    where (abs(real(s%e)) .lt. 5.D-14) s%e = cmplx(0.D0, aimag(s%e), p8)
-    where (abs(aimag(s%e)) .lt. 5.D-14) s%e = cmplx(real(s%e), 0.D0, p8)
+    ! where (abs(real(s%e)) .lt. 5.D-14) s%e = cmplx(0.D0, aimag(s%e), p8)
+    ! where (abs(aimag(s%e)) .lt. 5.D-14) s%e = cmplx(real(s%e), 0.D0, p8)
 
   end subroutine
 
@@ -1827,8 +1827,8 @@ contains
     deallocate( bo )
     deallocate( se )
 
-    where (abs(real(s%e)) .lt. 5.D-14) s%e = cmplx(0.D0, aimag(s%e), p8)
-    where (abs(aimag(s%e)) .lt. 5.D-14) s%e = cmplx(real(s%e), 0.D0, p8)
+    ! where (abs(real(s%e)) .lt. 5.D-14) s%e = cmplx(0.D0, aimag(s%e), p8)
+    ! where (abs(aimag(s%e)) .lt. 5.D-14) s%e = cmplx(real(s%e), 0.D0, p8)
 
   end subroutine
 
@@ -1867,7 +1867,7 @@ contains
          ((s%glb_sz(1) .ne. nrdim) .or. &
           (s%glb_sz(2) .ne. npdim) .or. &
           (s%glb_sz(3) .ne. nzdim)) ) then
-      write(*,*) '[wanring] chop: scalar dimension incompatible with the dimension defined in a kit'
+      write(*,*) '[wanring] chop_index: scalar dimension incompatible with the dimension defined in a kit'
     endif
 
     nrc = nrc + s%nrchop_offset
@@ -1875,9 +1875,9 @@ contains
     nzc = nzc + s%nzchop_offset
     nzcu = nzcu - s%nzchop_offset
 
-    if (nrc .gt. nrdim) stop 'chop: chopping in r too large'
-    if (npc .gt. npdim) stop 'chop: chopping in p too large'
-    if (2*s%nzchop_offset .gt. nzcu - nzc) stop 'chop: chopping in z too large'
+    if (nrc .gt. nrdim) stop 'chop_index: chopping in r too large'
+    if (npc .gt. npdim) stop 'chop_index: chopping in p too large'
+    if (2*s%nzchop_offset .gt. nzcu - nzc) stop 'chop_index: chopping in z too large'
 
     do mm = 1, npc
       nrcs(mm) = max(min(nrc, nrc-m(mm)), 0)

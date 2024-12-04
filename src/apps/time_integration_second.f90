@@ -161,7 +161,7 @@ program time_integration_second
       endif
     endif
 
-!> Interim time record at every 100[==stepping_notice] steps
+!> Interim time record at every 10[==stepping_notice] steps
     if (rank_glb .eq. 0) then
       tsum = tsum + toc(); call tic();
       if (mod(curr_n, stepping_notice) .eq. 0) then

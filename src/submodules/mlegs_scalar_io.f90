@@ -9,6 +9,7 @@ contains
     logical :: is_binary_, is_global_
     integer(i4) :: status, i, j, k, fo
     character(:), allocatable :: dum1, dum2, bsstr
+    type(scalar) :: st
 
     dum1 = ntoa(formatted_num_str_len)
     dum2 = ntoa(formatted_num_str_len - 9)
@@ -29,7 +30,14 @@ contains
     endif
 
     if (is_global_) then
-      a = s%assemble() ! collect all local arrays into a global array at proc 1
+      if (s%axis_comm(3) .eq. 0) then
+        call st%init(s%glb_sz, s%axis_comm); st = s
+        call st%exchange(3, 1) ! because %assemble cannot work when dim3 resides locally
+        a = st%assemble() ! collect all local arrays into a global array at proc 1
+        call st%dealloc()
+      else
+        a = s%assemble() ! collect all local arrays into a global array at proc 1
+      endif
       if (rank_glb .eq. 0) then
         if (is_binary_) then
           open(newunit=fo, file=fn, form='unformatted', access='stream', status='replace')
@@ -105,6 +113,7 @@ contains
     integer(i4) :: status, i, j, k, is, fo
     character(:), allocatable :: dum1, dum2, bsstr
     real(p8), dimension(:), allocatable :: real_imag_pairs
+    type(scalar) :: st
 
     dum1 = ntoa(formatted_num_str_len)
     dum2 = ntoa(formatted_num_str_len - 9)
@@ -126,7 +135,6 @@ contains
 
     if (is_global_) then
       allocate( a(s%glb_sz(1), s%glb_sz(2), s%glb_sz(3)) )
-      ! a = s%assemble() ! collect all local arrays into a global array at proc 1
       if (rank_glb .eq. 0) then
         if (is_binary_) then
           open(newunit=fo, file=fn, form='unformatted', access='stream', &
@@ -173,7 +181,16 @@ contains
         close(fo)
       endif
       call MPI_barrier(comm_glb, MPI_err)
-      call s%disassemble(a)
+
+      if (s%axis_comm(3) .eq. 0) then
+        call st%init(s%glb_sz, s%axis_comm); st = s
+        call st%exchange(3, 1) ! because %assemble cannot work when dim3 resides locally
+        call st%disassemble(a) ! distribute the global array into a local array at each proc
+        call st%exchange(1, 3); s = st
+        call st%dealloc()
+      else
+        call s%disassemble(a) ! distribute the global array into a local array at each proc
+      endif
       deallocate( a )
     else
       if (is_binary_) then
