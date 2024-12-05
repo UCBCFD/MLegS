@@ -1199,6 +1199,7 @@ contains
 
     call psi%chop_offset(0); call chi%chop_offset(0)
     call chop(psi, tfm); call chop(chi, tfm)
+    call zeroat1(psi, tfm); call zeroat1(chi, tfm)
 
     call ur%dealloc(); call up%dealloc(); call uz%dealloc()
   end procedure
