@@ -370,24 +370,24 @@ module mlegs_scalar
 
   !> vector field projection to its toroidal and poloidal scalars
   !> vr, vp and vz must be in PPP
-  !> psi and del2chi will be in FFF
+  !> psi and chi will be in FFF
   interface vec2tp
-    module subroutine vector_projection(vr, vp, vz, psi, del2chi, tfm)
+    module subroutine vector_projection(vr, vp, vz, psi, chi, tfm)
       implicit none
       class(scalar), intent(in) :: vr, vp, vz
-      class(scalar), intent(inout) :: psi, del2chi
+      class(scalar), intent(inout) :: psi, chi
       class(tfm_kit) :: tfm
     end subroutine
   end interface
   public :: vec2tp
 
   !> (solenoidal) vector field reconstruction from its toroidal and poloidal scalars
-  !> psi and del2chi must be in FFF
+  !> psi and chi must be in FFF
   !> vr, vp and vz will be in PPP
   interface tp2vec
-    module subroutine vector_reconstruction(psi, del2chi, vr, vp, vz, tfm)
+    module subroutine vector_reconstruction(psi, chi, vr, vp, vz, tfm)
       implicit none
-      class(scalar), intent(in) :: psi, del2chi
+      class(scalar), intent(in) :: psi, chi
       class(scalar), intent(inout) :: vr, vp, vz
       class(tfm_kit) :: tfm
     end subroutine
@@ -395,12 +395,12 @@ module mlegs_scalar
   public:: tp2vec 
 
   !> (solenoidal) curl(vector) from the vector field's toroidal and poloidal scalars
-  !> psi and del2chi must be in FFF
+  !> psi and chi must be in FFF
   !> wr, wp and wz will be in PPP
   interface tp2curlvec
-    module subroutine curl_vector_reconstruction(psi, del2chi, wr, wp, wz, tfm)
+    module subroutine curl_vector_reconstruction(psi, chi, wr, wp, wz, tfm)
       implicit none
-      class(scalar), intent(in) :: psi, del2chi
+      class(scalar), intent(in) :: psi, chi
       class(scalar), intent(inout) :: wr, wp, wz
       class(tfm_kit) :: tfm
     end subroutine

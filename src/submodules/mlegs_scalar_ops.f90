@@ -1077,10 +1077,10 @@ contains
     if (vp%space(1:3).ne.'PPP') stop 'vector_projection: vr must be in PPP'
     if (vz%space(1:3).ne.'PPP') stop 'vector_projection: vz must be in PPP'
     if (psi%space(1:3).ne.'FFF') stop 'vector_projection: psi must be in FFF'
-    if (del2chi%space(1:3).ne.'FFF') stop 'vector_projection: del2chi must be in FFF'
+    if (chi%space(1:3).ne.'FFF') stop 'vector_projection: chi must be in FFF'
 
-    psi%e = 0.D0; del2chi%e = 0.D0
-    psi%ln = 0.D0; del2chi%ln = 0.D0
+    psi%e = 0.D0; chi%e = 0.D0
+    psi%ln = 0.D0; chi%ln = 0.D0
 
     call ur%init(vr%glb_sz, vr%axis_comm); ur = vr
     call up%init(vr%glb_sz, vr%axis_comm); up = vp
@@ -1148,7 +1148,7 @@ contains
 
     if (nz .gt. 1) then
       call psi%exchange(3, 1)
-      call del2chi%exchange(3, 1)
+      call chi%exchange(3, 1)
     endif
 
     do mm = 1, min(ur%loc_sz(2), npc-ur%loc_st(2))
@@ -1169,9 +1169,9 @@ contains
           psi%e(:nn,mm,kk) = -iu*mv*w1(:nn) - w2(:nn)
           w1 = 0.D0; w2 = 0.D0; call oemul(d(:nn,:), ur%e(:nr,mm,kk), w1(:nn))
           if (mv .ne. 0) call eomul(v(:nn,:), up%e(:nr,mm,kk), w2(:nn))
-          call eomul(t(:nn,:), uz%e(:nr,mm,kk), del2chi%e(:nn,mm,kk))
+          call eomul(t(:nn,:), uz%e(:nr,mm,kk), chi%e(:nn,mm,kk))
           kv = ak(psi%loc_st(3) + kk)
-          del2chi%e(:nn,mm,kk) = iu*kv*w1(:nn)+mv*kv*w2(:nn)-del2chi%e(:nn,mm,kk)
+          chi%e(:nn,mm,kk) = iu*kv*w1(:nn)+mv*kv*w2(:nn)-chi%e(:nn,mm,kk)
         enddo
       endif
       if (max(nzcu - psi%loc_st(3), 1) .le. psi%loc_sz(3)) then
@@ -1181,9 +1181,9 @@ contains
           psi%e(:nn,mm,kk) = -iu*mv*w1(:nn) - w2(:nn)
           w1 = 0.D0; w2 = 0.D0; call oemul(d(:nn,:), ur%e(:nr,mm,kk), w1(:nn))
           if (mv .ne. 0) call eomul(v(:nn,:), up%e(:nr,mm,kk), w2(:nn))
-          call eomul(t(:nn,:), uz%e(:nr,mm,kk), del2chi%e(:nn,mm,kk))
+          call eomul(t(:nn,:), uz%e(:nr,mm,kk), chi%e(:nn,mm,kk))
           kv = ak(psi%loc_st(3) + kk)
-          del2chi%e(:nn,mm,kk) = iu*kv*w1(:nn)+mv*kv*w2(:nn)-del2chi%e(:nn,mm,kk)
+          chi%e(:nn,mm,kk) = iu*kv*w1(:nn)+mv*kv*w2(:nn)-chi%e(:nn,mm,kk)
         enddo
       endif
 
@@ -1191,13 +1191,14 @@ contains
 
     if (nz .gt. 1) then
       call psi%exchange(1, 3)
-      call del2chi%exchange(1, 3)
+      call chi%exchange(1, 3)
     endif
 
+    chi = idel2_proln(chi, tfm)
     deallocate( fff, v, d, t, pfd, w1, w2 )
 
-    call psi%chop_offset(0); call del2chi%chop_offset(0)
-    call chop(psi, tfm); call chop(del2chi, tfm)
+    call psi%chop_offset(0); call chi%chop_offset(0)
+    call chop(psi, tfm); call chop(chi, tfm)
 
     call ur%dealloc(); call up%dealloc(); call uz%dealloc()
   end procedure
@@ -1217,23 +1218,20 @@ contains
     r = ell*sqrt((1.D0+tfm%x)/(1.D0-tfm%x))
 
     if (psi%space(1:3).ne.'FFF') stop 'vector_projection: psi must be in FFF'
-    if (del2chi%space(1:3).ne.'FFF') stop 'vector_projection: del2chi must be in FFF'
+    if (chi%space(1:3).ne.'FFF') stop 'vector_projection: chi must be in FFF'
     if (vr%space(1:3).ne.'PPP') stop 'vector_projection: vr must be in PPP'
     if (vp%space(1:3).ne.'PPP') stop 'vector_projection: vp must be in PPP'
     if (vz%space(1:3).ne.'PPP') stop 'vector_projection: vz must be in PPP'
 
-    call ur%init(del2chi%glb_sz, del2chi%axis_comm)
+    call ur%init(chi%glb_sz, chi%axis_comm)
     call up%init(psi%glb_sz, psi%axis_comm)
-    call uz%init(del2chi%glb_sz, del2chi%axis_comm)
+    call uz%init(chi%glb_sz, chi%axis_comm)
 
-    ur = del2chi; call ur%chop_offset(3) 
+    ur = chi; call ur%chop_offset(3) 
     up = psi; call up%chop_offset(3) 
-    uz = del2chi; call uz%chop_offset(3)
+    uz = chi; call uz%chop_offset(3) ! uz now stores chi
 
     call chop_index(ur, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
-
-    uz = idel2_proln(uz, tfm) ! uz now stores chi
-    call zeroat1(uz, tfm)
 
     ur = xxdx(uz, tfm) ! ur now actually stores r*d(chi)/dr
     up = xxdx(up, tfm) ! up now actually stores r*d(psi)/dr
@@ -1312,24 +1310,24 @@ contains
     r = ell*sqrt((1.D0+tfm%x)/(1.D0-tfm%x))
 
     if (psi%space(1:3).ne.'FFF') stop 'curl_vector_projection: psi must be in FFF'
-    if (del2chi%space(1:3).ne.'FFF') stop 'curl_vector_projection: del2chi must be in FFF'
+    if (chi%space(1:3).ne.'FFF') stop 'curl_vector_projection: chi must be in FFF'
     if (wr%space(1:3).ne.'PPP') stop 'curl_vector_projection: wr must be in PPP'
     if (wp%space(1:3).ne.'PPP') stop 'curl_vector_projection: wp must be in PPP'
     if (wz%space(1:3).ne.'PPP') stop 'curl_vector_projection: wz must be in PPP'
 
     call or%init(psi%glb_sz, psi%axis_comm)
-    call op%init(del2chi%glb_sz, del2chi%axis_comm)
+    call op%init(chi%glb_sz, chi%axis_comm)
     call oz%init(psi%glb_sz, psi%axis_comm)
 
-    or = psi    ; call or%chop_offset(3)
-    op = del2chi; call op%chop_offset(3)
-    oz = psi    ; call oz%chop_offset(3)
+    or = psi; call or%chop_offset(3)
+    op = chi; call op%chop_offset(3)
+    oz = psi; call oz%chop_offset(3) ! oz now stores psi
 
     call chop_index(or, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
-    oz = oz            ! oz now stores psi
-
     or = xxdx(oz, tfm) ! or now actually stores r*d(psi)/dr
+
+    op = del2(op, tfm)
     op = xxdx(op, tfm) ! op now actually stores r*d(del2(chi))/dr
 
     do mm = 1, min(or%loc_sz(2), npc - or%loc_st(2))
@@ -1339,7 +1337,7 @@ contains
         if ((kk .le. nzc) .or. (kk .ge. nzcu)) then
           kv = ak(kk)
           or%e(:min(or%loc_sz(1), nn-or%loc_st(1)),mm,kk) = &
-          -iu*mv*del2chi%e(:min(del2chi%loc_sz(1), nn-del2chi%loc_st(1)),mm,kk) + &
+          -iu*mv*chi%e(:min(chi%loc_sz(1), nn-chi%loc_st(1)),mm,kk) + &
           iu*kv*or%e(:min(or%loc_sz(1), nn-or%loc_st(1)),mm,kk) ! or now stores -d(del2(chi))/dp + r*d/dr(d/dz(psi))
           op%e(:min(op%loc_sz(1), nn-op%loc_st(1)),mm,kk) = &
           op%e(:min(op%loc_sz(1), nn-op%loc_st(1)),mm,kk) - &

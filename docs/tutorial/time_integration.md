@@ -127,7 +127,7 @@ Check that the program generates two field data, `sfld000000_PPP` at \\( t = 0 \
 ```bash
 #! bash
 cd ../output/
-# See if the library files are all generated and stored in the lib directory.
+# See all generated fields and data
 ls ./fld/ ./dat/
 ```
 
@@ -346,7 +346,7 @@ This second-order time integration program generates the same dataset as the pre
 ```bash
 #! bash
 cd ../output/
-# See if the library files are all generated and stored in the lib directory.
+# See all generated fields and data
 ls ./fld/ ./dat/
 ```
 
