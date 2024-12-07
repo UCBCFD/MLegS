@@ -127,7 +127,7 @@ contains
         this%chopp = npchop
         
         allocate( this%z(nz) )
-        this%z = (/ (zlen/i, i = 0, nz-1) /)
+        this%z = (/ (zlen/nz*i, i = 0, nz) /)
 
         allocate( this%ak(nz) )
         this%ak = (/ (2.D0*pi/zlen*i, i = -nz, -1) /)

@@ -81,7 +81,7 @@ program laplacian
 
 !!!............ Laplacian
 !> Obtain Laplacian of s and replace the data
-  s = del2(s, tfm)
+  call del2(s, tfm)
 
 !> Interim time record
   if (rank_glb .eq. 0) then

@@ -51,7 +51,7 @@ program time_integration_second
   if (exists) then
     call read_input(input_params_file)
   else
-    stop 'time_integration_first: This tutorial requires the preset input params. ' // &
+    stop 'time_integration_second: This tutorial requires the preset input params. ' // &
          'Follow the instructions in [root_dir]/tutorials/05_time_integration.ipynb'
   endif
 

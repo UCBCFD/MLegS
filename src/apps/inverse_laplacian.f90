@@ -73,7 +73,7 @@ program inverse_laplacian
 
 !!!............ Inverse Laplacian
 !> Obtain Laplacian of s and replace the data
-  s = idel2(s, tfm)
+  call idel2(s, tfm)
 
 !> Interim time record
   if (rank_glb .eq. 0) then

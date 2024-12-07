@@ -187,7 +187,7 @@ contains
     
     glb = 0.D0
     call trans(psi, 'FFF', tfm);
-    psi = idelsqp(psi, tfm)
+    call idelsqp(psi, tfm)
     call zeroat1(psi, tfm)
 
     do i = 1, nr
@@ -206,7 +206,7 @@ contains
     
     glb = 0.D0
     call trans(chi, 'FFF', tfm)
-    chi = idelsqp(chi, tfm)
+    call idelsqp(chi, tfm)
     call zeroat1(chi, tfm)
 
     deallocate( glb )

@@ -136,7 +136,7 @@ program wave_propagation_1d
     curr_t = curr_t + dt
 
     call trans(s, 'FFF', tfm)
-    del2s = del2(s, tfm) ! compute del^2(s)
+    call del2(s, tfm) ! compute del^2(s)
 !> For time integration
     call trans(s, 'FFF', tfm); call trans(dsdt, 'FFF', tfm); call trans(del2s, 'FFF', tfm)
     call fefe(s, dsdt, dt, tfm) ! forward euler
@@ -252,12 +252,12 @@ contains
   function origin_eval(s) result(itg)
     implicit none
     type(scalar) :: s
+    complex(p8), dimension(:), allocatable :: calc
     real(p8) :: itg
 
-    itg = 0.D0
-    if ((s%loc_st(1).eq.0) .and. (s%loc_st(2).eq.0) .and. (s%loc_st(3).eq.0)) itg = s%e(1,1,1)
-    call MPI_allreduce(itg, itg, 1, MPI_real8, MPI_sum, comm_glb, MPI_err)
+    calc = calcat0(s, tfm)
+    itg = calc(1)
 
   end function
-
+  
 end program

@@ -43,7 +43,7 @@ MLegS can quickly compute its Laplacian, \\( \nabla^2 s \\), directly in spectra
 ```fortran
 !# Fortran
 ! ...
-s = del2(s, tfm)
+call del2(s, tfm)
 ! ...
 ```
 
@@ -52,13 +52,13 @@ The above command replaces the spectral information of `s` with that of its Lapl
 ```fortran
 !# Fortran
 ! ...
-call s2%init(s%glb_sz, s%axis_comm)
-s%space = 'FFF'
-s2 = del2(s, tfm)
+call s2%init(s%glb_sz, s%axis_comm); s2%space = 'FFF'
+s2 = s
+call del2(s, tfm)
 ! ...
 ```
 
-This way, `s` retains the original scalar data, while `s2` contains the Laplacian of the scalar.
+This way, `s2` retains the original scalar data, while `s` contains the Laplacian of the scalar.
 
 The program `laplacian.f90` performs these calculation steps. Run it to obtain the Laplacian data output, which will be saved in `[root_dir]/output/dat/scalar_FFF_Laplacian.dat`.
 
@@ -220,7 +220,7 @@ MLegS also provides the inverse Laplacian operation, `idel2()`, which yields the
 ! ...
 call mload(trim(adjustl(LOGDIR)) // 'scalar_FFF_Laplacian.dat', s)
 ! ...
-s = idel2(s, tfm)
+call idel2(s, tfm)
 ! ...
 call msave(s, trim(adjustl(LOGDIR)) // 'scalar_FFF_from_inv.dat')
 ! ...
@@ -272,7 +272,7 @@ MLegS manages these two constants, \\( C_1 \\) and \\( C_2 \\), as follows to *s
   !# Fortran
   ! ...
   c = some_nonzero_real_value
-  s = idel2(s, tfm, ln=c)
+  call idel2(s, tfm, ln=c)
   ! ...
   ```
 
@@ -306,7 +306,7 @@ This operation is performed via `delsqp()` in MLegS:
 
 ```fortran
 !# Fortran
-s = delsqp(s, tfm) ! corresponding inversion operation is idelsqp(s, tfm)
+call delsqp(s, tfm) ! corresponding inversion operation is idelsqp(s, tfm)
 ```
 
 ### 2D Laplacian \\( \nabla_\perp^2 \\)
@@ -319,7 +319,7 @@ This operation is performed via `del2h()` in MLegS:
 
 ```fortran
 !# Fortran
-s = del2h(s, tfm)
+call del2h(s, tfm)
 ```
 
 ### Radial Derivative \\( rD_r \\)
@@ -332,7 +332,7 @@ This operation is performed via `xxdx()` in MLegS:
 
 ```fortran
 !# Fortran
-s = xxdx(s, tfm)
+call xxdx(s, tfm)
 ```
 
 
@@ -346,7 +346,7 @@ This operation is performed via `helm()` in MLegS:
 
 ```fortran
 !# Fortran
-s = helm(s, alpha, tfm) ! corresp. inversion operation is ihelm(s, alpha, tfm)
+call helm(s, alpha, tfm) ! corresp. inversion operation is ihelm(s, alpha, tfm)
 ```
 
 
@@ -360,7 +360,7 @@ This operation is performed via `helm()` in MLegS:
 
 ```fortran
 !# Fortran
-s = helmp(s, p, alpha, beta, tfm) ! corresp. inversion operation is ihelmp(s, p, alpha, beta, tfm)
+call helmp(s, p, alpha, beta, tfm) ! corresp. inversion operation is ihelmp(s, p, alpha, beta, tfm)
 ```
 
 ---

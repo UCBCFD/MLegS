@@ -212,6 +212,8 @@ contains
     real(p8), dimension(:), allocatable :: ak
     integer(i4) :: mm, nn, n
 
+    type(scalar) :: so
+
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
     if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
@@ -238,6 +240,9 @@ contains
       so%e(1,1,1) = s%ln/ell**2.D0/exp(tfm%lognorm(1,1))
     endif
 
+    s = so
+    call so%dealloc()
+
     return
   end procedure
 
@@ -247,6 +252,8 @@ contains
     integer(i4), dimension(:), allocatable :: nrcs, m
     real(p8), dimension(:), allocatable :: ak
     integer(i4) :: mm, nn, n
+
+    type(scalar) :: so
 
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
@@ -277,6 +284,9 @@ contains
       so%e(1,1,:) = 0.D0
     endif
 
+    s = so
+    call so%dealloc()
+
     return
   end procedure
 
@@ -287,6 +297,8 @@ contains
     real(p8), dimension(:), allocatable :: ak
     integer(i4) :: mm, nn, n
     type(real_bndm) :: xxdx_bnd
+
+    type(scalar) :: so
 
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
@@ -319,6 +331,9 @@ contains
     endif
     if (nz .gt. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
 
+    s = so
+    call so%dealloc()
+
     return
   end procedure
 
@@ -329,6 +344,8 @@ contains
     real(p8), dimension(:), allocatable :: ak
     integer(i4) :: mm, nn, kk, n
     type(real_bndm) :: del2h_bnd
+
+    type(scalar) :: so
 
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
@@ -369,6 +386,9 @@ contains
     endif
     if (nz .gt. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
 
+    s = so
+    call so%dealloc()
+
     return
   end procedure
 
@@ -379,6 +399,8 @@ contains
     real(p8), dimension(:), allocatable :: ak
     integer(i4) :: mm, nn, kk, n
     type(real_bndm) :: del2_bnd
+
+    type(scalar) :: so
 
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
@@ -419,6 +441,9 @@ contains
     endif
     if (nz .gt. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
 
+    s = so
+    call so%dealloc()
+
     return
   end procedure
 
@@ -430,6 +455,8 @@ contains
     integer(i4) :: mm, nn, kk, n
     type(real_bndm) :: del2_bnd
     real(p8), dimension(:,:), allocatable :: del2_pre
+
+    type(scalar) :: so
 
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
@@ -508,6 +535,9 @@ contains
     ! where (abs(real(so%e)) .lt. 5.D-14) so%e = cmplx(0.D0, aimag(so%e), p8)
     ! where (abs(aimag(so%e)) .lt. 5.D-14) so%e = cmplx(real(so%e), 0.D0, p8)
 
+    s = so
+    call so%dealloc()
+
     return
   end procedure
 
@@ -519,6 +549,8 @@ contains
     integer(i4) :: mm, nn, kk, n
     type(real_bndm) :: del2_bnd
     real(p8), dimension(:,:), allocatable :: del2_pre
+
+    type(scalar) :: so
 
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
@@ -592,6 +624,9 @@ contains
     ! where (abs(real(so%e)) .lt. 5.D-14) so%e = cmplx(0.D0, aimag(so%e), p8)
     ! where (abs(aimag(so%e)) .lt. 5.D-14) so%e = cmplx(real(so%e), 0.D0, p8)
 
+    s = so
+    call so%dealloc()
+
     return
   end procedure
 
@@ -600,6 +635,8 @@ contains
     integer(i4) :: nrc, npc, nzc, nzcu
     integer(i4), dimension(:), allocatable :: nrcs, m
     real(p8), dimension(:), allocatable :: ak
+
+    type(scalar) :: so
 
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
@@ -615,7 +652,7 @@ contains
 
     call so%init(s%glb_sz, s%axis_comm)
     so = s
-    so = del2(so, tfm)
+    call del2(so, tfm)
     so%e = so%e + alpha*s%e
     so%ln = alpha*s%ln
 
@@ -629,6 +666,8 @@ contains
     real(p8), dimension(:), allocatable :: ak
     integer(i4) :: mm, nn, kk, n
     type(real_bndm) :: helm_bnd
+
+    type(scalar) :: so
 
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
@@ -679,6 +718,9 @@ contains
     ! where (abs(real(so%e)) .lt. 5.D-14) so%e = cmplx(0.D0, aimag(so%e), p8)
     ! where (abs(aimag(so%e)) .lt. 5.D-14) so%e = cmplx(real(so%e), 0.D0, p8)
 
+    s = so
+    call so%dealloc()
+
     return
   end procedure
 
@@ -689,7 +731,7 @@ contains
     real(p8), dimension(:), allocatable :: ak
     integer(i4) :: n
 
-    type(scalar) :: s2, sp
+    type(scalar) :: s2, sp, so
 
     if (.not. (mod(power,2).eq.0) .and. (power.ge.4)) stop 'helmp: even power greater than or equal to 4'
     if (power .gt. 8) stop 'helmp: power must be less than or equal to 8 (supported power = 4, 6 or 8)'
@@ -711,12 +753,12 @@ contains
 
     call s2%init(s%glb_sz, s%axis_comm)
     s2 = s
-    s2 = del2(s2, tfm)
+    call del2(s2, tfm)
 
     call sp%init(s2%glb_sz, s2%axis_comm)
     sp = s2
     do n = 1, power/2-1
-      sp = del2(sp, tfm)
+      call del2(sp, tfm)
     enddo
 
     so%e = sp%e + beta*s2%e + alpha*s%e
@@ -724,6 +766,9 @@ contains
 
     call s2%dealloc()
     call sp%dealloc()
+
+    s = so
+    call so%dealloc()
 
     return
   end procedure
@@ -737,6 +782,8 @@ contains
     type(real_bndm) :: helmp_bnd, del2_bnd
     real(p8), dimension(:), allocatable :: bl, bl2
     real(p8), dimension(:,:), allocatable :: w
+
+    type(scalar) :: so
 
     if (.not. ((mod(power,2).eq.0) .and. (power.ge.4))) stop 'ihelmp: even power greater than or equal to 4'
     if (power .gt. 8) stop 'ihelmp: power must be less than or equal to 8 (supported power = 4, 6 or 8)'
@@ -817,7 +864,58 @@ contains
     deallocate( bl )
     deallocate( bl2 )
 
+    s = so
+    call so%dealloc()
+
     return
+  end procedure
+
+  module procedure fftreat
+    integer(i4) :: ns, ns0, mm, kk, i
+    real(p8) :: ln
+    type(scalar) :: so
+
+    integer(i4) :: nrdim, npdim, nzdim
+    integer(i4) :: nrc, npc, nzc, nzcu
+    integer(i4), dimension(:), allocatable :: nrcs, m
+    real(p8), dimension(:), allocatable :: ak
+    integer(i4) :: mm, kk
+
+    call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
+
+    ns = nr * 3/4
+    ns0 = min(ns+4, nr)
+
+    call so%init(s%glb_sz, s%axis_comm)
+    so = s; ln = s%ln
+    call del2(so, tfm)
+    if (nz .gt. 1) call so%exchange(3, 1)
+    call rtrans_backward(so, tfm)
+    so%space = 'PFF' ! this in non-standard yet neccesary for calculation in this subroutine
+
+    if (so%loc_st(2) .eq. 0) then
+      so%e(ns0:nr, 2:min(so%loc_sz(2), npc-so%loc_st(2)), :) = 0.D0
+    else
+      so%e(ns0:nr, 1:min(so%loc_sz(2), npc-so%loc_st(2)), :) = 0.D0
+    endif
+
+    do mm = 1, min(so%loc_sz(2), npc-so%loc_st(2))
+      do kk = 1, so%loc_sz(3)
+        if ((so%loc_st(3)+kk .le. nzc) .or. (so%loc_st(3)+kk .ge. nzcu)) then
+          do i = 1, 5
+            so%e(ns:nr, mm, kk) = smooth(so%e(ns:nr, mm, kk))
+          enddo
+        endif
+      enddo
+    enddo
+
+    so%space = 'FFF'
+    call rtrans_forward(so, tfm)
+    if (nz .gt. 1) call so%exchange(1, 3)
+    call idel2_preln(so, tfm, preln = ln)
+
+    s = so
+    call so%dealloc()
   end procedure
 
   module procedure fefe
@@ -840,11 +938,11 @@ contains
       if (visc .lt. 5.D-14) then ! inviscid (zero viscosity) -- diffusive operator is null
         svis%e = 0.D0
       else ! viscous (nonzero viscosity) -- diffusive operator is visc*del^2
-        svis = del2(s, tfm)
+        call del2(svis, tfm)
         svis%e = svis%e * visc
       endif
     else ! nonzero hyperviscosity -- diffusive operator is visc*del^2 + hypervisc*del^p
-      svis = helmp(s, hyperpow, 0.D0, visc/(hypervisc*(-1.D0)**(hyperpow/2+1)), tfm)
+      call helmp(svis, hyperpow, 0.D0, visc/(hypervisc*(-1.D0)**(hyperpow/2+1)), tfm)
       svis%e = svis%e * (hypervisc*(-1.D0)**(hyperpow/2+1))
     endif
 
@@ -884,11 +982,11 @@ contains
       if (visc .lt. 5.D-14) then ! inviscid (zero viscosity) -- diffusive operator is null
         svis%e = 0.D0
       else ! viscous (nonzero viscosity) -- diffusive operator is visc*del^2
-        svis = del2(s, tfm)
+        call del2(svis, tfm)
         svis%e = svis%e * visc
       endif
     else ! nonzero hyperviscosity -- diffusive operator is visc*del^2 + hypervisc*del^p
-      svis = helmp(s, hyperpow, 0.D0, visc/(hypervisc*(-1.D0)**(hyperpow/2+1)), tfm)
+      call helmp(svis, hyperpow, 0.D0, visc/(hypervisc*(-1.D0)**(hyperpow/2+1)), tfm)
       svis%e = svis%e * (hypervisc*(-1.D0)**(hyperpow/2+1))
     endif
 
@@ -900,11 +998,11 @@ contains
         if (visc .lt. 5.D-14) then ! inviscid (zero viscosity) -- diffusive operator is null
           svis%e = 0.D0
         else ! viscous (nonzero viscosity) -- diffusive operator is visc*del^2
-          svis_p = del2(s_p, tfm)
+          call del2(svis_p, tfm)
           svis_p%e = svis_p%e * visc
         endif
       else ! nonzero hyperviscosity -- diffusive operator is visc*del^2 + hypervisc*del^p
-        svis_p = helmp(s_p, hyperpow, 0.D0, visc/(hypervisc*(-1.D0)**(hyperpow/2+1)), tfm)
+        call helmp(svis_p, hyperpow, 0.D0, visc/(hypervisc*(-1.D0)**(hyperpow/2+1)), tfm)
         svis_p%e = svis_p%e * (hypervisc*(-1.D0)**(hyperpow/2+1))
       endif
     endif
@@ -948,7 +1046,8 @@ contains
         a = -1.D0 / (dt_*visc)
         sh%ln = a*sh%ln
         sh%e = a*sh%e
-        s = ihelm(sh, a, tfm)
+        call ihelm(sh, a, tfm)
+        s = sh
       endif
     else ! nonzero hyperviscosity -- diffusive operator is visc*del^2 + hypervisc*del^p
          ! F(K+1) = (1-DT*VISC*DEL2-DT*VISCP*DELP)^(-1) F(K+1/2)
@@ -958,7 +1057,8 @@ contains
       b = visc/(hypervisc*(-1.D0)**(hyperpow/2+1))
       sh%ln = a*sh%ln
       sh%e = a*sh%e
-      s = ihelmp(sh, hyperpow, a, b, tfm)
+      call ihelmp(sh, hyperpow, a, b, tfm)
+      s = sh
     endif
 
     call sh%dealloc()
@@ -993,11 +1093,11 @@ contains
       if (visc .lt. 5.D-14) then ! inviscid (zero viscosity) -- diffusive operator is null
         svis%e = 0.D0
       else ! viscous (nonzero viscosity) -- diffusive operator is visc*del^2
-        svis = del2(s, tfm)
+        call del2(svis, tfm)
         svis%e = svis%e * visc
       endif
     else ! nonzero hyperviscosity -- diffusive operator is visc*del^2 + hypervisc*del^p
-      svis = helmp(s, hyperpow, 0.D0, visc/(hypervisc*(-1.D0)**(hyperpow/2+1)), tfm)
+      call helmp(svis, hyperpow, 0.D0, visc/(hypervisc*(-1.D0)**(hyperpow/2+1)), tfm)
       svis%e = svis%e * (hypervisc*(-1.D0)**(hyperpow/2+1))
     endif
 
@@ -1010,7 +1110,8 @@ contains
         a = -2.D0 / (dt_*visc)
         sh%ln = a*(sh%ln + dt_/2.D0*svis%ln)
         sh%e = a*(sh%e + dt_/2.D0*svis%e)
-        s = ihelm(sh, a, tfm)
+        call ihelm(sh, a, tfm)
+        s = sh
       endif
     else ! nonzero hyperviscosity -- diffusive operator is visc*del^2 + hypervisc*del^p
          ! F(K+1) = (1-DT/2*VISC*DEL2-DT/2*VISCP*DELP)^(-1) [F(K+1/2) + DT/2*LTERM(K)]
@@ -1020,7 +1121,8 @@ contains
       b = visc/(hypervisc*(-1.D0)**(hyperpow/2+1))
       sh%ln = a*(sh%ln + dt_/2.D0*svis%ln)
       sh%e = a*(sh%e + dt_/2.D0*svis%e)
-      s = ihelmp(sh, hyperpow, a, b, tfm)
+      call ihelmp(sh, hyperpow, a, b, tfm)
+      s = sh
     endif
 
     s_p = s
@@ -1194,7 +1296,7 @@ contains
       call chi%exchange(1, 3)
     endif
 
-    chi = idel2_proln(chi, tfm)
+    call idel2_proln(chi, tfm)
     deallocate( fff, v, d, t, pfd, w1, w2 )
 
     call psi%chop_offset(0); call chi%chop_offset(0)
@@ -1234,8 +1336,8 @@ contains
 
     call chop_index(ur, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
-    ur = xxdx(uz, tfm) ! ur now actually stores r*d(chi)/dr
-    up = xxdx(up, tfm) ! up now actually stores r*d(psi)/dr
+    call xxdx(ur, tfm) ! ur now actually stores r*d(chi)/dr
+    call xxdx(up, tfm) ! up now actually stores r*d(psi)/dr
 
     do mm = 1, min(ur%loc_sz(2), npc - ur%loc_st(2))
       nn = nrcs(ur%loc_st(2) + mm)
@@ -1278,7 +1380,7 @@ contains
       enddo
     endif
 
-    uz = del2h(uz, tfm) ! now uz stores del2h(chi)
+    call del2h(uz, tfm) ! now uz stores del2h(chi)
     uz%e = -uz%e ! now uz stores -del2h(chi)
 
     call uz%chop_offset(0)
@@ -1326,10 +1428,10 @@ contains
 
     call chop_index(or, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
-    or = xxdx(oz, tfm) ! or now actually stores r*d(psi)/dr
+    call xxdx(or, tfm) ! or now actually stores r*d(psi)/dr
 
-    op = del2(op, tfm)
-    op = xxdx(op, tfm) ! op now actually stores r*d(del2(chi))/dr
+    call del2(op, tfm)
+    call xxdx(op, tfm) ! op now actually stores r*d(del2(chi))/dr
 
     do mm = 1, min(or%loc_sz(2), npc - or%loc_st(2))
       nn = nrcs(or%loc_st(2) + mm)
@@ -1372,7 +1474,7 @@ contains
       enddo
     endif
 
-    oz = del2h(oz, tfm) ! now oz stores del2h(psi)
+    call del2h(oz, tfm) ! now oz stores del2h(psi)
     oz%e = -oz%e ! now oz stores -del2h(psi)
 
     call oz%chop_offset(0)
@@ -1967,5 +2069,35 @@ contains
 
   return
   end subroutine
+
+! ======================================================================================================== !
+
+  function smooth(a) result(as)
+    implicit none
+
+    complex(p8), dimension(:), intent(in) :: a
+    complex(p8), dimension(size(a))       :: as
+
+    integer                               :: i, ni
+    real(p8), dimension(3), parameter     :: fae = (/ .2D0, .3D0, .5D0 /)
+    real(p8)                              :: f
+
+    ni = size(a)
+
+    if (ni .lt. 3) then
+      stop 'smooth: the input length must be longer than or equal to 3.'
+    endif
+
+    as = 0.D0
+    as(1) = a(1)
+    as(ni-2:ni) = as(ni-2:ni) + a(ni)*fae
+
+    do i = 2, ni-1
+      f = (1.D0 + (ni - i)/(ni - 1.D0)) * 0.5D0
+      as(i-1:i+1) = as(i-1:i+1) + a(i) * (/ (1.D0-f)/2.D0, f, (1.D0-f)/2.D0 /)
+    enddo
+
+    return
+  end function
 
 end submodule

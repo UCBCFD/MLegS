@@ -272,8 +272,8 @@ What does this formula imply? If the toroidal-poloidal scalar pair \\( (\psi, \c
 ```fortran
 !# Fortran
 ! ...
-del2chi = del2(chi, tfm) ! Compute the Laplacian of chi
-call tp2vec(del2chi, psi, wr, wp, wz, tfm) ! (wr, wp, wz) represents the curl of the vector field
+call del2(chi, tfm) ! Compute the Laplacian of chi
+call tp2vec(chi, psi, wr, wp, wz, tfm) ! (wr, wp, wz) represents the curl of the vector field
 ! ...
 ```
 

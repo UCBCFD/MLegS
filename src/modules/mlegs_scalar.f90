@@ -165,126 +165,125 @@ module mlegs_scalar
   end interface
   public :: zeroat1
 
+  !> smooth out the far field values of scalar
+  interface fftreat
+    module subroutine fftreat(s, tfm)
+      implicit none
+      class(scalar), intent(inout) :: s
+      class(tfm_kit), intent(in) :: tfm      
+    end subroutine
+  end interface
+  public :: fftreat
+
   !> (1-x)^(-2)*del^2_perp
   interface delsqp
-    module function delsqp(s, tfm) result(so)
+    module subroutine delsqp(s, tfm)
       implicit none
-      class(scalar) :: s
+      class(scalar), intent(inout) :: s
       class(tfm_kit) :: tfm
-      type(scalar) :: so
-    end function
+    end subroutine
   end interface
   public :: delsqp
 
   !> inverse of (1-x)^(-2)*del^2_perp
   interface idelsqp
-    module function idelsqp(s, tfm) result(so)
+    module subroutine idelsqp(s, tfm)
       implicit none
-      class(scalar) :: s
+      class(scalar), intent(inout) :: s
       class(tfm_kit) :: tfm
-      type(scalar) :: so
-    end function
+    end subroutine
   end interface
   public :: idelsqp
 
   !> (1-x)^2*d()/dx (equivalent to r*d()/dr)
   interface xxdx
-    module function xxdx(s, tfm) result(so)
+    module subroutine xxdx(s, tfm)
       implicit none
-      class(scalar) :: s
+      class(scalar), intent(inout) :: s
       class(tfm_kit) :: tfm
-      type(scalar) :: so
-    end function
+    end subroutine
   end interface
   public :: xxdx
 
   !> del^2_perp
   interface del2h
-    module function del2h(s, tfm) result(so)
+    module subroutine del2h(s, tfm)
       implicit none
-      class(scalar) :: s
+      class(scalar), intent(inout) :: s
       class(tfm_kit) :: tfm
-      type(scalar) :: so
-    end function
+    end subroutine
   end interface
   public :: del2h
 
   !> del^2
   interface del2
-    module function del2(s, tfm) result(so)
+    module subroutine del2(s, tfm)
       implicit none
-      class(scalar) :: s
+      class(scalar), intent(inout) :: s
       class(tfm_kit) :: tfm
-      type(scalar) :: so
-    end function
+    end subroutine
   end interface
   public :: del2
 
   !> inverse of del^2 (predetermined ln, or ln from scalar entry (1,1,1))
   interface idel2
-    module function idel2_preln(s, tfm, preln) result (so)
+    module subroutine idel2_preln(s, tfm, preln)
       implicit none
-      class(scalar) :: s
+      class(scalar), intent(inout) :: s
       class(tfm_kit) :: tfm
       real(p8) :: preln
-      type(scalar) :: so
-    end function
-    module function idel2_proln(s, tfm) result (so)
+    end subroutine
+    module subroutine idel2_proln(s, tfm)
       implicit none
-      class(scalar) :: s
+      class(scalar), intent(inout) :: s
       class(tfm_kit) :: tfm
-      type(scalar) :: so
-    end function
+    end subroutine
   end interface
   public :: idel2
 
   !> helmholtz (del^2 + alpha*identity)
   interface helm
-    module function helm(s, alpha, tfm) result (so)
+    module subroutine helm(s, alpha, tfm)
       implicit none
-      class(scalar) :: s
+      class(scalar), intent(inout) :: s
       real(p8) :: alpha
       class(tfm_kit) :: tfm
-      type(scalar) :: so
-    end function
+    end subroutine
   end interface
   public :: helm
 
   !> inverse of helmholtz
   interface ihelm
-    module function ihelm(s, alpha, tfm) result (so)
+    module subroutine ihelm(s, alpha, tfm)
       implicit none
-      class(scalar) :: s
+      class(scalar), intent(inout) :: s
       real(p8) :: alpha
       class(tfm_kit) :: tfm
-      type(scalar) :: so
-    end function
+    end subroutine
   end interface
   public :: ihelm
 
   !> powered helmholtz (del^p + beta*del^2 + alpha*identity)
   interface helmp
-    module function helmp(s, power, alpha, beta, tfm) result (so)
+    module subroutine helmp(s, power, alpha, beta, tfm)
       implicit none
-      class(scalar) :: s
+      class(scalar), intent(inout) :: s
       integer(i4) :: power
       real(p8) :: alpha, beta
       class(tfm_kit) :: tfm
-      type(scalar) :: so
-    end function
+    end subroutine
   end interface
   public :: helmp
 
   !> inverse of powered helmholtz (del^p + beta*del^2 + alpha*identity)
   interface ihelmp
-    module function ihelmp(s, power, alpha, beta, tfm) result (so)
+    module subroutine ihelmp(s, power, alpha, beta, tfm)
       implicit none
-      class(scalar) :: s
+      class(scalar), intent(inout) :: s
       integer(i4) :: power
       real(p8) :: alpha, beta
       class(tfm_kit) :: tfm
-      type(scalar) :: so
-    end function
+    end subroutine
   end interface
   public :: ihelmp
 
