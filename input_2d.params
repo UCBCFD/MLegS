@@ -1,0 +1,28 @@
+!!! COMPUTATIONAL DOMAIN INFO !!!
+# ---------- NR ----------- NP ----------- NZ ---------------------------------- ! for 2D (polar) calculations, set NZ = 1
+             32             48              1    
+# ------ NRCHOP ------- NPCHOP ------- NZCHOP ---------------------------------- ! for 2D (polar) calculations, set NZCHOP = 1
+             32             25              1    
+# --------- ELL --------- ZLEN ------ ZLENxPI ---(IF ZLENxPI==T, ZLEN=ZLEN*PI)-- ! for 2D calculations, ZLEN is irrelevant. Simply set it to any positive value.
+           1.D0           1.D0              F
+#
+!!! TIME STEPPING INFO !!!
+# ---------- DT ----------- TI --------- TOTT ----------- NI --------- TOTN ----
+          1.D-3           0.D0          1.D+1              0          10000
+#
+!!! FIELD PROPERTY INFO !!!
+# -------- VISC ----- HYPERPOW ---- HYPERVISC ----------------------------------
+          5.D-3              0           0.D0
+#
+!!! FIELD SAVE INFO !!!
+# --------------------- FLDDIR -------------------------------------------------
+                  ./output/fld
+# ---- ISFLDSAV -- FLDSAVINTVL ---(IF ISFLDSAV!=T, FIELDS ARE NOT SAVED)--------
+              T            100
+#
+!!! DATA LOGGING INFO !!!
+# --------------------- LOGDIR -------------------------------------------------
+                  ./output/dat
+# ---- ISLOGSAV -- LOGSAVINTVL ---(IF ISLOGSAV!=T, LOGS ARE NOT GENERATED)------
+              T            100
+/* ------------------------------ END OF INPUT ------------------------------ */

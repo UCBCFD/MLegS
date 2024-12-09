@@ -1,19 +1,19 @@
 # Compiler (ifx or gfortran)
-OMPI_FC = ifx
-# Disclaimer -- compiling on Intel compilers (ifx) has been ONLY verified at the archetype version (ver.0)
+# change gfortran to ifx if one wants to use Intel's oneAPI compiler
+OMPI_FC = gfortran
 
 # Compiler flags
 ifeq ($(OMPI_FC), ifx)
   FC = mpiifx
-  FFLAGS = -O3 -mcmodel=medium -g -std18 -module $(MOD_DIR) -I$(INC_DIR) -L$(LIB_DIR)
+  FFLAGS = -O3 -mcmodel=medium -g -std08 -module $(MOD_DIR) -I$(INC_DIR) -L$(LIB_DIR)
 else ifeq ($(OMPI_FC), gfortran)
   FC = mpifort
-  FFLAGS = -O3 -mcmodel=medium -g -std=f2018 -J$(MOD_DIR) -I$(INC_DIR) -L$(LIB_DIR)
+  FFLAGS = -O3 -mcmodel=medium -g -std=f2008 -J$(MOD_DIR) -I$(INC_DIR) -L$(LIB_DIR)
 else
   $(error Untested compiler: $(FC). Tested compilers are gfortran <v11.2 or later> and ifx <v2024.1.0 or later>)
 endif
 
-EXTLIBS = -llapack -lblas -lfm -lffte -I${MKLROOT}/include/fftw -mkl
+EXTLIBS = -llapack -lblas -lfm -lffte
 
 # Source and build directories
 MODULE_DIR = src/modules
@@ -45,7 +45,7 @@ all: $(MAIN_EXES)
 
 # Link object files to create the executable
 $(MAIN_EXES): $(MODULE_OBJECTS) $(SUBMODULE_OBJECTS)
-	@mkdir -p $(MOD_DIR) $(OBJ_DIR) $(BIN_DIR)
+	@mkdir -p $(MOD_DIR) $(OBJ_DIR) $(BIN_DIR) 
 	$(FC) $(FFLAGS) $(MAIN_DIR)/$@.f90 -o $(BIN_DIR)/$@ $^ $(EXTLIBS)
 
 # Compile each module source file into an object file

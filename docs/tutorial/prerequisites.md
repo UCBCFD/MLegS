@@ -1,25 +1,37 @@
 ---
-title: '#0. Prerequisites'
+title: '#1. Prerequisites'
 parent: Tutorials
 nav_order: 1
 ---
 
-# MLegS Tutorial #0. Prerequisites
+# MLegS Tutorial 01: Prerequisites
+*Disclaimer: This MLegS tutorial assumes a Linux (or any Unix-based) environment that supports bash terminal commands. If you are using Windows, consider installing the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).*
 
 In this tutorial, you’ll learn how to prepare your environment to work with the MLegS package. By completing these prerequisites, you will be ready to compile and run main programs that use MLegS. The following steps will be covered:
-1. Configure a compiler and MPI (Message Passing Interface)
-  - Ensure you have a compatible compiler installed (e.g., GNU or Intel)
-  - Set up MPI (Message Passing Interface) on your machine, essential for parallel execution.
-2. Set up external libraries required to run MLegS
-  - MLegS relies on certain external libraries for matrix operations, fast Fourier transforms and multi-precision arithmetic.
-  - Install necessary libraries such as LAPACK, FFTE and FM. You do not need to download them; these external libraries, with the compatibility checked for MLegS, are provided in the `[root_dir]/external/` directory.
-3. Compile MLegS modules.
-  - With your compiler, MPI, and external libraries set up, proceed to compile the core MLegS modules.
-  - Use the provided `Makefile` instructions to compile the modules via one-line commands (e.g., `make mods`)
 
-Completing this setup ensures that you’re fully prepared to work with programs that use the MLegS package.
+1. **Configure a compiler and MPI (Message Passing Interface)**
+   - Ensure you have a compatible compiler installed (e.g., GNU or Intel)
+   - Set up MPI (Message Passing Interface) on your machine, essential for parallel execution.
+2. **Set up external libraries required to run MLegS**
+   - MLegS relies on certain external libraries for matrix operations, fast Fourier transforms and multi-precision arithmetic.
+   - Install necessary libraries such as LAPACK, FFTE and FM. You do not need to download them; these external libraries, with the compatibility checked for MLegS, are provided in the `[root_dir]/external/` directory. 
+3. **Compile MLegS modules**
+   - With your compiler, MPI, and external libraries set up, proceed to compile the core MLegS modules.
+   - Use the provided `Makefile` instructions to compile the modules via one-line commands (e.g., `make mods`)
+
+
+Completing this tutorial ensures that you’re fully prepared to work with programs that use the MLegS package.
 
 ---
+
+## Table of Contents
+{: .no_toc .text-delta }
+
+1. TOC
+{:toc}
+
+---
+
 
 ## Configure a Compiler and MPI Interfaces
 
@@ -31,18 +43,20 @@ While Intel's legacy Fortran compiler, `ifort`, may be used as an alternative, p
 
 You can install `gfortran` and OpenMPI via your system's package manager (`apt` for Ubuntu/Debian, `yum` for CentOS), as these packages are generally available in official repositories. 
 
-For Intel compilers, download and install the toolkit from [Intel's official download page](https://www.intel.com/content/www/us/en/developer/tools/oneapi/fortran-compiler.html#gs.hbhvru), selecting the distribution that matches your system. After installation, you need to source the Intel environment script (e.g., `source /opt/intel/oneapi/setvars.sh` to set environment variables.
+For Intel compilers, download and install the toolkit from [Intel's official download page](https://www.intel.com/content/www/us/en/developer/tools/oneapi/fortran-compiler.html#gs.hbhvru), selecting the distribution that matches your system. After installation, you need to source the Intel environment script (e.g., `source /opt/intel/oneapi/setvars.sh`) to set environment variables.
 
 Aftr installation, verify the versions with:
 
 
 ```bash
+#! bash
 # for gfortran + OpenMPI
 gfortran --version
 mpirun.openmpi --version
 # # for ifx + IntelMPI
+# source /opt/intel/oneapi/setvars.sh > /dev/null 2>&1; export PATH="/opt/intel/oneapi:$PATH"
 # ifx --version
-# mpirun --version
+# mpiexec --version
 ```
 
 ---
@@ -59,6 +73,7 @@ All required libraries are included in the `[root_dir]/external/` directory of t
 
 
 ```bash
+#! bash
 cmake --version
 ```
 
@@ -68,11 +83,13 @@ Once CMake is installed, navigate to the `[root_dir]/external/` directory and ch
 
 
 ```bash
-cd ../external/ # Navigate to the external directory, assuming this notebook is opened in the default directory ([root_dir]/tutorials/).
+#! bash
+cd ../external/ # Navigate to the external directory, assuming the terminal is opened in the default directory ([root_dir]/tutorials/).
 ```
 
 
 ```bash
+#! bash
 chmod +x ./CMake_build.sh # Add the executable option
 # Now let's check that CMake_build.sh is actually executable. If you get something like '-rwxrwxr-x' of 3 x's, then it's executable.
 ls -all | grep CMake_build.sh 
@@ -82,6 +99,7 @@ By default, the script uses `gfortran` (with its compatible C compiler) for comp
 
 
 ```bash
+#! bash
 # in [root_dir]/external/CMake_build.sh, using any preferred text editor, update the following lines if one wants to use Intel
 # ...
 # FC = "gfortran" (-> replace it with "ifx", Intel's oneAPI Fortran compiler)
@@ -98,6 +116,7 @@ You are now ready to run the automated external library compilation script. Exec
 
 
 ```bash
+#! bash
 # Since this script run yields very lengthy outputs, we suppress them here. 
 # Generally this automated compilation task takes up to 5-10 minutes. Take a cup of coffee... :)
 ./CMake_build.sh > /dev/null 2>&1
@@ -107,6 +126,7 @@ If all external libraries are compiled successfully, you will see two new direct
 
 
 ```bash
+#! bash
 # See if the library files are all generated and stored in the lib directory.
 ls ./lib/ ./inc/
 ```
@@ -121,11 +141,13 @@ Before doing so, move to the root directory and ensure that the `Makefile` instr
 
 
 ```bash
-cd ../ # Navigate to the root directory, assuming that you were at [root_dir]/external/.
+#! bash
+cd ../ # Navigate to the root directory.
 ```
 
 
 ```bash
+#! bash
 # in [root_dir]/Makefile, using any preferred text editor, update the following lines if one wants to use Intel
 # ...
 # OMPI_FC = "gfortran" (-> replace it with "ifx", Intel's oneAPI Fortran compiler)
@@ -137,18 +159,22 @@ head -n 4 ./Makefile | tail -4
 ```
 
 MLegS, in its most recent version, includes a stack of seven modules designed for MPI-parallelized simulations within a radially unbounded computational domain. These module files are stored in `[root_dir]/src/modules/`, where you can find the header information for all functions and subroutines. The actual numerical calculations and I/O operations are implemented in submodule files located in `[root_dir]/src/submodules/`. While we won’t go into detail about each module's functionality in this tutorial, here’s a brief overview of what each module contains:
-- mlegs_envir.f90: Defines environmental variables (e.g., default precision for integers, complex numbers, and real numbers, as well as simulation time information) and MPI parameters, along with basic auxiliary functions.
-- mlegs_base.f90: Sets up global simulation parameters, including spectral element counts in each direction, time-stepping details, viscosity, and field data I/O.
-- mlegs_misc.f90: Provides miscellaneous utilities, such as timers and generic Fortran array I/O functions.
-- mlegs_genmat.f90: Contains routines for general matrix operations.
-- mlegs_bndmat.f90: Includes operations for banded matrices (e.g., diagonal, tridiagonal).
-- mlegs_spectfm.f90: Contains tools for spectral transformations and related spectral operations.
-- mlegs_scalar.f90: Defines a distributed scalar class with spatially discretized operations and temporal advancement schemes.
+
+| Module name | Description|
+|:-- |:-- |
+| mlegs_envir.f90 | Defines environmental variables (e.g., default precision for integers, complex numbers, and real numbers, as well as simulation time information) and MPI parameters, along with basic auxiliary functions. |
+| mlegs_base.f90 | Sets up global simulation parameters, including spectral element counts in each direction, time-stepping details, viscosity, and field data I/O. |
+| mlegs_misc.f90 | Provides miscellaneous utilities, such as timers and generic Fortran array I/O functions. |
+| mlegs_genmat.f90 | Contains routines for general matrix operations. |
+| mlegs_bndmat.f90 | Includes operations for banded matrices (e.g., diagonal, tridiagonal). |
+| mlegs_spectfm.f90 | Contains tools for spectral transformations and related spectral operations. |
+| mlegs_scalar.f90 | Defines a distributed scalar class with spatially discretized operations and temporal advancement schemes. |
 
 Inter-module dependencies are specified in `Makefile.dep`, which the `Makefile` instructions use to determine the correct compilation order automatically This setup allows you to compile without worrying about module dependencies. Simply execute the following command: 
 
 
 ```bash
+#! bash
 # 'clean' subcommand precedes in case there are old compiled files; this is not required and running only 'make mods' is generally sufficient.
 make clean && make mods
 ```
@@ -157,10 +183,9 @@ If all modules compiled successfully, a new directory `[root_dir]/build/` will b
 
 
 ```bash
+#! bash
 # See if the library files are all generated and stored in the build directory.
 ls ./build/mod/ ./build/obj/
 ```
 
 With this, all preliminary tasks required to use MLegS are complete!
-
----
