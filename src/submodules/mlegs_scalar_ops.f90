@@ -8,13 +8,18 @@ contains
     integer(i4) :: nrc, npc, nzc, nzcu
     integer(i4), dimension(:), allocatable :: nrcs, m
     real(p8), dimension(:), allocatable :: ak
-    integer(i4) :: mm, kk
+    integer(i4) :: mm, kk, rc
 
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
     if (s%space(1:1) .eq. 'F') then
       do mm = 1, s%loc_sz(2)
-        s%e(nrcs(s%loc_st(2)+mm)+1:, mm, :) = 0.D0
+        rc = nrcs(s%loc_st(2)+mm)-s%loc_st(1)+1
+        if (s%loc_st(1) + 1 .le. rc) then
+          s%e(rc:, mm, :) = 0.D0
+        else ! s%loc_st(1) + 1 .ge. rc
+          s%e(:, mm, :) = 0.D0
+        endif 
       enddo
     endif
 
@@ -887,24 +892,40 @@ contains
     ns0 = min(ns+4, nr)
 
     call so%init(s%glb_sz, s%axis_comm)
-    so = s; ln = s%ln
-    call del2(so, tfm)
+    so = s; ln = s%ln; so%ln = 0.D0
+    call delsqp(so, tfm)
     if (nz .gt. 1) call so%exchange(3, 1)
     call rtrans_backward(so, tfm)
     so%space = 'PFF' ! this in non-standard yet neccesary for calculation in this subroutine
 
+    do mm = 1, min(so%loc_sz(2), npc-so%loc_st(2))
+      do kk = 1, so%loc_sz(3)
+        if ((so%loc_st(3)+kk .le. nzc) .or. (so%loc_st(3)+kk .ge. nzcu)) then
+          so%e(:nr, mm, kk) = so%e(:nr, mm, kk)*(1.D0-tfm%x(1:nr))**2.D0
+        endif
+      enddo
+    enddo
+
     if (so%loc_st(2) .eq. 0) then
-      so%e(ns0:nr, 2:min(so%loc_sz(2), npc-so%loc_st(2)), :) = 0.D0
+      so%e(ns0:, 2:min(so%loc_sz(2), npc-so%loc_st(2)), :) = 0.D0
     else
-      so%e(ns0:nr, 1:min(so%loc_sz(2), npc-so%loc_st(2)), :) = 0.D0
+      so%e(ns0:, 1:min(so%loc_sz(2), npc-so%loc_st(2)), :) = 0.D0
     endif
 
     do mm = 1, min(so%loc_sz(2), npc-so%loc_st(2))
       do kk = 1, so%loc_sz(3)
         if ((so%loc_st(3)+kk .le. nzc) .or. (so%loc_st(3)+kk .ge. nzcu)) then
           do i = 1, 5
-            so%e(ns:nr, mm, kk) = smooth(so%e(ns:nr, mm, kk))
+            so%e(ns:, mm, kk) = smooth(so%e(ns:, mm, kk))
           enddo
+        endif
+      enddo
+    enddo
+
+    do mm = 1, min(so%loc_sz(2), npc-so%loc_st(2))
+      do kk = 1, so%loc_sz(3)
+        if ((so%loc_st(3)+kk .le. nzc) .or. (so%loc_st(3)+kk .ge. nzcu)) then
+          so%e(:nr, mm, kk) = so%e(:nr, mm, kk)/(1.D0-tfm%x(1:nr))**2.D0
         endif
       enddo
     enddo
@@ -912,8 +933,8 @@ contains
     so%space = 'FFF'
     call rtrans_forward(so, tfm)
     if (nz .gt. 1) call so%exchange(1, 3)
-    call idel2_preln(so, tfm, preln = ln)
-
+    call idelsqp(so, tfm); so%ln = ln
+    call zeroat1(so, tfm)
     s = so
     call so%dealloc()
   end procedure
@@ -1137,12 +1158,21 @@ contains
     integer(i4) :: mm, nn, kk
     real(p8) :: a1, a2, a3, c1, c2, c3, b1, b2, b3, d1, d2, d3
 
+    type(scalar) :: vxwr, vxwp, vxwz
+
     if (vr%space(1:3).ne.'PPP') stop 'vector_product: to compute v x u, vr must be in PPP'
     if (vp%space(1:3).ne.'PPP') stop 'vector_product: to compute v x u, vp must be in PPP'
     if (vz%space(1:3).ne.'PPP') stop 'vector_product: to compute v x u, vz must be in PPP'
     if (ur%space(1:3).ne.'PPP') stop 'vector_product: to compute v x u, ur must be in PPP'
     if (up%space(1:3).ne.'PPP') stop 'vector_product: to compute v x u, up must be in PPP'
     if (uz%space(1:3).ne.'PPP') stop 'vector_product: to compute v x u, uz must be in PPP'
+
+    call vxwr%init(vr%glb_sz, vr%axis_comm); vxwr%space = 'PPP'
+    vxwr%e = 0.D0
+    call vxwp%init(vp%glb_sz, vp%axis_comm); vxwp%space = 'PPP'
+    vxwp%e = 0.D0
+    call vxwz%init(vz%glb_sz, vz%axis_comm); vxwz%space = 'PPP'
+    vxwz%e = 0.D0
 
     do kk = 1, min(vr%loc_sz(3), nz - vr%loc_st(3))
       do mm = 1, min(vr%loc_sz(2), np/2 - vr%loc_st(2))
@@ -1151,12 +1181,21 @@ contains
           b1 = real(ur%e(nn,mm,kk)); b2 = real(up%e(nn,mm,kk)); b3 = real(uz%e(nn,mm,kk))
           c1 = aimag(vr%e(nn,mm,kk)); c2 = aimag(vp%e(nn,mm,kk)); c3 = aimag(vz%e(nn,mm,kk))
           d1 = aimag(ur%e(nn,mm,kk)); d2 = aimag(up%e(nn,mm,kk)); d3 = aimag(uz%e(nn,mm,kk))
-          vr%e(nn,mm,kk) = cmplx(a2*b3-a3*b2, c2*d3-c3*d2, p8)
-          vp%e(nn,mm,kk) = cmplx(a3*b1-a1*b3, c3*d1-c1*d3, p8)
-          vz%e(nn,mm,kk) = cmplx(a1*b2-a2*b1, c1*d2-c2*d1, p8)
+          vxwr%e(nn,mm,kk) = cmplx(a2*b3-a3*b2, c2*d3-c3*d2, p8)
+          vxwp%e(nn,mm,kk) = cmplx(a3*b1-a1*b3, c3*d1-c1*d3, p8)
+          vxwz%e(nn,mm,kk) = cmplx(a1*b2-a2*b1, c1*d2-c2*d1, p8)
         enddo
       enddo
     enddo
+
+    vr = vxwr
+    vp = vxwp
+    vz = vxwz
+
+    call vxwr%dealloc()
+    call vxwp%dealloc()
+    call vxwz%dealloc()
+
   end procedure
 
   module procedure vector_projection
@@ -1326,9 +1365,9 @@ contains
     if (vp%space(1:3).ne.'PPP') stop 'vector_projection: vp must be in PPP'
     if (vz%space(1:3).ne.'PPP') stop 'vector_projection: vz must be in PPP'
 
-    call ur%init(chi%glb_sz, chi%axis_comm)
-    call up%init(psi%glb_sz, psi%axis_comm)
-    call uz%init(chi%glb_sz, chi%axis_comm)
+    call ur%init(chi%glb_sz, chi%axis_comm); ur%space = 'FFF'
+    call up%init(psi%glb_sz, psi%axis_comm); up%space = 'FFF'
+    call uz%init(chi%glb_sz, chi%axis_comm); uz%space = 'FFF'
 
     ur = chi; call ur%chop_offset(3) 
     up = psi; call up%chop_offset(3) 
@@ -1401,94 +1440,15 @@ contains
   module procedure curl_vector_reconstruction
     integer(i4) :: mm, nn, kk, mv
     real(p8) :: kv
-    type(scalar) :: or, op, oz
+    type(scalar) :: mdel2chi
 
-    real(p8), dimension(:), allocatable :: r
+    call mdel2chi%init(chi%glb_sz, chi%axis_comm)
+    mdel2chi%space = 'FFF'; mdel2chi = chi
+    call del2(mdel2chi, tfm); mdel2chi%e = -mdel2chi%e
 
-    integer(i4) :: nrdim, npdim, nzdim
-    integer(i4) :: nrc, npc, nzc, nzcu
-    integer(i4), dimension(:), allocatable :: nrcs, m
-    real(p8), dimension(:), allocatable :: ak
+    call vector_reconstruction(mdel2chi, psi, wr, wp, wz, tfm)
 
-    r = ell*sqrt((1.D0+tfm%x)/(1.D0-tfm%x))
-
-    if (psi%space(1:3).ne.'FFF') stop 'curl_vector_projection: psi must be in FFF'
-    if (chi%space(1:3).ne.'FFF') stop 'curl_vector_projection: chi must be in FFF'
-    if (wr%space(1:3).ne.'PPP') stop 'curl_vector_projection: wr must be in PPP'
-    if (wp%space(1:3).ne.'PPP') stop 'curl_vector_projection: wp must be in PPP'
-    if (wz%space(1:3).ne.'PPP') stop 'curl_vector_projection: wz must be in PPP'
-
-    call or%init(psi%glb_sz, psi%axis_comm)
-    call op%init(chi%glb_sz, chi%axis_comm)
-    call oz%init(psi%glb_sz, psi%axis_comm)
-
-    or = psi; call or%chop_offset(3)
-    op = chi; call op%chop_offset(3)
-    oz = psi; call oz%chop_offset(3) ! oz now stores psi
-
-    call chop_index(or, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
-
-    call xxdx(or, tfm) ! or now actually stores r*d(psi)/dr
-
-    call del2(op, tfm)
-    call xxdx(op, tfm) ! op now actually stores r*d(del2(chi))/dr
-
-    do mm = 1, min(or%loc_sz(2), npc - or%loc_st(2))
-      nn = nrcs(or%loc_st(2) + mm)
-      mv = m(or%loc_st(2) + mm)
-      do kk = 1, nzdim
-        if ((kk .le. nzc) .or. (kk .ge. nzcu)) then
-          kv = ak(kk)
-          or%e(:min(or%loc_sz(1), nn-or%loc_st(1)),mm,kk) = &
-          -iu*mv*chi%e(:min(chi%loc_sz(1), nn-chi%loc_st(1)),mm,kk) + &
-          iu*kv*or%e(:min(or%loc_sz(1), nn-or%loc_st(1)),mm,kk) ! or now stores -d(del2(chi))/dp + r*d/dr(d/dz(psi))
-          op%e(:min(op%loc_sz(1), nn-op%loc_st(1)),mm,kk) = &
-          op%e(:min(op%loc_sz(1), nn-op%loc_st(1)),mm,kk) - &
-          mv*kv*oz%e(:min(oz%loc_sz(1), nn-oz%loc_st(1)),mm,kk) ! op now stores r*d(del2(chi))/dr + d/dp(d/dz(psi))
-        endif
-      enddo
-    enddo
-
-    call or%chop_offset(0); call op%chop_offset(0)
-    call chop(or, tfm); call chop(op, tfm)
-
-    call trans(or, 'PPP', tfm); call trans(op, 'PPP', tfm)
-    
-    if (or%loc_st(1)+1 .le. nr) then
-      do mm = 1, or%loc_sz(2)
-        do kk = 1, or%loc_sz(3)
-          or%e(1:min(or%loc_sz(1), nr-or%loc_st(1)), mm, kk) = &
-          or%e(1:min(or%loc_sz(1), nr-or%loc_st(1)), mm, kk) &
-          / r(or%loc_st(1)+1:min(or%loc_st(1)+or%loc_sz(1), nr)) ! now or stores -1/r*d(del2(chi))/dp + d/dr(d/dz(psi))
-        enddo
-      enddo
-    endif
-
-    if (op%loc_st(1)+1 .le. nr) then
-      do mm = 1, op%loc_sz(2)
-        do kk = 1, op%loc_sz(3)
-          op%e(1:min(op%loc_sz(1), nr-op%loc_st(1)), mm, kk) = &
-          op%e(1:min(op%loc_sz(1), nr-op%loc_st(1)), mm, kk) &
-          / r(op%loc_st(1)+1:min(op%loc_st(1)+op%loc_sz(1), nr)) ! now op stores d(del2(chi))/dr + 1/r*d/dp(d/dz(psi))
-        enddo
-      enddo
-    endif
-
-    call del2h(oz, tfm) ! now oz stores del2h(psi)
-    oz%e = -oz%e ! now oz stores -del2h(psi)
-
-    call oz%chop_offset(0)
-    call chop(oz, tfm)
-
-    call trans(oz, 'PPP', tfm)
-
-    wr = or
-    wp = op
-    wz = oz
-
-    call or%dealloc()
-    call op%dealloc()
-    call oz%dealloc()
+    call mdel2chi%dealloc()
 
   end procedure
 

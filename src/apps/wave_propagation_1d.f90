@@ -136,7 +136,8 @@ program wave_propagation_1d
     curr_t = curr_t + dt
 
     call trans(s, 'FFF', tfm)
-    call del2(s, tfm) ! compute del^2(s)
+    del2s = s
+    call del2(del2s, tfm) ! compute del^2(s)
 !> For time integration
     call trans(s, 'FFF', tfm); call trans(dsdt, 'FFF', tfm); call trans(del2s, 'FFF', tfm)
     call fefe(s, dsdt, dt, tfm) ! forward euler

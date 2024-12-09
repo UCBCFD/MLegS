@@ -264,15 +264,16 @@ plt.show()
 Using \\( \psi \\) and \\( \chi \\) provides a significant advantage in numerically computing the *curl* of the vector field, \\( \nabla \times \mathbf{V} \\), with minimal modifications to MLegS code. By taking the curl on both sides of the TP decomposition formula, we derive:
 
 $$
-\nabla \times \mathbf{V} = \nabla \times \left\{\nabla^2 \chi \hat{\mathbf{e}}_z \right\} + \nabla \times \left[ \nabla \times \left\{ \psi \hat{\mathbf{e}}_z \right\} \right].
+\nabla \times \mathbf{V} = \nabla \times \left\{-\nabla^2 \chi \hat{\mathbf{e}}_z \right\} + \nabla \times \left[ \nabla \times \left\{ \psi \hat{\mathbf{e}}_z \right\} \right].
 $$
 
-What does this formula imply? If the toroidal-poloidal scalar pair \\( (\psi, \chi) \\) represents \\( \mathbf{V} \\), then \\( (\nabla^2 \chi, \psi) \\) equivalently represents \\( \nabla \times \mathbf{V} \\). This means the curl can be computed without any explicit vector differentiation, simply by swapping \\( \psi \\) with \\( \nabla^2 \chi \\) and \\( \chi \\) with \\( \psi \\). In MLegS, the operation can be implemented with an only one-line addition as:
+What does this formula imply? If the toroidal-poloidal scalar pair \\( (\psi, \chi) \\) represents \\( \mathbf{V} \\), then \\( (-\nabla^2 \chi, \psi) \\) equivalently represents \\( \nabla \times \mathbf{V} \\). This means the curl can be computed without any explicit vector differentiation, simply by swapping \\( \psi \\) with \\( \nabla^2 \chi \\) and \\( \chi \\) with \\( \psi \\). In MLegS, the operation can be implemented with an only one-line addition as:
 
 ```fortran
 !# Fortran
 ! ...
 call del2(chi, tfm) ! Compute the Laplacian of chi
+chi%e = -chi%e ! Negative sign to del2(chi)
 call tp2vec(chi, psi, wr, wp, wz, tfm) ! (wr, wp, wz) represents the curl of the vector field
 ! ...
 ```

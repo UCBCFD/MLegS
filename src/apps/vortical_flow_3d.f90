@@ -14,7 +14,7 @@ program vortical_flow_3d
   integer(i4) :: i, j, k
   integer(i4), dimension(3) :: glb_sz
   integer(i4) :: stepping_notice = 1 ! in order to suppress time stepping print-outs
-  integer(i4) :: farfield_treat = 100 ! in order to remove the advection term's aliasing error 
+  integer(i4) :: farfield_treat = 500 ! in order to remove the advection term's aliasing error 
   real(p8) :: origin_val, tsum = 0.D0 ! origin_val stores the vorticity value at origin in terms of time
   character(len=256) :: input_params_file = './input.params' ! must be created in advance. Refer to the tutorial ipynb.
   logical :: exists
@@ -41,8 +41,8 @@ program vortical_flow_3d
   call MPI_comm_rank(comm_glb, rank_glb, MPI_err)
   call MPI_comm_size(comm_glb, nprocs_glb, MPI_err)
 
-!> Set 1D processor grid (in this example, we assume a 2D scalar in r, phi -- no dependence on z)
-  call set_comm_grps(comm_glb) ! 1D grid / slab decomposition
+!> Set 2D processor grid
+  call set_comm_grps(comm_glb) ! 2D grid / pencil decomposition
 
 !> Start time record
   if (rank_glb .eq. 0) then
@@ -95,8 +95,8 @@ program vortical_flow_3d
   chi_rich%space = 'FFF'
 
 !> Initialize all vector components or T-P scalars (for those whose init cond is known)
-  call qvort_dist_tp(psi, chi, q = 1.D0, ran_noise = 0.D0) ! program-dependent subroutine; see below
-  call uniform_z_fld(uz, b = -0.D0) ! program-dependent subroutine; see below
+  call qvort_dist_tp(psi, chi, q = 1.D0, ran_noise = 1.D-10) ! program-dependent subroutine; see below
+  call uniform_z_fld(uz, b = -.5D0) ! program-dependent subroutine; see below
 
 !> Interim time record
   if (rank_glb .eq. 0) then
@@ -127,8 +127,8 @@ program vortical_flow_3d
 
   do i = 1, 2
     call advection_rhs(psi, chi, nlpsi, nlchi, uz)
-    call febe(psi, nlpsi, dt/2, tfm) ! forward euler - backward euler time integration by dt/2
-    call febe(chi, nlchi, dt/2, tfm) ! forward euler - backward euler time integration by dt/2
+    call febe(psi, nlpsi, dt/2.D0, tfm) ! forward euler - backward euler time integration by dt/2
+    call febe(chi, nlchi, dt/2.D0, tfm) ! forward euler - backward euler time integration by dt/2
   enddo
 
   psi%e = 2.D0/1.D0*psi%e - 1.D0/1.D0*psi_rich%e ! Richardson extrapolation
@@ -178,11 +178,7 @@ program vortical_flow_3d
       endif
     endif
 
-    if (mod(curr_n, farfield_treat) .eq. 0) then
-      call fftreat(psi, tfm) ! smooth out the far field to cope with the advection term aliasing error 
-      call fftreat(chi, tfm)
-    endif
-
+!> Store the field information
     if (isfldsav) then
       if (mod(curr_n, fldsavintvl) .eq. 0) then
         call save_vort_mag(psi, chi)
@@ -194,6 +190,12 @@ program vortical_flow_3d
       if (mod(curr_n, fldsavintvl) .eq. 0) then
         ! For customization -- create and add your own diagnositic logs here
       endif
+    endif
+
+!> Far field treatment
+    if (mod(curr_n, farfield_treat) .eq. 0) then
+      call fftreat(psi, tfm) ! smooth out the far field to cope with the advection term aliasing error 
+      call fftreat(chi, tfm)
     endif
   enddo
 
@@ -255,7 +257,7 @@ contains
     complex(p8), dimension(:,:,:), allocatable :: glb
     integer(i4) :: i, j, k
 
-    real(p8) :: xo, yo ! define the center of distribution
+    integer(i4) :: xo, yo ! define the center of distribution
     real(p8) :: rr, ri ! distance from the center of dist.
 
     if (psi%space(1:3) .ne. 'FFF') stop
@@ -270,24 +272,15 @@ contains
     do i = 1, nr
       do j = 1, np/2
         do k = 1, nz
-          xo = 1.5D0
-          yo = 0.D0
-          rr = sqrt((tfm%r(i)*cos(tfm%p(2*j-1))-xo)**2.D0 & ! real part of the j-th entry corresponds to azim. angle p(2*j-1)
-                   +(tfm%r(i)*sin(tfm%p(2*j-1))-yo)**2.D0 )
-          ri = sqrt((tfm%r(i)*cos(tfm%p(2*j  ))-xo)**2.D0 & ! imag part of the j-th entry corresponds to azim. angle p(2*j)
-                   +(tfm%r(i)*sin(tfm%p(2*j  ))-yo)**2.D0 )
-          glb(i,j,k) = cmplx( -exp(-(rr**2.D0))*2.D0/(1.D0-tfm%x(i))**2.D0, &
-                              -exp(-(ri**2.D0))*2.D0/(1.D0-tfm%x(i))**2.D0, P8)
-
-          xo = -1.5D0
-          yo = 0.D0
-          rr = sqrt((tfm%r(i)*cos(tfm%p(2*j-1))-xo)**2.D0 & ! real part of the j-th entry corresponds to azim. angle p(2*j-1)
-                   +(tfm%r(i)*sin(tfm%p(2*j-1))-yo)**2.D0 )
-          ri = sqrt((tfm%r(i)*cos(tfm%p(2*j  ))-xo)**2.D0 & ! imag part of the j-th entry corresponds to azim. angle p(2*j)
-                   +(tfm%r(i)*sin(tfm%p(2*j  ))-yo)**2.D0 )
-          glb(i,j,k) = glb(i,j,k) + cmplx( -exp(-(rr**2.D0))*2.D0/(1.D0-tfm%x(i))**2.D0, &
-                                           -exp(-(ri**2.D0))*2.D0/(1.D0-tfm%x(i))**2.D0, P8)
-
+          do xo = -2, 2, 4
+            yo = 0
+            rr = sqrt((tfm%r(i)*cos(tfm%p(2*j-1))-xo)**2.D0 & ! real part of the j-th entry corresponds to azim. angle p(2*j-1)
+                     +(tfm%r(i)*sin(tfm%p(2*j-1))-yo)**2.D0 )
+            ri = sqrt((tfm%r(i)*cos(tfm%p(2*j  ))-xo)**2.D0 & ! imag part of the j-th entry corresponds to azim. angle p(2*j)
+                     +(tfm%r(i)*sin(tfm%p(2*j  ))-yo)**2.D0 )
+            glb(i,j,k) = glb(i,j,k) + cmplx( -exp(-(rr**2.D0))*2.D0/(1.D0-tfm%x(i))**2.D0, &
+                                -exp(-(ri**2.D0))*2.D0/(1.D0-tfm%x(i))**2.D0, P8)
+          enddo
           if (rr.lt.ell .or. ri.lt.ell) glb(i,j,k) = glb(i,j,k) + cmplx(rand(),rand(),P8)*ran_noise
         enddo
       enddo
@@ -302,24 +295,15 @@ contains
     do i = 1, nr
       do j = 1, np/2
         do k = 1, nz
-          xo = 1.5D0
-          yo = 0.D0
-          rr = sqrt((tfm%r(i)*cos(tfm%p(2*j-1))-xo)**2.D0 & ! real part of the j-th entry corresponds to azim. angle p(2*j-1)
-                   +(tfm%r(i)*sin(tfm%p(2*j-1))-yo)**2.D0 )
-          ri = sqrt((tfm%r(i)*cos(tfm%p(2*j  ))-xo)**2.D0 & ! imag part of the j-th entry corresponds to azim. angle p(2*j)
-                   +(tfm%r(i)*sin(tfm%p(2*j  ))-yo)**2.D0 )
-          glb(i,j,k) = cmplx( -exp(-(rr**2.D0))/q/(1.D0-tfm%x(i))**2.D0, &
-                              -exp(-(ri**2.D0))/q/(1.D0-tfm%x(i))**2.D0, P8)
-
-          xo = -1.5D0
-          yo = 0.D0
-          rr = sqrt((tfm%r(i)*cos(tfm%p(2*j-1))-xo)**2.D0 & ! real part of the j-th entry corresponds to azim. angle p(2*j-1)
-                   +(tfm%r(i)*sin(tfm%p(2*j-1))-yo)**2.D0 )
-          ri = sqrt((tfm%r(i)*cos(tfm%p(2*j  ))-xo)**2.D0 & ! imag part of the j-th entry corresponds to azim. angle p(2*j)
-                   +(tfm%r(i)*sin(tfm%p(2*j  ))-yo)**2.D0 )
-          glb(i,j,k) = glb(i,j,k) + cmplx( -exp(-(rr**2.D0))/q/(1.D0-tfm%x(i))**2.D0, &
-                                           -exp(-(ri**2.D0))/q/(1.D0-tfm%x(i))**2.D0, P8)
-
+          do xo = -2, 2, 4
+              yo = 0
+              rr = sqrt((tfm%r(i)*cos(tfm%p(2*j-1))-xo)**2.D0 & ! real part of the j-th entry corresponds to azim. angle p(2*j-1)
+                       +(tfm%r(i)*sin(tfm%p(2*j-1))-yo)**2.D0 )
+              ri = sqrt((tfm%r(i)*cos(tfm%p(2*j  ))-xo)**2.D0 & ! imag part of the j-th entry corresponds to azim. angle p(2*j)
+                       +(tfm%r(i)*sin(tfm%p(2*j  ))-yo)**2.D0 )
+              glb(i,j,k) = glb(i,j,k) + cmplx( -exp(-(rr**2.D0))/q/(1.D0-tfm%x(i))**2.D0, &
+                                  -exp(-(ri**2.D0))/q/(1.D0-tfm%x(i))**2.D0, P8)
+          enddo
           if (rr.lt.ell .or. ri.lt.ell) glb(i,j,k) = glb(i,j,k) + cmplx(rand(),rand(),P8)*ran_noise
         enddo
       enddo
@@ -331,7 +315,7 @@ contains
     call idelsqp(chi, tfm)
     call zeroat1(chi, tfm)
 
-    deallocate( glb )    
+    deallocate( glb )
 
   end subroutine
 
@@ -366,7 +350,7 @@ contains
     type(scalar), intent(inout) :: nlpsi, nlchi
 
     integer(i4), dimension(3) :: glb_sz
-    type(scalar) :: vr, vp, vz, or, op, oz
+    type(scalar) :: vr, vp, vz, wr, wp, wz
 
     if (psi%space(1:3) .ne. 'FFF') stop
     if (chi%space(1:3) .ne. 'FFF') stop
@@ -375,59 +359,65 @@ contains
     if (uz%space(1:3) .ne. 'PPP') stop
 
     glb_sz = (/ tfm%nrdim, tfm%npdim, tfm%nzdim /)
-    call vr%init(glb_sz, (/ 1, 0, 2 /)); call or%init(glb_sz, (/ 1, 0, 2 /))
-    vr%space = 'PPP'; or%space = 'PPP'
-    call vp%init(glb_sz, (/ 1, 0, 2 /)); call op%init(glb_sz, (/ 1, 0, 2 /))
-    vp%space = 'PPP'; op%space = 'PPP'
-    call vz%init(glb_sz, (/ 1, 0, 2 /)); call oz%init(glb_sz, (/ 1, 0, 2 /))
-    vz%space = 'PPP'; oz%space = 'PPP'
+    call vr%init(glb_sz, (/ 1, 0, 2 /)); call wr%init(glb_sz, (/ 1, 0, 2 /))
+    vr%space = 'PPP'; wr%space = 'PPP'
+    call vp%init(glb_sz, (/ 1, 0, 2 /)); call wp%init(glb_sz, (/ 1, 0, 2 /))
+    vp%space = 'PPP'; wp%space = 'PPP'
+    call vz%init(glb_sz, (/ 1, 0, 2 /)); call wz%init(glb_sz, (/ 1, 0, 2 /))
+    vz%space = 'PPP'; wz%space = 'PPP'
 
     call tp2vec(psi, chi, vr, vp, vz, tfm) ! (psi, chi) -> (vr, vp, vz)
     vz%e = vz%e + uz%e ! adding uz to vz (vr, vp, vz) + (0, 0, uz)
-    
-    call tp2curlvec(psi, chi, or, op, oz, tfm) ! (psi, chi) -> (curl(V)r, curl(V)p, curl(V)z)
-    call vecprod(vr, vp, vz, or, op, oz, tfm) ! -[curl(V) times (U+V)]
+
+    call tp2curlvec(psi, chi, wr, wp, wz, tfm) ! (psi, chi) -> (curl(V)r, curl(V)p, curl(V)z)
+    call vecprod(vr, vp, vz, wr, wp, wz, tfm) ! -[curl(V) times (U+V)]
     call vec2tp(vr, vp, vz, nlpsi, nlchi, tfm) ! TP projection of -[curl(V) times (U+V)]
 
-    call vr%dealloc(); call or%dealloc()
-    call vp%dealloc(); call op%dealloc()
-    call vz%dealloc(); call oz%dealloc()
+    nlpsi%ln = 0.D0
+    nlchi%ln = 0.D0
+
+    call chop(nlpsi, tfm); call chop(nlchi, tfm)
+
+    call vr%dealloc(); call wr%dealloc()
+    call vp%dealloc(); call wp%dealloc()
+    call vz%dealloc(); call wz%dealloc()
 
     return
   end subroutine
 
   subroutine save_vort_mag(psi, chi)
     implicit none
-    type(scalar), intent(in) :: psi, chi
+    type(scalar), intent(inout) :: psi, chi
 
+    integer(i4) :: i, j, k
     integer(i4), dimension(3) :: glb_sz
-    type(scalar) :: or, op, oz, vormag
+    type(scalar) :: wr, wp, wz, vormag
 
     if (psi%space(1:3) .ne. 'FFF') stop
     if (chi%space(1:3) .ne. 'FFF') stop
 
     glb_sz = (/ tfm%nrdim, tfm%npdim, tfm%nzdim /)
-    call or%init(glb_sz, (/ 1, 0, 2 /))
-    or%space = 'PPP'
-    call op%init(glb_sz, (/ 1, 0, 2 /))
-    op%space = 'PPP'
-    call oz%init(glb_sz, (/ 1, 0, 2 /))
-    oz%space = 'PPP'
+    call wr%init(glb_sz, (/ 1, 0, 2 /))
+    wr%space = 'PPP'
+    call wp%init(glb_sz, (/ 1, 0, 2 /))
+    wp%space = 'PPP'
+    call wz%init(glb_sz, (/ 1, 0, 2 /))
+    wz%space = 'PPP'
     call vormag%init(glb_sz, (/ 1, 0, 2 /))
     vormag%space = 'PPP'
 
-    call tp2curlvec(psi, chi, or, op, oz, tfm)
+    call tp2curlvec(psi, chi, wr, wp, wz, tfm)
 
     vormag%e = 0.D0
     do i = 1, vormag%loc_sz(1)
       do j = 1, vormag%loc_sz(2)
         do k = 1, vormag%loc_sz(3)
-          vormag%e(i, j, k) = cmplx( (real(or%e(i,j,k))**2.D0 + & ! real part of the j-th entry corresponds to azim. angle p(2*j-1)
-                                      real(op%e(i,j,k))**2.D0 + &
-                                      real(oz%e(i,j,k))**2.D0)**.5D0, & 
-                                      (aimag(or%e(i,j,k))**2.D0 + & ! imag part of the j-th entry corresponds to azim. angle p(2*j  )
-                                      aimag(op%e(i,j,k))**2.D0 + &
-                                      aimag(oz%e(i,j,k))**2.D0)**.5D0, p8)
+          vormag%e(i, j, k) = cmplx( (real(wr%e(i,j,k))**2.D0 + & ! real part of the j-th entry corresponds to azim. angle p(2*j-1)
+                                      real(wp%e(i,j,k))**2.D0 + &
+                                      real(wz%e(i,j,k))**2.D0)**.5D0, & 
+                                      (aimag(wr%e(i,j,k))**2.D0 + & ! imag part of the j-th entry corresponds to azim. angle p(2*j  )
+                                      aimag(wp%e(i,j,k))**2.D0 + &
+                                      aimag(wz%e(i,j,k))**2.D0)**.5D0, p8)
         enddo
       enddo
     enddo
@@ -442,9 +432,9 @@ contains
         write(*,*) ''
       endif
 
-    call or%dealloc()
-    call op%dealloc()
-    call oz%dealloc()
+    call wr%dealloc()
+    call wp%dealloc()
+    call wz%dealloc()
     call vormag%dealloc()
 
 101 format(' elapsed time: ',f15.6, 'seconds')

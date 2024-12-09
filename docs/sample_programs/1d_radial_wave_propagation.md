@@ -106,19 +106,6 @@ ax.set_xlabel('X')
 ax.set_ylabel('Scalar')
 ax.set_title('Radial Wave Propagation')
 
-# Set view to be perpendicular to the x-axis
-ax.view_init(elev=30, azim=-45)
-
-# Set up a color norm and color map for the colorbar
-norm = Normalize(vmin=0, vmax=1)
-cmap = cm.viridis
-sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-sm.set_array([])
-
-# Add the static colorbar
-cbar = fig.colorbar(sm, ax=ax, orientation='horizontal')
-cbar.set_label('Scalar Value')
-
 # Animation function
 def animate(frame):
     nn = frame * dn
