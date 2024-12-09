@@ -15,8 +15,8 @@ mkdir -p ./inc
 # Thus, it is recommended to explicitly specify what compilers you want to use in case your system
 # possesses multiple compilers from different distributors (e.g., GNU and Intel).
 # Change the COMPILER pair e.g., FC=ifx && CC=icx, FC=gfortran && CC=gcc, etc.
-FC="ifx" # change gfortran to ifx if one wants to use Intel's oneAPI compiler, and vice versa
-CC="icx" # change gcc to icx if one wants to use Intel's oneAPI compiler, and vice versa
+FC="gfortran" # change gfortran to ifx if one wants to use Intel's oneAPI compiler, and vice versa
+CC="gcc" # change gcc to icx if one wants to use Intel's oneAPI compiler, and vice versa
 
 
 ###  generate the ffte library
@@ -57,6 +57,13 @@ ln -s $(pwd)/inc/* ../../inc/
 cd ../../
 
 ### generate the lapack library
+# Note: As lapack is included as a submodule, it's not downloaded when using the github release.
+if [ ! -d "./lapack" ] || [ -z "$(ls -A "./lapack" 2>/dev/null)" ]; then
+    rm -rf ./lapack
+    git clone --depth 1 --branch v3.12.0 https://github.com/Reference-LAPACK/lapack.git
+fi
+# The above commands help download the lapack module (v3.12.0) from its official repo, in case
+# ./lapack does not exist or even if it exists, the directory is empty (i.e., not downloaded).
 cd ./lapack
 # (re)create and go into a new build directory
 if [ -d ./build ]; then

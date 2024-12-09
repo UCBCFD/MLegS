@@ -15,7 +15,7 @@ Prior to its open-source release, MLegS was successfully used in several vortex 
 
 ## Contributors
 - Jinge Wang (code - parallelization)
-- Sangjoon Lee (code - modernization, documentation)
+- [Sangjoon Lee](https://sangjoonlee.info/) (code - modernization, documentation)
 - [UC Berkeley CFD Lab](https://cfd.me.berkeley.edu) (codebase)
 
 ---

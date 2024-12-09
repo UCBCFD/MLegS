@@ -140,7 +140,7 @@ def animate(frame):
     # Interpolation grid in Cartesian coordinates
     cartesian_x = np.linspace(-xlim, xlim, 100)  # Number of points can be adjusted
     cartesian_y = np.linspace(-ylim, ylim, 100)
-    cartesian_z = np.linspace(0, zlim, 10)
+    cartesian_z = np.linspace(0, zlim, 100)
     X, Y, Z = np.meshgrid(cartesian_x, cartesian_y, cartesian_z, indexing="ij")
 
     # Interpolation to create a smooth isosurface
