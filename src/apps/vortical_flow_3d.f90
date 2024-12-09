@@ -14,7 +14,6 @@ program vortical_flow_3d
   integer(i4) :: i, j, k
   integer(i4), dimension(3) :: glb_sz
   integer(i4) :: stepping_notice = 1 ! in order to suppress time stepping print-outs
-  integer(i4) :: farfield_treat = 500 ! in order to remove the advection term's aliasing error 
   real(p8) :: origin_val, tsum = 0.D0 ! origin_val stores the vorticity value at origin in terms of time
   character(len=256) :: input_params_file = './input.params' ! must be created in advance. Refer to the tutorial ipynb.
   logical :: exists
@@ -190,12 +189,6 @@ program vortical_flow_3d
       if (mod(curr_n, fldsavintvl) .eq. 0) then
         ! For customization -- create and add your own diagnositic logs here
       endif
-    endif
-
-!> Far field treatment
-    if (mod(curr_n, farfield_treat) .eq. 0) then
-      call fftreat(psi, tfm) ! smooth out the far field to cope with the advection term aliasing error 
-      call fftreat(chi, tfm)
     endif
   enddo
 

@@ -89,7 +89,7 @@ It is important to note that the vector components (`vr`, `vp`, `vz`) are define
 
 In this tutorial, we consider a *off-centered* swirling vector field with a Gaussian jet component including an intensity adjustment parameter \\( q ( \ne 0 ) \\):
 
-$$ \mathbf{V}(r', \phi', z) = \frac{1 - \exp(-r'^2)}{r'} \hat{\mathbf{e}}_\phi' + \frac{\exp (-r'^2)}{q} \hat{\mathbf{e}}_z, $$
+$$ \mathbf{V}(r', \phi', z) = \frac{1 - \exp(-r'^2)}{r'} \hat{\mathbf{e}}_{\phi'} + \frac{\exp (-r'^2)}{q} \hat{\mathbf{e}}_z, $$
 
 where \\( (r', \phi') \\) is translated polar coordinate parameters centered at a centerline \\( (r, \phi) = (\sqrt{2}, \pi /4) \\), or equivalently, \\( (x, y) = (1, 1) \\). We fix \\( q \\) to 1. Using the analytical derivation of \\( \psi \\) and \\( \chi \\) (see above), these scalars can be obtained as follows:
 
@@ -267,7 +267,7 @@ $$
 \nabla \times \mathbf{V} = \nabla \times \left\{-\nabla^2 \chi \hat{\mathbf{e}}_z \right\} + \nabla \times \left[ \nabla \times \left\{ \psi \hat{\mathbf{e}}_z \right\} \right].
 $$
 
-What does this formula imply? If the toroidal-poloidal scalar pair \\( (\psi, \chi) \\) represents \\( \mathbf{V} \\), then \\( (-\nabla^2 \chi, \psi) \\) equivalently represents \\( \nabla \times \mathbf{V} \\). This means the curl can be computed without any explicit vector differentiation, simply by swapping \\( \psi \\) with \\( \nabla^2 \chi \\) and \\( \chi \\) with \\( \psi \\). In MLegS, the operation can be implemented with an only one-line addition as:
+What does this formula imply? If the toroidal-poloidal scalar pair \\( (\psi, \chi) \\) represents \\( \mathbf{V} \\), then \\( (-\nabla^2 \chi, \psi) \\) equivalently represents \\( \nabla \times \mathbf{V} \\). This means the curl can be computed without any explicit vector differentiation, simply by swapping \\( \psi \\) with \\( \nabla^2 \chi \\) and \\( \chi \\) with \\( \psi \\). In MLegS, the operation can be implemented with an only two-line addition as:
 
 ```fortran
 !# Fortran
