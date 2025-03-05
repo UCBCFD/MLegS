@@ -1,23 +1,18 @@
 cff-version: 1.2.0
-title: 'MLegS: Modernized and Parallelized Mapped Legendre Spectral Method Code'
-message:
-  If you use this software, please cite it using the
-  metadata from this file.
+title: "MLegS: Modernized and Parallelized Mapped Legendre Spectral Method Code"
+message: "If you use this software, please cite it using the metadata from this file."
 type: software
 authors:
-- affiliation: Stanford University
-  family-names: Lee
-  given-names: Sangjoon
-  orcid: 0000-0002-2063-6298
-- affiliation: University of California, Berkeley
-  family-names: Wang
-  given-names: Jinge
-repository-code: 'https://github.com/UCBCFD/MLegS'
-abstract:
-  Artificial rough surface generator that fits prescribed
-  surface roughness parameters.
-license:
-- bsd-2-clause
-version: 1.0.1
-date-released: 2024-12-09
-doi: 10.5281/zenodo.14976471
+  - family-names: Lee
+    given-names: Sangjoon
+    orcid: "0000-0002-2063-6298"
+    affiliation: "Stanford University"
+  - family-names: Wang
+    given-names: Jinge
+    affiliation: "University of California, Berkeley"
+repository-code: "https://github.com/UCBCFD/MLegS"
+abstract: "Mapped Legendre spectral method code for solving partial differential equations in unbounded domain, modernized and parallelized for high-performance computing applications."
+license: "BSD-2-Clause"
+version: "1.0.1"
+date-released: "2024-12-09"
+doi: "10.5281/zenodo.14976471"
