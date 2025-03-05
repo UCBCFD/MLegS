@@ -1,9 +1,6 @@
-# This CITATION.cff file was generated with cffinit.
-# Visit https://bit.ly/cffinit to generate yours today!
-
 cff-version: 1.2.0
 title: 'MLegS: Modernized and Parallelized Mapped Legendre Spectral Method Code'
-message: >-
+message:
   If you use this software, please cite it using the
   metadata from this file.
 type: software
@@ -16,7 +13,7 @@ authors:
   family-names: Wang
   given-names: Jinge
 repository-code: 'https://github.com/UCBCFD/MLegS'
-abstract: >-
+abstract:
   Artificial rough surface generator that fits prescribed
   surface roughness parameters.
 license:
