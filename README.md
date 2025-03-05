@@ -1,4 +1,6 @@
 # **MLegS**: Modernized and Parallelized **M**apped **Leg**endre **S**pectral Method Code
+[![DOI](https://zenodo.org/badge/836085630.svg)](https://doi.org/10.5281/zenodo.14976470)
+
 MLegS (**M**apped **Leg**endre **S**pectral Method Code) is a code package based on a modernized and parallelized spectral method for numerical simulations in a radially unbounded domain.
 
 <p align="center">
