@@ -10,9 +10,9 @@ nav_order: 2
 ## Compilation and Run
 ```bash
 #! bash
-np=$(nproc)
+np=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu)
 make scalar_diffusion_2d
-mpirun.openmpi -n $np --oversubscribe ./build/bin/scalar_diffusion_2d
+mpirun -n $np --oversubscribe ./build/bin/scalar_diffusion_2d
 # if using IntelMPI
 # mpiexec -n $np ./build/bin/scalar_diffusion_2d
 ```

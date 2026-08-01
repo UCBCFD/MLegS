@@ -5,7 +5,7 @@ nav_order: 2
 ---
 
 # MLegS Tutorial 02: Initialization
-*Disclaimer: This MLegS tutorial assumes a Linux or other Unix-based environment that supports bash terminal commands. If you are using Windows, consider installing the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).*
+*Disclaimer: This MLegS tutorial assumes a Unix-based environment with a bash-compatible terminal. Linux and macOS are supported; on Windows, consider installing the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).*
 
 In this tutorial, you will learn the initialization process for MLegS. Within a cylindrical coordinate system \\((r, \phi, z)\\), MLegS discretizes the radial direction \\((0 \le r < \infty)\\) using *mapped Legendre functions* (Lee & Marcus, 2023[^1]) as spectral basis elements. To achieve this, MLegS pre-calculates these functions with appropriate normalization at each collocation point, which is then pre-loaded into the global spectral transformation kit, `tfm`. This tutorial will guide you through the following steps:
 
@@ -69,7 +69,7 @@ Now let's run the program using single-core execution:
 
 ```bash
 #! bash
-mpirun.openmpi -n 1 ./build/bin/barebone_template
+mpirun -n 1 ./build/bin/barebone_template
 # # for ifx + IntelMPI
 # mpirun -n 1 ./build/bin/barebone_template
 ```
@@ -107,7 +107,7 @@ The good news is that these computations are *embarrassingly* parallelizable: ea
 
 ```bash
 #! bash
-mpirun.openmpi -n 2 ./build/bin/barebone_template
+mpirun -n 2 ./build/bin/barebone_template
 # # for ifx + IntelMPI
 # mpiexec -n 2 ./build/bin/barebone_template
 ```
@@ -120,12 +120,12 @@ If your system has more than two processors, you can increase the number of MPI 
 ```bash
 #! bash
 # get the total number of processors of your system
-np=$(nproc)
+np=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu)
 echo "The system's total number of processors is $np"
 # run the program with your system's full multi-core capacity. 
 #'--oversubscribe' is to make sure that the command below can be executed while bypassing the no. of available slots that may be limited by the default setup of OpenMPI.
 # However, this flag is essentially unnecessary.
-mpirun.openmpi -n $np --oversubscribe ./build/bin/barebone_template
+mpirun -n $np --oversubscribe ./build/bin/barebone_template
 # # for ifx + IntelMPI
 # mpiexec -n $np ./build/bin/barebone_template
 ```

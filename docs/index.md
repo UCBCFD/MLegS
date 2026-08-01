@@ -9,6 +9,12 @@ MLegS (**M**apped **Leg**endre **S**pectral Method Code) is a code package based
 
 Based on the numerical algorithm proposed by T. Matsushima and P. S. Marcus (1997)[^1], MLegS incorporates scalable multiprocessing interfaces for high-performance computing. MLegS is written in Modern Fortran; the code package is open-source under a BSD license.
 
+The v1.1 release adds guarded Fourier de-aliasing and a conservative
+tail-energy spectral vanishing-viscosity filter for the vortex example. It
+also supports the Homebrew GNU Fortran/OpenMPI toolchain on macOS; see the
+[prerequisites](tutorial/prerequisites) and [3D vortical-flow](sample_programs/3d_vortical_flow)
+pages for setup and stability controls.
+
 Prior to its open-source release, MLegS was successfully used in several vortex dynamics studies in the context of wake vortices in the atmosphere. One example is S. Lee and P. S. Marcus (2023)[^2], where one can find the detailed mathematical formulation of the mapped Legendre (pseudo-)spectral method.
 
 ---

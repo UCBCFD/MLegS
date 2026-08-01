@@ -12,7 +12,7 @@ For 1-dimensional problems, MLegS operates in serial mode only. This is because 
 ```bash
 #! bash
 make wave_propagation_1d
-mpirun.openmpi -n 1 ./build/bin/wave_propagation_1d
+mpirun -n 1 ./build/bin/wave_propagation_1d
 # if using IntelMPI
 # mpiexec -n 1 ./build/bin/wave_propagation_1d
 ```

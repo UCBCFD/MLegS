@@ -87,11 +87,13 @@ The default parameters are specified in `[root_dir]/input.params`:
 /* ------------------------------ END OF INPUT ------------------------------ */
 ```
 
-The final optional input block enables the bounded spectral vanishing-viscosity
+The final optional input block controls the bounded spectral vanishing-viscosity
 filter used by the vortex example.  It applies a 2/3 de-alias mask to the
 periodic directions and increases damping only when the modal tail exceeds
-`svv_target`; set the first value to `F` to disable it.  The vortex example
-also aborts collectively if a non-finite modal value is produced.
+`svv_target`; set the first value to `F` to disable it.  The filter is a
+tail-energy safeguard, not a controller that forces a `-5/3` spectrum.  The
+vortex example removes the mapped far-field (`x=1`) mode after each step and
+aborts collectively if a non-finite modal value is produced.
 
 On macOS with Homebrew GNU Fortran, install `gfortran`, `open-mpi`, and
 `cmake`, build the external libraries with `FC=gfortran CC=cc
@@ -111,6 +113,12 @@ From these parameters, the simulation is set as follows:
 - No log information is stored.
 
 Note that a non-zero *hyperviscous* dissipation term \\( - {\rm{HYPERVISC}} \cdot (-\nabla^2)^{({\rm{HYPERPOW}}/2)} \\), along with the *physical* dissipation term \\( {\rm{VISC}} \cdot \nabla^2 \\), is additionally taken into account. The hyperviscosity term does not represent physical dissipation but prevents numerical instability caused by high-frequency oscillations at small scales. It should remain minimal to avoid affecting the physical accuracy of the results.
+
+For a stability study, record the modal energy spectrum from the saved fields
+and check that the resolved inertial range is unchanged as the tail filter
+activates. The default controls are intentionally conservative and should be
+retuned with resolution and Reynolds number rather than used as a universal
+turbulence model.
 
 ## Animated Results
 

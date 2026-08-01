@@ -5,7 +5,7 @@ nav_order: 5
 ---
 
 # MLegS Tutorial 05: Time Integration
-*Disclaimer: This MLegS tutorial assumes a Linux or other Unix-based environment that supports bash terminal commands. If you are using Windows, consider installing the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).*
+*Disclaimer: This MLegS tutorial assumes a Unix-based environment with a bash-compatible terminal. Linux and macOS are supported; on Windows, consider installing the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).*
 
 This tutorial introduces the built-in time integration schemes available in MLegS. Currently, MLegS supports first-order and second-order time integration methods, providing global accuracy of \\( O(\Delta t) \\) and \\( O(\Delta t^2) \\), respectively, depending on the time-stepping interval \\( \Delta t \\).
 
@@ -114,10 +114,10 @@ cd ../
 # Make sure that the previous output files, from time_integration_first are all deleted.
 rm -rf output
 # get the total number of processors of your system
-np=$(nproc) # if your system can access more than 24 processors, set np <= 24.
+np=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu) # set np <= 24 if needed.
 echo "The system's total number of processors is $np"
 # run the program with your system's full multi-core capacity.
-mpirun.openmpi -n $np --oversubscribe ./build/bin/time_integration_first
+mpirun -n $np --oversubscribe ./build/bin/time_integration_first
 # # for ifx + IntelMPI
 # mpiexec -n $np ./build/bin/time_integration_first
 ```
@@ -333,10 +333,10 @@ cd ../
 # Make sure that the previous output files, from time_integration_first are all deleted.
 rm -rf output
 # get the total number of processors of your system
-np=$(nproc) # if your system can access more than 24 processors, set np <= 24.
+np=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu) # set np <= 24 if needed.
 echo "The system's total number of processors is $np"
 # run the program with your system's full multi-core capacity.
-mpirun.openmpi -n $np --oversubscribe ./build/bin/time_integration_second
+mpirun -n $np --oversubscribe ./build/bin/time_integration_second
 # # for ifx + IntelMPI
 # mpiexec -n $np ./build/bin/time_integration_second
 ```

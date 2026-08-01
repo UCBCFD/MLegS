@@ -5,7 +5,7 @@ nav_order: 1
 ---
 
 # MLegS Tutorial 01: Prerequisites
-*Disclaimer: This MLegS tutorial assumes a Linux (or any Unix-based) environment that supports bash terminal commands. If you are using Windows, consider installing the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).*
+*Disclaimer: This MLegS tutorial assumes a Unix-based environment with a bash-compatible terminal. Linux and macOS are supported; on Windows, consider installing the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).*
 
 In this tutorial, you’ll learn how to prepare your environment to work with the MLegS package. By completing these prerequisites, you will be ready to compile and run main programs that use MLegS. The following steps will be covered:
 
@@ -41,18 +41,23 @@ To ensure compatibility with MLegS, use one of the compiler and MPI setups. The 
 
 While Intel's legacy Fortran compiler, `ifort`, may be used as an alternative, please note that full compatibility has not been tested or guaranteed.
 
-You can install `gfortran` and OpenMPI via your system's package manager (`apt` for Ubuntu/Debian, `yum` for CentOS), as these packages are generally available in official repositories. 
+You can install `gfortran` and OpenMPI via your system's package manager (`apt` for Ubuntu/Debian, `yum` for CentOS, or Homebrew on macOS):
+
+```bash
+# macOS (Homebrew)
+brew install gcc open-mpi cmake
+```
 
 For Intel compilers, download and install the toolkit from [Intel's official download page](https://www.intel.com/content/www/us/en/developer/tools/oneapi/fortran-compiler.html#gs.hbhvru), selecting the distribution that matches your system. After installation, you need to source the Intel environment script (e.g., `source /opt/intel/oneapi/setvars.sh`) to set environment variables.
 
-Aftr installation, verify the versions with:
+After installation, verify the versions with:
 
 
 ```bash
 #! bash
 # for gfortran + OpenMPI
 gfortran --version
-mpirun.openmpi --version
+mpirun --version
 # # for ifx + IntelMPI
 # source /opt/intel/oneapi/setvars.sh > /dev/null 2>&1; export PATH="/opt/intel/oneapi:$PATH"
 # ifx --version
@@ -84,7 +89,7 @@ Once CMake is installed, navigate to the `[root_dir]/external/` directory and ch
 
 ```bash
 #! bash
-cd ../external/ # Navigate to the external directory, assuming the terminal is opened in the default directory ([root_dir]/tutorials/).
+cd external/ # Navigate to the external directory from the repository root.
 ```
 
 
@@ -95,21 +100,19 @@ chmod +x ./CMake_build.sh # Add the executable option
 ls -all | grep CMake_build.sh 
 ```
 
-By default, the script uses `gfortran` (with its compatible C compiler) for compilation, but you can easily change the compiler by modifying the compiler specification within the script.
+By default, the script uses `gfortran` and a compatible C compiler.  The
+compiler and parallel build count can be overridden without editing the
+script; this is useful on macOS, where Homebrew provides GNU Fortran and
+Apple Clang as `cc`.
 
 
 ```bash
 #! bash
-# in [root_dir]/external/CMake_build.sh, using any preferred text editor, update the following lines if one wants to use Intel
-# ...
-# FC = "gfortran" (-> replace it with "ifx", Intel's oneAPI Fortran compiler)
-# CC = "gcc" (-> replace it with "icx", Intel's oneAPI C compiler
-# ...
-# or simply run this bash command:
-#   sed -i 's/"gfortran"/"ifx"/g' ./CMake_build.sh
-#   sed -i 's/"gcc"/"icx"/g' ./CMake_build.sh
-# Now let's check what compilers are in use:
-head -n 20 ./CMake_build.sh | tail -4
+# macOS with Homebrew GNU Fortran:
+FC=gfortran CC=cc BUILD_JOBS=2 ./CMake_build.sh
+
+# Intel oneAPI (on a supported Linux installation):
+# FC=ifx CC=icx BUILD_JOBS=2 ./CMake_build.sh
 ```
 
 You are now ready to run the automated external library compilation script. Execute the following command:
@@ -117,9 +120,9 @@ You are now ready to run the automated external library compilation script. Exec
 
 ```bash
 #! bash
-# Since this script run yields very lengthy outputs, we suppress them here. 
-# Generally this automated compilation task takes up to 5-10 minutes. Take a cup of coffee... :)
-./CMake_build.sh > /dev/null 2>&1
+# The script now stops at the first failed dependency build.  Keep the output
+# visible while checking a new compiler installation.
+./CMake_build.sh
 ```
 
 If all external libraries are compiled successfully, you will see two new directories created in `[root_dir]/external/`: `./inc/` and `./lib/`. In `./lib/`, you should find the following **four** static library files: `libblas.a` and `liblapack.a` from LAPACK, `libfm.a` from FM, and `libffte.a` from FFTE. In `./inc/`, you should see several FM-related module files with a `.mod` extension (e.g., `fmvals.mod`, `fmzm.mod`, etc.).
@@ -137,7 +140,9 @@ ls ./lib/ ./inc/
 
 Now that the Fortran compiler, MPI, and the external libraries are set up, it is possible to proceed to compile the core MLegS modules. By default, the whole compilation process of MLegS is assumed to be done in its root directory. In the root directory, `Makefile` provides the instructions to compile the modules via a single line command, `make mods`.
 
-Before doing so, move to the root directory and ensure that the `Makefile` instructions runs over the same Fortran compiler as what you have utilized for the external library compilation. By default, the instructions use `gfortran`.
+Before doing so, move to the root directory and ensure that the `Makefile`
+uses the same Fortran compiler as the external-library build.  GNU Fortran is
+the default; the compiler wrapper can be selected with `OMPI_FC`.
 
 
 ```bash
@@ -148,15 +153,17 @@ cd ../ # Navigate to the root directory.
 
 ```bash
 #! bash
-# in [root_dir]/Makefile, using any preferred text editor, update the following lines if one wants to use Intel
-# ...
-# OMPI_FC = "gfortran" (-> replace it with "ifx", Intel's oneAPI Fortran compiler)
-# ...
-# or simply run this bash command:
-#   sed -i 's/OMPI_FC = gfortran/OMPI_FC = ifx/g' ./Makefile
-# Now let's check what compiler is in use:
-head -n 4 ./Makefile | tail -4
+# GNU Fortran (default, including macOS/Homebrew):
+make mods
+
+# Intel oneAPI on a supported Linux installation:
+# make OMPI_FC=ifx mods
 ```
+
+The GNU Fortran Makefile path does not pass Linux-only `-mcmodel=medium`
+flags, so the same command works with Homebrew GCC on Apple silicon and Intel
+macOS. Site-specific flags can be appended with
+`GFORTRAN_EXTRA_FFLAGS="..."`.
 
 MLegS, in its most recent version, includes a stack of seven modules designed for MPI-parallelized simulations within a radially unbounded computational domain. These module files are stored in `[root_dir]/src/modules/`, where you can find the header information for all functions and subroutines. The actual numerical calculations and I/O operations are implemented in submodule files located in `[root_dir]/src/submodules/`. While we won’t go into detail about each module's functionality in this tutorial, here’s a brief overview of what each module contains:
 

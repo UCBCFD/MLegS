@@ -5,7 +5,7 @@ nav_order: 6
 ---
 
 # MLegS Tutorial 06: Vector Field Manipulation
-*Disclaimer: This MLegS tutorial assumes a Linux or other Unix-based environment that supports bash terminal commands. If you are using Windows, consider installing the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).*
+*Disclaimer: This MLegS tutorial assumes a Unix-based environment with a bash-compatible terminal. Linux and macOS are supported; on Windows, consider installing the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).*
 
 In this tutorial, an effective approach for manipulating a divergence-free (solenoidal) vector field using the Toroidal-Poloidal (TP) decomposition is introduced. For an arbitrary vector field in a cylindrical coordinate system, 
 
@@ -166,10 +166,10 @@ cd ../
 # Make sure that the previously generated output files are all deleted.
 rm -rf output
 # get the total number of processors of your system
-np=$(nproc) # if your system can access more than 24 processors, set np <= 24.
+np=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu) # set np <= 24 if needed.
 echo "The system's total number of processors is $np"
 # run the program with your system's full multi-core capacity.
-mpirun.openmpi -n $np --oversubscribe ./build/bin/vecfld_reconstruction
+mpirun -n $np --oversubscribe ./build/bin/vecfld_reconstruction
 # # for ifx + IntelMPI
 # mpiexec -n $np ./build/bin/vecfld_reconstruction
 ```
@@ -309,10 +309,10 @@ make tp_project
 #! bash
 cd ../
 # get the total number of processors of your system
-np=$(nproc) # if your system can access more than 24 processors, set np <= 24.
+np=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu) # set np <= 24 if needed.
 echo "The system's total number of processors is $np"
 # run the program with your system's full multi-core capacity.
-mpirun.openmpi -n $np --oversubscribe ./build/bin/tp_project
+mpirun -n $np --oversubscribe ./build/bin/tp_project
 # # for ifx + IntelMPI
 # mpiexec -n $np ./build/bin/tp_project
 ```
