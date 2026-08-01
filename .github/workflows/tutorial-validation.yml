@@ -2,7 +2,16 @@ name: Validate tutorials
 
 on:
   push:
+    branches:
+      - "**"
+    paths-ignore:
+      - "docs/**"
+      - ".github/workflows/**"
   pull_request:
+    paths-ignore:
+      - "docs/**"
+      - ".github/workflows/**"
+  workflow_dispatch:
 
 jobs:
   tutorial-validation:

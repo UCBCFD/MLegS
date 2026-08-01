@@ -206,4 +206,4 @@ Before submitting a change, run the repository tutorial gate from the root direc
 python3 tools/validate_tutorials.py
 ```
 
-The same gate runs automatically for pushes and pull requests in GitHub Actions. Use `--skip-build` when the current `build/bin/` executables are already available. Full notebook-cell execution is available with `--execute-notebooks` when `nbformat`, `nbclient`, and the plotting dependencies are installed.
+The same gate runs automatically for code, build, and tutorial changes in pushes and pull requests; documentation-only Pages pushes, workflow-only changes, and release-tag pushes are intentionally excluded from this compute-intensive job. Use `--skip-build` when the current `build/bin/` executables are already available. Full notebook-cell execution is available with `--execute-notebooks` when `nbformat`, `nbclient`, and the plotting dependencies are installed.
