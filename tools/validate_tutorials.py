@@ -26,6 +26,7 @@ NOTEBOOK_APPS: Mapping[str, tuple[str, ...]] = {
 }
 
 DOCUMENT_APPS: Mapping[str, tuple[str, ...]] = {
+    "docs/tutorial/prerequisites.md": (),
     "docs/sample_programs/1d_radial_wave_propagation.md": (
         "wave_propagation_1d",
     ),
@@ -89,6 +90,8 @@ def validate_notebooks(root: Path) -> None:
                 raise ValidationError(
                     f"{path} does not contain both build and run commands for {app}"
                 )
+        if name == "01_prerequisites.ipynb" and "make mods" not in combined:
+            raise ValidationError(f"{path} does not contain the module build command")
 
         for cell in cells:
             if not isinstance(cell, dict) or cell.get("cell_type") != "code":
@@ -442,7 +445,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         print(f"tutorial validation failed: {exc}", file=sys.stderr)
         return 1
     print(
-        "tutorial validation passed: six notebooks, nine documentation pages, "
+        "tutorial validation passed: six notebooks, ten documentation pages, "
         f"and {len(ALL_APPS)} executable tutorial paths"
     )
     return 0
