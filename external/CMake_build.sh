@@ -1,5 +1,7 @@
 #!/bin/bash
 set -euo pipefail
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 # To run this bash script, make sure that cmake is installed in your system.
 # Using apt, you may install cmake by running 'apt install cmake'
 # (re)create a lib directory where all external libraries' symbolic links are

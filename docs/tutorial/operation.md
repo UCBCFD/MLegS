@@ -65,7 +65,8 @@ The program `laplacian.f90` performs these calculation steps. Run it to obtain t
 
 ```bash
 #! bash
-cd ../ # Navigate to the root directory, assuming the terminal is opened in the default directory ([root_dir]/tutorials/).
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR"
 # Do program compilation. You will be able to see what actually this Makefile command runs in the output. 
 make laplacian
 ```
@@ -73,7 +74,8 @@ make laplacian
 
 ```bash
 #! bash
-cd ../
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR"
 # get the total number of processors of your system
 np=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu) # set np <= 32 if needed.
 echo "The system's total number of processors is $np"
@@ -155,12 +157,13 @@ The `matplotlib` code snippet below generates a plot that compares the analytic 
 # to run this cell, install sympy, numpy and matplotlib in your Python3 environment.
 import sympy as sp
 import numpy as np
+import math
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 # Symbolically declare the analytically exact scalar field
 r, phi = sp.symbols('r phi')
-laplacian_f = 48*np.math.sqrt(15)*r*(r**2-1)*((r**2+1)*sp.cos(phi)-2*np.math.sqrt(7)*r*sp.cos(2*phi))/(r**2+1)**5
+laplacian_f = 48*math.sqrt(15)*r*(r**2-1)*((r**2+1)*sp.cos(phi)-2*math.sqrt(7)*r*sp.cos(2*phi))/(r**2+1)**5
 
 # Generate analytic scalar data for the plot
 laplacian_f_num = sp.lambdify((r, phi), laplacian_f)
@@ -231,7 +234,8 @@ You can check that now `s` turns into the original scalar field.
 
 ```bash
 #! bash
-cd ../ # Navigate to the root directory, assuming the terminal is opened in the default directory ([root_dir]/tutorials/).
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR"
 # Do program compilation. You will be able to see what actually this Makefile command runs in the output. 
 make inverse_laplacian
 ```
@@ -239,7 +243,8 @@ make inverse_laplacian
 
 ```bash
 #! bash
-cd ../
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR"
 # get the total number of processors of your system
 np=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu) # set np <= 32 if needed.
 echo "The system's total number of processors is $np"

@@ -147,7 +147,8 @@ the default; the compiler wrapper can be selected with `OMPI_FC`.
 
 ```bash
 #! bash
-cd ../ # Navigate to the root directory.
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR"
 ```
 
 
@@ -196,3 +197,13 @@ ls ./build/mod/ ./build/obj/
 ```
 
 With this, all preliminary tasks required to use MLegS are complete!
+
+## Validate all tutorials
+
+Before submitting a change, run the repository tutorial gate from the root directory. It checks the documentation and notebook command surfaces, builds every documented example, and runs the tutorial chains in an isolated temporary directory:
+
+```bash
+python3 tools/validate_tutorials.py
+```
+
+The same gate runs automatically for pushes and pull requests in GitHub Actions. Use `--skip-build` when the current `build/bin/` executables are already available. Full notebook-cell execution is available with `--execute-notebooks` when `nbformat`, `nbclient`, and the plotting dependencies are installed.

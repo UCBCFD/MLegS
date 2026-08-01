@@ -188,7 +188,8 @@ The scalar data in spectral space, before the backward transformation, is stored
 
 ```bash
 #! bash
-cd ../ # Navigate to the root directory, assuming the terminal is opened in the default directory ([root_dir]/tutorials/).
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR"
 # Do program compilation. You will be able to see what actually this Makefile command runs in the output. 
 make backward_trans
 ```
@@ -227,13 +228,14 @@ where the factor of 2 accounts for \\( c.c. \\). Using the `matplotlib` code pro
 # to run this cell, install sympy, numpy and matplotlib in your Python3 environment.
 import sympy as sp
 import numpy as np
+import math
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 # Symbolically declare the analytically exact scalar field
 r, phi = sp.symbols('r phi')
-f = 2 * ((2 * np.math.factorial(2+1) / (2*2 + 1))**(-0.5) * -6 * r * (r**2 - 1) / (r**2 + 1)**2 * sp.cos(phi) \
-    + (2 * np.math.factorial(3+2) / (2*3 + 1))**(-0.5) * 60 * r**2 * (r**2 - 1) / (r**2 + 1)**3 * sp.cos(2 * phi))
+f = 2 * ((2 * math.factorial(2+1) / (2*2 + 1))**(-0.5) * -6 * r * (r**2 - 1) / (r**2 + 1)**2 * sp.cos(phi) \
+    + (2 * math.factorial(3+2) / (2*3 + 1))**(-0.5) * 60 * r**2 * (r**2 - 1) / (r**2 + 1)**3 * sp.cos(2 * phi))
     # 2 * ( ... ) is due to the addition of c.c.
 
 # Generate analytic scalar data for the plot
@@ -320,7 +322,8 @@ Let's compile and run the forward transforamtion tutorial program.
 
 ```bash
 #! bash
-cd ../ # Navigate to the root directory, assuming the terminal is opened in the default directory ([root_dir]/tutorials/).
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR"
 # Do program compilation. You will be able to see what actually this Makefile command runs in the output. 
 make forward_trans
 ```

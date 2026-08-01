@@ -1,0 +1,23 @@
+name: Validate tutorials
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tutorial-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake gfortran libopenmpi-dev openmpi-bin
+
+      - name: Build external libraries
+        run: FC=gfortran CC=gcc BUILD_JOBS=2 ./external/CMake_build.sh
+
+      - name: Run tutorial validation gate
+        run: python3 tools/validate_tutorials.py --ranks 2

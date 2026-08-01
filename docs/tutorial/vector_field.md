@@ -114,7 +114,8 @@ Before running the tutorial program, let's set up the input parameters:
 ```bash
 #! bash
 # Run this cell will automatically update the input parameter setup in input_tutorial.params. Otherwise, you can manually create this file using nano, vim, etc.
-cd ../ # Navigate to the root directory
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR"
 cat > input_tutorial.params << EOL
 !!! COMPUTATIONAL DOMAIN INFO !!!
 # ---------- NR ----------- NP ----------- NZ ----------------------------------
@@ -154,7 +155,8 @@ Once the tutorial program `vecfld_reconstruction` numerically generates \\( \psi
 
 ```bash
 #! bash
-cd ../ # Navigate to the root directory, assuming the terminal is opened in the default directory ([root_dir]/tutorials/).
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR"
 # Do program compilation. You will be able to see what actually this Makefile command runs in the output. 
 make vecfld_reconstruction
 ```
@@ -162,7 +164,8 @@ make vecfld_reconstruction
 
 ```bash
 #! bash
-cd ../
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR"
 # Make sure that the previously generated output files are all deleted.
 rm -rf output
 # get the total number of processors of your system
@@ -177,7 +180,8 @@ mpirun -n $np --oversubscribe ./build/bin/vecfld_reconstruction
 
 ```bash
 #! bash
-cd ../output/
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR/output/"
 # See all generated field files
 ls ./fld/
 ```
@@ -299,7 +303,8 @@ Now that we have the three vector component information in `vr000000_PPP`, `vp00
 
 ```bash
 #! bash
-cd ../ # Navigate to the root directory, assuming the terminal is opened in the default directory ([root_dir]/tutorials/).
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR"
 # Do program compilation. You will be able to see what actually this Makefile command runs in the output. 
 make tp_project
 ```
@@ -307,7 +312,8 @@ make tp_project
 
 ```bash
 #! bash
-cd ../
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR"
 # get the total number of processors of your system
 np=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu) # set np <= 24 if needed.
 echo "The system's total number of processors is $np"
@@ -322,7 +328,8 @@ You will see two new field files in the spectral space (`FFF`): `pjpsi000000_FFF
 
 ```bash
 #! bash
-cd ../output/
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR/output/"
 # See all generated field files
 ls ./fld/
 ```

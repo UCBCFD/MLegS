@@ -39,7 +39,8 @@ Run the following command to compile `barebone_template.f90` and generate an exe
 
 ```bash
 #! bash
-cd ../ # Navigate to the root directory, assuming the terminal is opened in the default directory ([root_dir]/tutorials/).
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR"
 ```
 
 

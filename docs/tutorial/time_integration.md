@@ -62,7 +62,8 @@ For more drastic change in the vorticity in a short run, we set \\( {\rm{VISC}} 
 ```bash
 #! bash
 # Run this cell will automatically update the input parameter setup in input_tutorial.params. Otherwise, you can manually create this file using nano, vim, etc.
-cd ../ # Navigate to the root directory
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR"
 cat > input_tutorial.params << EOL
 !!! COMPUTATIONAL DOMAIN INFO !!!
 # ---------- NR ----------- NP ----------- NZ ----------------------------------
@@ -103,14 +104,16 @@ The tutorial program, `time_integration_first` is written in `[root_dir]/src/app
 
 ```bash
 #! bash
-cd ../ # Navigate to the root directory, assuming the terminal is opened in the default directory ([root_dir]/tutorials/).
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR"
 # Do program compilation. You will be able to see what actually this Makefile command runs in the output. 
 make time_integration_first
 ```
 
 ```bash
 #! bash
-cd ../
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR"
 # Make sure that the previous output files, from time_integration_first are all deleted.
 rm -rf output
 # get the total number of processors of your system
@@ -126,7 +129,8 @@ Check that the program generates two field data, `sfld000000_PPP` at \\( t = 0 \
 
 ```bash
 #! bash
-cd ../output/
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR/output/"
 # See all generated fields and data
 ls ./fld/ ./dat/
 ```
@@ -321,7 +325,8 @@ The tutorial program, `time_integration_second`, is located in `[root_dir]/src/a
 
 ```bash
 #! bash
-cd ../ # Navigate to the root directory, assuming the terminal is opened in the default directory ([root_dir]/tutorials/).
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR"
 # Do program compilation. You will be able to see what actually this Makefile command runs in the output. 
 make time_integration_second
 ```
@@ -329,7 +334,8 @@ make time_integration_second
 
 ```bash
 #! bash
-cd ../
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR"
 # Make sure that the previous output files, from time_integration_first are all deleted.
 rm -rf output
 # get the total number of processors of your system
@@ -345,7 +351,8 @@ This second-order time integration program generates the same dataset as the pre
 
 ```bash
 #! bash
-cd ../output/
+if [ -f Makefile ]; then ROOT_DIR="$PWD"; else ROOT_DIR="$(cd .. && pwd)"; fi
+cd "$ROOT_DIR/output/"
 # See all generated fields and data
 ls ./fld/ ./dat/
 ```
