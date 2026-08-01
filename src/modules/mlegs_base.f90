@@ -39,8 +39,6 @@ module mlegs_base
   real(p8), public :: svv_strength = 0.12D0
   !> stability -- relaxation applied to the tail-energy feedback
   real(p8), public :: svv_relax = 0.25D0
-  !> stability -- filtered tail feedback state
-  real(p8), public :: svv_gain = 0.D0
   !> file I/O -- field output directory
   character(len=256), public :: flddir = './output/fld/'
   !> file I/O -- enabling field output (T/F)

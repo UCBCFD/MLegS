@@ -108,7 +108,7 @@ contains
               endif
           end select
           q_z = min(1.D0, kvalue / kmax)
-          q = min(1.D0, sqrt((q_r*q_r + q_p*q_p + q_z*q_z)/3.D0))
+          q = min(1.D0, max(q_r, q_p, q_z))
           if (q .ge. cutoff) tail_local = tail_local + abs(s%e(i,j,k))**2
         enddo
       enddo
@@ -120,9 +120,9 @@ contains
 
     tail_ratio = tail_global / total_global
     feedback = min(max(tail_ratio/target - 1.D0, 0.D0), 1.D0)
-    svv_gain = (1.D0 - min(max(svv_relax, 0.D0), 1.D0))*svv_gain &
-             + min(max(svv_relax, 0.D0), 1.D0)*feedback
-    strength = min(max(svv_strength, 0.D0)*svv_gain, 1.D0)
+    gain = (1.D0 - min(max(svv_relax, 0.D0), 1.D0))*gain &
+         + min(max(svv_relax, 0.D0), 1.D0)*feedback
+    strength = min(max(svv_strength, 0.D0)*gain, 1.D0)
     if (strength .le. 0.D0) return
 
     do i = 1, s%loc_sz(1)
@@ -141,7 +141,7 @@ contains
               endif
           end select
           q_z = min(1.D0, kvalue / kmax)
-          q = min(1.D0, sqrt((q_r*q_r + q_p*q_p + q_z*q_z)/3.D0))
+          q = min(1.D0, max(q_r, q_p, q_z))
           if (q .gt. cutoff) then
             shape = (q-cutoff)/(1.D0-cutoff)
             factor = exp(-strength*shape**filter_order)

@@ -134,10 +134,11 @@ module mlegs_scalar
 
   !> apply the bounded, tail-energy-driven spectral vanishing-viscosity filter
   interface svv_filter
-    module subroutine svv_filter(s, tfm)
+    module subroutine svv_filter(s, tfm, gain)
       implicit none
       class(scalar), intent(inout) :: s
       class(tfm_kit), intent(in) :: tfm
+      real(p8), intent(inout) :: gain
     end subroutine
   end interface
   public :: svv_filter

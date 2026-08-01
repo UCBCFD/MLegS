@@ -5,13 +5,12 @@ import argparse
 import ast
 import json
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
-from typing import Iterable, Mapping, Sequence
-
+from collections.abc import Iterable, Mapping, Sequence
+from pathlib import Path
 
 NOTEBOOK_APPS: Mapping[str, tuple[str, ...]] = {
     "01_prerequisites.ipynb": (),
@@ -26,6 +25,8 @@ NOTEBOOK_APPS: Mapping[str, tuple[str, ...]] = {
 }
 
 DOCUMENT_APPS: Mapping[str, tuple[str, ...]] = {
+    "docs/release_notes.md": (),
+    "docs/release_notes_v1.0.x.md": (),
     "docs/tutorial/prerequisites.md": (),
     "docs/sample_programs/1d_radial_wave_propagation.md": (
         "wave_propagation_1d",
@@ -81,7 +82,7 @@ def validate_notebooks(root: Path) -> None:
 
         sources = [_cell_source(cell) for cell in cells if isinstance(cell, dict)]
         combined = "\n".join(sources)
-        stale = [token for token in ("mpirun.openmpi", "nproc") if token in combined]
+        stale = [token for token in ("mpirun.openmpi", "nproc", "--oversubscribe") if token in combined]
         if stale:
             raise ValidationError(f"{path} contains stale platform command(s): {stale}")
 
@@ -111,7 +112,7 @@ def validate_documents(root: Path) -> None:
         if not path.is_file():
             raise ValidationError(f"missing documentation page: {relative}")
         text = path.read_text(encoding="utf-8")
-        stale = [token for token in ("mpirun.openmpi", "nproc") if token in text]
+        stale = [token for token in ("mpirun.openmpi", "nproc", "--oversubscribe") if token in text]
         if stale:
             raise ValidationError(f"{relative} contains stale platform command(s): {stale}")
         for app in apps:
@@ -169,6 +170,8 @@ def _input_text(
     logs: bool = False,
     log_interval: int = 1,
     stability: bool = True,
+    svv_cutoff: float = 0.75,
+    svv_target: float = 2.0e-2,
 ) -> str:
     return f"""!!! COMPUTATIONAL DOMAIN INFO !!!
 # ---------- NR ----------- NP ----------- NZ ----------------------------------
@@ -199,7 +202,7 @@ def _input_text(
               {'T' if logs else 'F'}              {log_interval}
 !!! STABILITY CONTROL INFO (OPTIONAL) !!!
 # ------- IS_SVV ------- CUTOFF ------- TARGET ------ STRENGTH ------- RELAX ---
-              {'T' if stability else 'F'}          0.75          2.D-2          0.12          0.25
+              {'T' if stability else 'F'}          {svv_cutoff:.6E}          {svv_target:.6E}          0.12          0.25
 /* ------------------------------ END OF INPUT ------------------------------ */
 """
 
@@ -273,6 +276,48 @@ def _prepare_run_directory() -> Path:
             field_interval=1,
             logs=False,
             stability=False,
+        ),
+        "input_svv_off.params": _input_text(
+            nr=32,
+            np=16,
+            nz=8,
+            nrchop=32,
+            npchop=9,
+            nzchop=5,
+            ell=4.0,
+            dt=5.0e-3,
+            totaltime=1.0e-1,
+            totaln=20,
+            visc=1.0e-10,
+            hyperpow=8,
+            hypervisc=1.0e-10,
+            fields=True,
+            field_interval=20,
+            logs=False,
+            stability=False,
+            svv_cutoff=0.5,
+            svv_target=1.0e-12,
+        ),
+        "input_svv_on.params": _input_text(
+            nr=32,
+            np=16,
+            nz=8,
+            nrchop=32,
+            npchop=9,
+            nzchop=5,
+            ell=4.0,
+            dt=5.0e-3,
+            totaltime=1.0e-1,
+            totaln=20,
+            visc=1.0e-10,
+            hyperpow=8,
+            hypervisc=1.0e-10,
+            fields=True,
+            field_interval=20,
+            logs=False,
+            stability=True,
+            svv_cutoff=0.5,
+            svv_target=1.0e-12,
         ),
     }
     for name, text in configs.items():
@@ -368,6 +413,52 @@ def run_executables(root: Path, *, ranks: int, timeout: int, skip_build: bool) -
         run_case("scalar_diffusion_2d", "input_2d.params")
         run_case("scalar_transport_2d", "input_2d.params")
         run_case("vortical_flow_3d", "input.params")
+
+        svv_states = []
+        svv_field = run_dir / "output" / "fld" / "vormagfld000020_PPP"
+        for config in ("input_svv_off.params", "input_svv_on.params"):
+            shutil.copyfile(run_dir / config, run_dir / "input.params")
+            run_case("vortical_flow_3d", "input.params")
+            if not svv_field.is_file():
+                raise ValidationError(f"missing SVV validation field: {svv_field.name}")
+            svv_states.append(svv_field.read_bytes())
+        if svv_states[0] == svv_states[1]:
+            raise ValidationError("SVV enabled/disabled validation fields are identical")
+
+        rejected_inputs = {
+            "zero enabled hyperviscosity": _input_text(
+                nr=32, np=16, nz=8, nrchop=32, npchop=9, nzchop=5,
+                ell=4.0, dt=1.0e-2, totaltime=1.0e-2, totaln=1,
+                visc=1.0e-4, hyperpow=8, hypervisc=0.0,
+            ),
+            "unsupported hyperviscosity power": _input_text(
+                nr=32, np=16, nz=8, nrchop=32, npchop=9, nzchop=5,
+                ell=4.0, dt=1.0e-2, totaltime=1.0e-2, totaln=1,
+                visc=1.0e-4, hyperpow=10, hypervisc=1.0e-7,
+            ),
+            "invalid SVV cutoff": _input_text(
+                nr=32, np=16, nz=8, nrchop=32, npchop=9, nzchop=5,
+                ell=4.0, dt=1.0e-2, totaltime=1.0e-2, totaln=1,
+                visc=1.0e-4, hyperpow=8, hypervisc=1.0e-7,
+                svv_cutoff=2.0,
+            ),
+        }
+        for label, text in rejected_inputs.items():
+            (run_dir / "input.params").write_text(text, encoding="utf-8")
+            try:
+                completed = subprocess.run(
+                    [*mpi, str(binaries["vortical_flow_3d"])],
+                    cwd=run_dir,
+                    check=False,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    timeout=timeout,
+                )
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                raise ValidationError(f"{label} rejection check failed: {exc}") from exc
+            if completed.returncode == 0:
+                raise ValidationError(f"{label} was accepted")
     finally:
         shutil.rmtree(run_dir, ignore_errors=True)
 
@@ -389,7 +480,7 @@ def execute_notebooks(root: Path, *, timeout: int) -> None:
             notebook,
             timeout=timeout,
             kernel_name="python3",
-            resources={"metadata": {"path": str(root)}},
+            resources={"metadata": {"path": str(root / "tutorials")}},
         )
         try:
             client.execute()
@@ -445,7 +536,8 @@ def main(argv: Iterable[str] | None = None) -> int:
         print(f"tutorial validation failed: {exc}", file=sys.stderr)
         return 1
     print(
-        "tutorial validation passed: six notebooks, ten documentation pages, "
+        f"tutorial validation passed: {len(NOTEBOOK_APPS)} notebooks, "
+        f"{len(DOCUMENT_APPS)} documentation pages, "
         f"and {len(ALL_APPS)} executable tutorial paths"
     )
     return 0

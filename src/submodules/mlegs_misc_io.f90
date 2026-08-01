@@ -311,7 +311,7 @@ contains
     character(len=1) :: dum
 
     open(unit=fu, file=trim(adjustl(fn)), status='old', action='read', form='formatted', iostat=ie)
-    if (ie .ne. 0) stop 'read_input: could not open input file'
+    if (ie .ne. 0) error stop 'read_input: could not open input file'
 
     read(fu,*) dum ! computational domain info.
     read(fu,*) dum; read(fu,*) nr,     np,     nz
@@ -336,10 +336,10 @@ contains
       flddir = trim(adjustl(flddir))//'/'
     endif
     if (verify(trim(flddir), 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_./-') .ne. 0) then
-      stop 'read_input: invalid field output directory'
+      error stop 'read_input: invalid field output directory'
     endif
     call execute_command_line('mkdir -p -- "'//trim(flddir)//'"', wait=.true., exitstat=exitstat, cmdstat=cmdstat)
-    if ((cmdstat .ne. 0) .or. (exitstat .ne. 0)) stop 'read_input: could not create field output directory'
+    if ((cmdstat .ne. 0) .or. (exitstat .ne. 0)) error stop 'read_input: could not create field output directory'
     read(fu,*) dum; read(fu,*) isfldsav, fldsavintvl
     read(fu,*) dum
 
@@ -349,35 +349,38 @@ contains
       logdir = trim(adjustl(logdir))//'/'
     endif
     if (verify(trim(logdir), 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_./-') .ne. 0) then
-      stop 'read_input: invalid log output directory'
+      error stop 'read_input: invalid log output directory'
     endif
     call execute_command_line('mkdir -p -- "'//trim(logdir)//'"', wait=.true., exitstat=exitstat, cmdstat=cmdstat)
-    if ((cmdstat .ne. 0) .or. (exitstat .ne. 0)) stop 'read_input: could not create log output directory'
+    if ((cmdstat .ne. 0) .or. (exitstat .ne. 0)) error stop 'read_input: could not create log output directory'
     read(fu,*) dum; read(fu,*) islogsav, logsavintvl
-    read(fu,*) dum
+    read(fu,*,iostat=ie) dum
 
     ! Optional stability controls.  Older input files end at the previous line.
-    read(fu,*,iostat=ie) dum
     if (ie .eq. 0) then
       read(fu,*,iostat=ie) dum
-      if (ie .eq. 0) read(fu,*,iostat=ie) is_svv, svv_cutoff, svv_target, svv_strength, svv_relax
+      if (ie .eq. 0) then
+        read(fu,*,iostat=ie) is_svv, svv_cutoff, svv_target, svv_strength, svv_relax
+        if (ie .ne. 0) error stop 'read_input: invalid SVV controls'
+      endif
     endif
 
     if ((nr .le. 0) .or. (mod(nr,2) .ne. 0) .or. (np .le. 0) .or. (nz .le. 0)) then
-      stop 'read_input: nr must be positive and even; np and nz must be positive'
+      error stop 'read_input: nr must be positive and even; np and nz must be positive'
     endif
     if ((nrchop .le. 0) .or. (nrchop .gt. nr) .or. (npchop .le. 0) .or. (npchop .gt. np/2+1) .or. &
-        (nzchop .le. 0) .or. (nzchop .gt. nz/2+1)) stop 'read_input: invalid chopping sizes'
-    if ((ell .le. 0.D0) .or. (zlen .le. 0.D0)) stop 'read_input: ell and zlen must be positive'
-    if ((dt .le. 0.D0) .or. (totaltime .lt. 0.D0) .or. (totaln .lt. 0)) stop 'read_input: invalid time stepping values'
-    if ((visc .lt. 0.D0) .or. (hypervisc .lt. 0.D0)) stop 'read_input: viscosities must be non-negative'
-    if ((hyperpow .ne. 0) .and. ((hyperpow .lt. 4) .or. (mod(hyperpow,2) .ne. 0))) then
-      stop 'read_input: hyperpow must be zero or an even value greater than or equal to 4'
+        (nzchop .le. 0) .or. (nzchop .gt. nz/2+1)) error stop 'read_input: invalid chopping sizes'
+    if ((ell .le. 0.D0) .or. (zlen .le. 0.D0)) error stop 'read_input: ell and zlen must be positive'
+    if ((dt .le. 0.D0) .or. (totaltime .lt. 0.D0) .or. (totaln .lt. 0)) error stop 'read_input: invalid time stepping values'
+    if ((visc .lt. 0.D0) .or. (hypervisc .lt. 0.D0)) error stop 'read_input: viscosities must be non-negative'
+    if ((hyperpow .ne. 0) .and. (hyperpow .ne. 4) .and. (hyperpow .ne. 6) .and. (hyperpow .ne. 8)) then
+      error stop 'read_input: hyperpow must be zero, 4, 6, or 8'
     endif
-    if ((fldsavintvl .le. 0) .or. (logsavintvl .le. 0)) stop 'read_input: output intervals must be positive'
+    if ((hyperpow .ne. 0) .and. (hypervisc .le. 0.D0)) error stop 'read_input: hypervisc must be positive when enabled'
+    if ((fldsavintvl .le. 0) .or. (logsavintvl .le. 0)) error stop 'read_input: output intervals must be positive'
     if ((svv_cutoff .le. 0.D0) .or. (svv_cutoff .ge. 1.D0) .or. (svv_target .le. 0.D0) .or. &
         (svv_strength .lt. 0.D0) .or. (svv_relax .lt. 0.D0) .or. (svv_relax .gt. 1.D0)) then
-      stop 'read_input: invalid SVV controls'
+      error stop 'read_input: invalid SVV controls'
     endif
 
     close(fu)
@@ -528,14 +531,14 @@ contains
     integer(i4) :: i, j, k, is, fo = 11
     character(:), allocatable :: dum1, dum2, dum3, bsstr
 
+    ni = size(a,1)
+    nj = size(a,2)
+    nk = size(a,3)
+
     dum1 = ntoa(formatted_num_str_len)
     dum2 = ntoa(formatted_num_str_len - 9)
     dum3 = ntoa(nj)
     bsstr = '('//trim(adjustl(dum3))//'(1PE'//trim(adjustl(dum1))//'.'//trim(adjustl(dum2))//'E3))'
-
-    ni = size(a,1)
-    nj = size(a,2)
-    nk = size(a,3)
 
     if (is_binary) then
       open(unit=fo, file=fn, form='unformatted', access='stream', status='old', iostat=is, action='read')
@@ -629,14 +632,14 @@ contains
     character(:), allocatable :: dum1, dum2, dum3, bsstr
     real(p8), dimension(:), allocatable :: real_imag_pairs
 
+    ni = size(a,1)
+    nj = size(a,2)
+    nk = size(a,3)
+
     dum1 = ntoa(formatted_num_str_len)
     dum2 = ntoa(formatted_num_str_len - 9)
     dum3 = ntoa(2*nj)
     bsstr = '('//trim(adjustl(dum3))//'(1PE'//trim(adjustl(dum1))//'.'//trim(adjustl(dum2))//'E3))'
-
-    ni = size(a,1)
-    nj = size(a,2)
-    nk = size(a,3)
 
     if (is_binary) then
       open(unit=fo, file=fn, form='unformatted', access='stream', status='old', iostat=is, action='read')

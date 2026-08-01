@@ -14,6 +14,17 @@ Prior to its open-source release, MLegS was successfully used in several vortex 
 ## Preparation
 Refer to the Notebook tutorial to complete the prerequisites before using MLegS (`/tutorials/01_prerequisites.ipynb`). An online, ready-to-read (though non-interactive) version is available on the MLegS documentation site: [https://ucbcfd.github.io/MLegS/tutorial/prerequisites.html](https://ucbcfd.github.io/MLegS/tutorial/prerequisites.html).
 
+The latest release supports GNU Fortran on Linux and macOS, adds guarded
+periodic de-aliasing and optional tail-energy SVV control to the 3D vortex
+example, and includes an executable tutorial validation gate. See the
+[Update Notes](https://ucbcfd.github.io/MLegS/update_notes.html) for the
+release history, numerical safeguards, validation commands, and current
+limitations.
+
+```bash
+python3 tools/validate_tutorials.py --ranks 2
+```
+
 ## Links
 - Code repository: [https://github.com/ucbcfd/MLegS](https://github.com/ucbcfd/MLegS)
 - Documentation: [https://ucbcfd.github.io/MLegS](https://ucbcfd.github.io/MLegS)

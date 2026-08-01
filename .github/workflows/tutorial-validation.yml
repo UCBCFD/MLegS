@@ -21,3 +21,9 @@ jobs:
 
       - name: Run tutorial validation gate
         run: python3 tools/validate_tutorials.py --ranks 2
+
+      - name: Run tutorial gate with GNU runtime checks
+        run: |
+          make clean
+          make GFORTRAN_EXTRA_FFLAGS="-O0 -fcheck=all -fbacktrace -ffpe-trap=invalid,zero,overflow"
+          python3 tools/validate_tutorials.py --skip-build --ranks 2

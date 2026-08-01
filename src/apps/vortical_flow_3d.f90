@@ -17,6 +17,7 @@ program vortical_flow_3d
   integer(i4), dimension(3) :: glb_sz
   integer(i4) :: stepping_notice = 1 ! in order to suppress time stepping print-outs
   real(p8) :: tsum = 0.D0
+  real(p8) :: svv_gain_psi = 0.D0, svv_gain_chi = 0.D0
   character(len=256) :: input_params_file = './input.params' ! must be created in advance. Refer to the tutorial ipynb.
   logical :: exists
 
@@ -136,7 +137,7 @@ program vortical_flow_3d
   chi%e = 2.D0/1.D0*chi%e - 1.D0/1.D0*chi_rich%e ! Richardson extrapolation
 
   call dealias(psi, tfm); call dealias(chi, tfm)
-  call svv_filter(psi, tfm); call svv_filter(chi, tfm)
+  call svv_filter(psi, tfm, svv_gain_psi); call svv_filter(chi, tfm, svv_gain_chi)
   call zeroat1(psi, tfm); call zeroat1(chi, tfm)
   call advection_rhs(psi, chi, nlpsi, nlchi, uz)
 
@@ -173,7 +174,7 @@ program vortical_flow_3d
     call abcn(psi, psi_prev, nlpsi, nlpsi_prev, dt_step, tfm) ! adams bashforth - crank nicolson time integration by dt
     call abcn(chi, chi_prev, nlchi, nlchi_prev, dt_step, tfm) ! adams bashforth - crank nicolson time integration by dt
     call dealias(psi, tfm); call dealias(chi, tfm)
-    call svv_filter(psi, tfm); call svv_filter(chi, tfm)
+    call svv_filter(psi, tfm, svv_gain_psi); call svv_filter(chi, tfm, svv_gain_chi)
     call zeroat1(psi, tfm); call zeroat1(chi, tfm)
     call advection_rhs(psi, chi, nlpsi, nlchi, uz) ! compute the nonlinear term in rhs
     call check_stability(psi, chi)

@@ -12,7 +12,7 @@ nav_order: 4
 #! bash
 np=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu)
 make vortical_flow_3d
-mpirun -n $np --oversubscribe ./build/bin/vortical_flow_3d
+mpirun -n $np ./build/bin/vortical_flow_3d
 # If using IntelMPI
 # mpiexec -n $np ./build/bin/vortical_flow_3d
 ```
@@ -90,10 +90,14 @@ The default parameters are specified in `[root_dir]/input.params`:
 The final optional input block controls the bounded spectral vanishing-viscosity
 filter used by the vortex example.  It applies a 2/3 de-alias mask to the
 periodic directions and increases damping only when the modal tail exceeds
-`svv_target`; set the first value to `F` to disable it.  The filter is a
-tail-energy safeguard, not a controller that forces a `-5/3` spectrum.  The
-vortex example removes the mapped far-field (`x=1`) mode after each step and
-aborts collectively if a non-finite modal value is produced.
+`svv_target`; a mode enters that tail when any normalized radial, azimuthal,
+or axial mode coordinate exceeds `svv_cutoff`. Set the first value to `F` to
+disable it. The filter is a tail-energy safeguard, not a controller that
+forces a `-5/3` spectrum. With the periodic 2/3 mask, a cutoff of `0.75`
+primarily guards the mapped-radial tail; choose a cutoff below about `2/3` if
+the top retained azimuthal and axial bands must also participate. The vortex
+example removes the mapped far-field (`x=1`) mode after each step and aborts
+collectively if a non-finite modal value is produced.
 
 On macOS with Homebrew GNU Fortran, install `gfortran`, `open-mpi`, and
 `cmake`, build the external libraries with `FC=gfortran CC=cc
@@ -114,11 +118,13 @@ From these parameters, the simulation is set as follows:
 
 Note that a non-zero *hyperviscous* dissipation term \\( - {\rm{HYPERVISC}} \cdot (-\nabla^2)^{({\rm{HYPERPOW}}/2)} \\), along with the *physical* dissipation term \\( {\rm{VISC}} \cdot \nabla^2 \\), is additionally taken into account. The hyperviscosity term does not represent physical dissipation but prevents numerical instability caused by high-frequency oscillations at small scales. It should remain minimal to avoid affecting the physical accuracy of the results.
 
-For a stability study, record the modal energy spectrum from the saved fields
-and check that the resolved inertial range is unchanged as the tail filter
-activates. The default controls are intentionally conservative and should be
-retuned with resolution and Reynolds number rather than used as a universal
-turbulence model.
+For a stability study, add a velocity-spectrum diagnostic and check that the
+resolved inertial range is unchanged as the tail filter activates. The saved
+sample output is vorticity magnitude, so it can expose cutoff pile-up but is
+not by itself a kinetic-energy spectrum or a `-5/3`-slope validation. The
+default controls are intentionally conservative and should be retuned with
+resolution and Reynolds number rather than used as a universal turbulence
+model.
 
 ## Animated Results
 

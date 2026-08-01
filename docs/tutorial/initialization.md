@@ -124,9 +124,7 @@ If your system has more than two processors, you can increase the number of MPI 
 np=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu)
 echo "The system's total number of processors is $np"
 # run the program with your system's full multi-core capacity. 
-#'--oversubscribe' is to make sure that the command below can be executed while bypassing the no. of available slots that may be limited by the default setup of OpenMPI.
-# However, this flag is essentially unnecessary.
-mpirun -n $np --oversubscribe ./build/bin/barebone_template
+mpirun -n $np ./build/bin/barebone_template
 # # for ifx + IntelMPI
 # mpiexec -n $np ./build/bin/barebone_template
 ```

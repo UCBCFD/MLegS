@@ -24,7 +24,7 @@ contains
         a0 = max(1, j-b%suplen)
         a1 = min(n, j+b%sublen)
         b0 = max(2+b%suplen-j, 1)
-        b1 = min(n+1+b%suplen-j, n)
+        b1 = min(n+1+b%suplen-j, ni)
         c(i,j) = sum(a(i,a0:a1)*b%e(b0:b1,j))
       enddo
     enddo
@@ -67,7 +67,7 @@ contains
         a0 = max(1, j-b%suplen)
         a1 = min(n, j+b%sublen)
         b0 = max(2+b%suplen-j, 1)
-        b1 = min(n+1+b%suplen-j, n)
+        b1 = min(n+1+b%suplen-j, ni)
         c(i,j) = sum(a(i,a0:a1)*b%e(b0:b1,j))
       enddo
     enddo
@@ -110,7 +110,7 @@ contains
         a0 = max(1, j-b%suplen)
         a1 = min(n, j+b%sublen)
         b0 = max(2+b%suplen-j, 1)
-        b1 = min(n+1+b%suplen-j, n)
+        b1 = min(n+1+b%suplen-j, ni)
         c(i,j) = sum(a(i,a0:a1)*b%e(b0:b1,j))
       enddo
     enddo
@@ -153,7 +153,7 @@ contains
         a0 = max(1, j-b%suplen)
         a1 = min(n, j+b%sublen)
         b0 = max(2+b%suplen-j, 1)
-        b1 = min(n+1+b%suplen-j, n)
+        b1 = min(n+1+b%suplen-j, ni)
         c(i,j) = sum(a(i,a0:a1)*b%e(b0:b1,j))
       enddo
     enddo

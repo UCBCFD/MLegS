@@ -172,7 +172,7 @@ rm -rf output
 np=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu) # set np <= 24 if needed.
 echo "The system's total number of processors is $np"
 # run the program with your system's full multi-core capacity.
-mpirun -n $np --oversubscribe ./build/bin/vecfld_reconstruction
+mpirun -n $np ./build/bin/vecfld_reconstruction
 # # for ifx + IntelMPI
 # mpiexec -n $np ./build/bin/vecfld_reconstruction
 ```
@@ -318,7 +318,7 @@ cd "$ROOT_DIR"
 np=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu) # set np <= 24 if needed.
 echo "The system's total number of processors is $np"
 # run the program with your system's full multi-core capacity.
-mpirun -n $np --oversubscribe ./build/bin/tp_project
+mpirun -n $np ./build/bin/tp_project
 # # for ifx + IntelMPI
 # mpiexec -n $np ./build/bin/tp_project
 ```
