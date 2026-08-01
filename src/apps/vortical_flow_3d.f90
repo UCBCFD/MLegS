@@ -5,6 +5,7 @@ program vortical_flow_3d
 !> Here q = 1 and b = -0.5 (fixed).
 
   use MPI
+  use ieee_arithmetic
   use mlegs_envir; use mlegs_base; use mlegs_misc
   use mlegs_bndmat; use mlegs_genmat
   use mlegs_spectfm; use mlegs_scalar 
@@ -12,9 +13,10 @@ program vortical_flow_3d
   implicit none
 
   integer(i4) :: i, j, k
+  real(p8) :: dt_step
   integer(i4), dimension(3) :: glb_sz
   integer(i4) :: stepping_notice = 1 ! in order to suppress time stepping print-outs
-  real(p8) :: origin_val, tsum = 0.D0 ! origin_val stores the vorticity value at origin in terms of time
+  real(p8) :: tsum = 0.D0
   character(len=256) :: input_params_file = './input.params' ! must be created in advance. Refer to the tutorial ipynb.
   logical :: exists
 
@@ -106,7 +108,7 @@ program vortical_flow_3d
   endif
 
 !> Store the field information (for demonstration purposes, only the 'vorticity magnitude' field will be recorded)
-  call save_vort_mag(psi, chi) ! program-dependent subroutine; see below
+  if (isfldsav) call save_vort_mag(psi, chi) ! program-dependent subroutine; see below
 
 !!!............ Time stepping
 
@@ -133,6 +135,11 @@ program vortical_flow_3d
   psi%e = 2.D0/1.D0*psi%e - 1.D0/1.D0*psi_rich%e ! Richardson extrapolation
   chi%e = 2.D0/1.D0*chi%e - 1.D0/1.D0*chi_rich%e ! Richardson extrapolation
 
+  call dealias(psi, tfm); call dealias(chi, tfm)
+  call svv_filter(psi, tfm); call svv_filter(chi, tfm)
+  call zeroat1(psi, tfm); call zeroat1(chi, tfm)
+  call advection_rhs(psi, chi, nlpsi, nlchi, uz)
+
   call psi_rich%dealloc()
   call chi_rich%dealloc()
 
@@ -146,13 +153,14 @@ program vortical_flow_3d
   endif
 
 !> Store the first time step data
-  call save_vort_mag(psi, chi) ! program-dependent subroutine; see below
+  if (isfldsav) call save_vort_mag(psi, chi) ! program-dependent subroutine; see below
 
 !> Main time stepping begins
   do while (curr_n .lt. ni + totaln)
     curr_n = curr_n + 1
-    if (curr_n - ni .eq. totaln) dt = totaltime-(totaln-1)*dt
-    curr_t = curr_t + dt
+    dt_step = dt
+    if (curr_n - ni .eq. totaln) dt_step = totaltime-(totaln-1)*dt
+    curr_t = curr_t + dt_step
 
 !> For time integration, all scalar inputs must be in the FFF space form.
 !> If they are already in the FFF space form, the below transformation will do nothing, but just ensure that they are FFF
@@ -162,9 +170,13 @@ program vortical_flow_3d
     call trans(nlpsi_prev, 'FFF', tfm); call trans(nlchi_prev, 'FFF', tfm)
 
 !> Run the second-order time stepping
-    call abcn(psi, psi_prev, nlpsi, nlpsi_prev, dt, tfm) ! adams bashforth - crank nicolson time integration by dt
-    call abcn(chi, chi_prev, nlchi, nlchi_prev, dt, tfm) ! adams bashforth - crank nicolson time integration by dt
+    call abcn(psi, psi_prev, nlpsi, nlpsi_prev, dt_step, tfm) ! adams bashforth - crank nicolson time integration by dt
+    call abcn(chi, chi_prev, nlchi, nlchi_prev, dt_step, tfm) ! adams bashforth - crank nicolson time integration by dt
+    call dealias(psi, tfm); call dealias(chi, tfm)
+    call svv_filter(psi, tfm); call svv_filter(chi, tfm)
+    call zeroat1(psi, tfm); call zeroat1(chi, tfm)
     call advection_rhs(psi, chi, nlpsi, nlchi, uz) ! compute the nonlinear term in rhs
+    call check_stability(psi, chi)
 
 !> Interim time record at every 100[==stepping_notice] steps
     if (rank_glb .eq. 0) then
@@ -186,7 +198,7 @@ program vortical_flow_3d
 
     if (islogsav) then ! currently islogsav == .FALSE.
 !> Record the log files
-      if (mod(curr_n, fldsavintvl) .eq. 0) then
+      if (mod(curr_n, logsavintvl) .eq. 0) then
         ! For customization -- create and add your own diagnositic logs here
       endif
     endif
@@ -339,7 +351,8 @@ contains
 
   subroutine advection_rhs(psi, chi, nlpsi, nlchi, uz) !> compute the TP-projected advection term 
     implicit none
-    type(scalar), intent(in) :: psi, chi, uz
+    type(scalar), intent(inout) :: psi, chi
+    type(scalar), intent(in) :: uz
     type(scalar), intent(inout) :: nlpsi, nlchi
 
     integer(i4), dimension(3) :: glb_sz
@@ -350,6 +363,8 @@ contains
     if (nlpsi%space(1:3) .ne. 'FFF') stop
     if (nlchi%space(1:3) .ne. 'FFF') stop
     if (uz%space(1:3) .ne. 'PPP') stop
+
+    call dealias(psi, tfm); call dealias(chi, tfm)
 
     glb_sz = (/ tfm%nrdim, tfm%npdim, tfm%nzdim /)
     call vr%init(glb_sz, (/ 1, 0, 2 /)); call wr%init(glb_sz, (/ 1, 0, 2 /))
@@ -369,13 +384,27 @@ contains
     nlpsi%ln = 0.D0
     nlchi%ln = 0.D0
 
-    call chop(nlpsi, tfm); call chop(nlchi, tfm)
+    call dealias(nlpsi, tfm); call dealias(nlchi, tfm)
 
     call vr%dealloc(); call wr%dealloc()
     call vp%dealloc(); call wp%dealloc()
     call vz%dealloc(); call wz%dealloc()
 
     return
+  end subroutine
+
+  subroutine check_stability(psi, chi)
+    implicit none
+    type(scalar), intent(in) :: psi, chi
+    logical :: local_finite, global_finite
+
+    local_finite = all(ieee_is_finite(real(psi%e))) .and. all(ieee_is_finite(aimag(psi%e))) .and. &
+                   all(ieee_is_finite(real(chi%e))) .and. all(ieee_is_finite(aimag(chi%e)))
+    call MPI_allreduce(local_finite, global_finite, 1, MPI_logical, MPI_land, comm_glb, MPI_err)
+    if (.not. global_finite) then
+      if (rank_glb .eq. 0) write(*,*) 'ERROR: non-finite vortex state at time step ', curr_n
+      call MPI_abort(comm_glb, error_flag_misc, MPI_err)
+    endif
   end subroutine
 
   subroutine save_vort_mag(psi, chi)

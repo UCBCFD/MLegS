@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 # To run this bash script, make sure that cmake is installed in your system.
 # Using apt, you may install cmake by running 'apt install cmake'
 # (re)create a lib directory where all external libraries' symbolic links are
@@ -15,8 +16,9 @@ mkdir -p ./inc
 # Thus, it is recommended to explicitly specify what compilers you want to use in case your system
 # possesses multiple compilers from different distributors (e.g., GNU and Intel).
 # Change the COMPILER pair e.g., FC=ifx && CC=icx, FC=gfortran && CC=gcc, etc.
-FC="gfortran" # change gfortran to ifx if one wants to use Intel's oneAPI compiler, and vice versa
-CC="gcc" # change gcc to icx if one wants to use Intel's oneAPI compiler, and vice versa
+FC="${FC:-gfortran}" # change gfortran to ifx if one wants to use Intel's oneAPI compiler, and vice versa
+CC="${CC:-cc}" # change gcc to icx if one wants to use Intel's oneAPI compiler, and vice versa
+BUILD_JOBS="${BUILD_JOBS:-2}"
 
 
 ###  generate the ffte library
@@ -32,7 +34,7 @@ cd ./build
 cmake -DCMAKE_Fortran_COMPILER=${FC} ..
 
 # run the build
-cmake --build . -j
+cmake --build . --parallel "${BUILD_JOBS}"
 
 ln -s $(pwd)/lib/libffte.a ../../lib/libffte.a
 cd ../../
@@ -50,7 +52,7 @@ cd ./build
 cmake -DCMAKE_Fortran_COMPILER=${FC} ..
 
 # run the build
-cmake --build . -j
+cmake --build . --parallel "${BUILD_JOBS}"
 
 ln -s $(pwd)/lib/libfm.a ../../lib/libfm.a
 ln -s $(pwd)/inc/* ../../inc/
@@ -77,10 +79,8 @@ cmake -DCMAKE_Fortran_COMPILER=${FC} -DCMAKE_C_COMPILER=${CC} -DCMAKE_INSTALL_LI
       -DBUILD_SINGLE=OFF -DBUILD_DOUBLE=ON -DBUILD_COMPLEX=OFF -DBUILD_COMPLEX16=ON ..
 
 # run the build
-cmake --build . -j --target install
+cmake --build . --parallel "${BUILD_JOBS}" --target install
 
 ln -s $(pwd)/lib/libblas.a ../../lib/libblas.a
 ln -s $(pwd)/lib/liblapack.a ../../lib/liblapack.a
 cd ../../
-
-exit 0

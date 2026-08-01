@@ -262,6 +262,7 @@ contains
       call this%disassemble(array_glb,2)
       ! Swap the axis back to the original configuration
       call this%exchange(2, 3)
+      return
 
     endif
 

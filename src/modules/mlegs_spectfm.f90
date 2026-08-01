@@ -56,7 +56,7 @@ module mlegs_spectfm
     !> equispaced collocation points in z (0 ~ zlen)
     real(p8), dimension(:), allocatable :: z
     !> accessible axial wavenumbers 0 ~ nzchop - 1
-    integer(i4), dimension(:), allocatable :: ak
+    real(p8), dimension(:), allocatable :: ak
     !> spectral workspace dimensions
     integer(i4) :: nzdim, chopzl, chopzu
   end type

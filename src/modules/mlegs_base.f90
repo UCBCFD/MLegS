@@ -29,6 +29,18 @@ module mlegs_base
   integer(i4), public :: hyperpow = 0
   !> flow properties -- hypervisocisty value
   real(p8), public :: hypervisc = 0.D0
+  !> stability -- enable the dynamic high-mode spectral vanishing-viscosity filter
+  logical, public :: is_svv = .true.
+  !> stability -- normalized composite-mode cutoff for the SVV filter
+  real(p8), public :: svv_cutoff = 0.75D0
+  !> stability -- desired fraction of energy in the unresolved modal tail
+  real(p8), public :: svv_target = 2.D-2
+  !> stability -- maximum per-step filter strength
+  real(p8), public :: svv_strength = 0.12D0
+  !> stability -- relaxation applied to the tail-energy feedback
+  real(p8), public :: svv_relax = 0.25D0
+  !> stability -- filtered tail feedback state
+  real(p8), public :: svv_gain = 0.D0
   !> file I/O -- field output directory
   character(len=256), public :: flddir = './output/fld/'
   !> file I/O -- enabling field output (T/F)

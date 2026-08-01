@@ -40,6 +40,120 @@ contains
     return
   end procedure
 
+  module procedure dealias
+    integer(i4) :: mm, kk, pcut, zcut, zupper, global_index
+
+    if (.not. tfm%is_set) stop 'dealias: transformation kit is not initialized'
+
+    ! The 2/3 rule is applied to the periodic directions before and after
+    ! quadratic products.  The mapped radial direction is handled by svv_filter.
+    if ((np .gt. 1) .and. (s%space(2:2) .eq. 'F')) then
+      pcut = max(np/3 + 1, 1)
+      do mm = 1, s%loc_sz(2)
+        global_index = s%loc_st(2) + mm
+        if (global_index .gt. pcut) s%e(:, mm, :) = 0.D0
+      enddo
+    endif
+
+    if ((nz .gt. 1) .and. (s%space(3:3) .eq. 'F')) then
+      zcut = max(nz/3 + 1, 1)
+      zupper = nz - zcut + 2
+      do kk = 1, s%loc_sz(3)
+        global_index = s%loc_st(3) + kk
+        if ((global_index .gt. zcut) .and. (global_index .lt. zupper)) then
+          s%e(:, :, kk) = 0.D0
+        endif
+      enddo
+    endif
+
+    return
+  end procedure
+
+  module procedure svv_filter
+    integer(i4) :: i, j, k, global_n, global_m, global_k
+    integer(i4), parameter :: filter_order = 8
+    real(p8) :: total_local, tail_local, total_global, tail_global
+    real(p8) :: tail_ratio, feedback, strength, q, q_r, q_p, q_z
+    real(p8) :: shape, factor, cutoff, target, kmax, kvalue
+
+    if (.not. is_svv) return
+    if (s%space(1:3) .ne. 'FFF') stop 'svv_filter: scalar must be in FFF space'
+    if (.not. tfm%is_set) stop 'svv_filter: transformation kit is not initialized'
+
+    total_local = sum(abs(s%e)**2)
+    tail_local = 0.D0
+    cutoff = min(max(svv_cutoff, 0.D0), 0.99D0)
+    target = max(svv_target, 1.D-12)
+
+    select type(kit => tfm)
+      type is (tfm_kit_3d)
+        kmax = max(maxval(abs(kit%ak)), 1.D0)
+      class default
+        kmax = 1.D0
+    end select
+
+    do i = 1, s%loc_sz(1)
+      global_n = s%loc_st(1) + i - 1
+      q_r = min(1.D0, real(max(global_n, 0), p8) / max(real(nrchop-1, p8), 1.D0))
+      do j = 1, s%loc_sz(2)
+        global_m = s%loc_st(2) + j - 1
+        q_p = min(1.D0, real(abs(global_m), p8) / max(real(np/2, p8), 1.D0))
+        do k = 1, s%loc_sz(3)
+          global_k = s%loc_st(3) + k
+          kvalue = 0.D0
+          select type(kit => tfm)
+            type is (tfm_kit_3d)
+              if ((global_k .ge. 1) .and. (global_k .le. size(kit%ak))) then
+                kvalue = abs(kit%ak(global_k))
+              endif
+          end select
+          q_z = min(1.D0, kvalue / kmax)
+          q = min(1.D0, sqrt((q_r*q_r + q_p*q_p + q_z*q_z)/3.D0))
+          if (q .ge. cutoff) tail_local = tail_local + abs(s%e(i,j,k))**2
+        enddo
+      enddo
+    enddo
+
+    call MPI_allreduce(total_local, total_global, 1, MPI_real8, MPI_sum, comm_glb, MPI_err)
+    call MPI_allreduce(tail_local, tail_global, 1, MPI_real8, MPI_sum, comm_glb, MPI_err)
+    if (total_global .le. tiny(1.D0)) return
+
+    tail_ratio = tail_global / total_global
+    feedback = min(max(tail_ratio/target - 1.D0, 0.D0), 1.D0)
+    svv_gain = (1.D0 - min(max(svv_relax, 0.D0), 1.D0))*svv_gain &
+             + min(max(svv_relax, 0.D0), 1.D0)*feedback
+    strength = min(max(svv_strength, 0.D0)*svv_gain, 1.D0)
+    if (strength .le. 0.D0) return
+
+    do i = 1, s%loc_sz(1)
+      global_n = s%loc_st(1) + i - 1
+      q_r = min(1.D0, real(max(global_n, 0), p8) / max(real(nrchop-1, p8), 1.D0))
+      do j = 1, s%loc_sz(2)
+        global_m = s%loc_st(2) + j - 1
+        q_p = min(1.D0, real(abs(global_m), p8) / max(real(np/2, p8), 1.D0))
+        do k = 1, s%loc_sz(3)
+          global_k = s%loc_st(3) + k
+          kvalue = 0.D0
+          select type(kit => tfm)
+            type is (tfm_kit_3d)
+              if ((global_k .ge. 1) .and. (global_k .le. size(kit%ak))) then
+                kvalue = abs(kit%ak(global_k))
+              endif
+          end select
+          q_z = min(1.D0, kvalue / kmax)
+          q = min(1.D0, sqrt((q_r*q_r + q_p*q_p + q_z*q_z)/3.D0))
+          if (q .gt. cutoff) then
+            shape = (q-cutoff)/(1.D0-cutoff)
+            factor = exp(-strength*shape**filter_order)
+            s%e(i,j,k) = factor*s%e(i,j,k)
+          endif
+        enddo
+      enddo
+    enddo
+
+    return
+  end procedure
+
   module procedure trans
     integer(i4) :: curr_sp, new_sp
     integer(i4) :: kk
@@ -197,7 +311,7 @@ contains
   module procedure zeroat1
     complex(p8), dimension(:), allocatable :: at1
 
-    if ((.not.(s%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
+    if (s%space(1:3) .ne. 'FFF') then
       write(*,*) '[warning] zeroat1: an input scalar is not FFF; additional operations needed for tfm'
       write(*,*) '                   after this operation, the scalar resides in FFF'
       call trans(s, 'FFF', tfm)
@@ -221,7 +335,7 @@ contains
 
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
-    if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
+    if (s%space(1:3) .ne. 'FFF') then
       write(*,*) '[warning] delsqp: an input scalar is not FFF; additional operations needed for tfm'
       write(*,*) '                  after this operation, both input and output scalar resides in FFF'
       call trans(s, 'FFF', tfm)
@@ -235,7 +349,7 @@ contains
     if (m(1) .ne. 0) stop 'delsqp: 1st azimuthal wavenum is not zero'
 
     do mm = 1, min(so%loc_sz(2), npc - so%loc_st(2))
-      do nn = 1, min(so%loc_sz(1), nrcs(so%loc_st(2) + mm) - so%loc_sz(1))
+      do nn = 1, min(so%loc_sz(1), nrcs(so%loc_st(2) + mm) - so%loc_st(1))
         n = m(so%loc_st(2) + mm) + (so%loc_st(1) + nn) - 1
         so%e(nn,mm,:) = -s%e(nn,mm,:)*n*(n+1.D0)/(ell**2.D0)
       enddo
@@ -257,12 +371,13 @@ contains
     integer(i4), dimension(:), allocatable :: nrcs, m
     real(p8), dimension(:), allocatable :: ak
     integer(i4) :: mm, nn, n
+    real(p8) :: ln_global
 
     type(scalar) :: so
 
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
-    if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
+    if (s%space(1:3) .ne. 'FFF') then
       write(*,*) '[warning] idelsqp: an input scalar is not FFF; additional operations needed for tfm'
       write(*,*) '                   after this operation, both input and output scalar resides in FFF'
       call trans(s, 'FFF', tfm)
@@ -276,12 +391,17 @@ contains
     if ((so%loc_st(1) .eq. 0) .and. (so%loc_st(2) .eq. 0)) then
       so%ln = s%e(1,1,1)*ell**2.D0*exp(tfm%lognorm(1,1))
     endif
-    call MPI_allreduce(so%ln, so%ln, 1, MPI_real8, MPI_sum, comm_glb, MPI_err)
+    call MPI_allreduce(so%ln, ln_global, 1, MPI_real8, MPI_sum, comm_glb, MPI_err)
+    so%ln = ln_global
 
     do mm = 1, min(so%loc_sz(2), npc - so%loc_st(2))
       do nn = 1, min(so%loc_sz(1), nrcs(so%loc_st(2) + mm) - so%loc_st(1))
         n = m(so%loc_st(2) + mm) + (so%loc_st(1) + nn) - 1
-        so%e(nn,mm,:) = -s%e(nn,mm,:)/n/(n+1.D0)*(ell**2.D0)
+        if (n .eq. 0) then
+          so%e(nn,mm,:) = 0.D0
+        else
+          so%e(nn,mm,:) = -s%e(nn,mm,:)/n/(n+1.D0)*(ell**2.D0)
+        endif
       enddo
     enddo
 
@@ -307,7 +427,7 @@ contains
 
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
-    if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
+    if (s%space(1:3) .ne. 'FFF') then
       write(*,*) '[warning] xxdx: an input scalar is not FFF; additional operations needed for tfm'
       write(*,*) '                after this operation, both input and output scalar resides in FFF'
       call trans(s, 'FFF', tfm)
@@ -354,7 +474,7 @@ contains
 
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
-    if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
+    if (s%space(1:3) .ne. 'FFF') then
       write(*,*) '[warning] del2: an input scalar is not FFF; additional operations needed for tfm'
       write(*,*) '                after this operation, both input and output scalar resides in FFF'
       call trans(s, 'FFF', tfm)
@@ -409,7 +529,7 @@ contains
 
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
-    if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
+    if (s%space(1:3) .ne. 'FFF') then
       write(*,*) '[warning] del2: an input scalar is not FFF; additional operations needed for tfm'
       write(*,*) '                after this operation, both input and output scalar resides in FFF'
       call trans(s, 'FFF', tfm)
@@ -460,12 +580,13 @@ contains
     integer(i4) :: mm, nn, kk, n
     type(real_bndm) :: del2_bnd
     real(p8), dimension(:,:), allocatable :: del2_pre
+    real(p8) :: ln_global
 
     type(scalar) :: so
 
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
-    if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
+    if (s%space(1:3) .ne. 'FFF') then
       write(*,*) '[warning] idel2: an input scalar is not FFF; additional operations needed for tfm'
       write(*,*) '                 after this operation, both input and output scalar resides in FFF'
       call trans(s, 'FFF', tfm)
@@ -533,7 +654,8 @@ contains
       enddo
     endif
     deallocate( del2_bnd%e )
-    call MPI_allreduce(so%ln, so%ln, 1, MPI_real8, MPI_sum, comm_glb, MPI_err)
+    call MPI_allreduce(so%ln, ln_global, 1, MPI_real8, MPI_sum, comm_glb, MPI_err)
+    so%ln = ln_global
 
     if (nz .gt. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
 
@@ -554,12 +676,13 @@ contains
     integer(i4) :: mm, nn, kk, n
     type(real_bndm) :: del2_bnd
     real(p8), dimension(:,:), allocatable :: del2_pre
+    real(p8) :: ln_global
 
     type(scalar) :: so
 
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
-    if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
+    if (s%space(1:3) .ne. 'FFF') then
       write(*,*) '[warning] idel2: an input scalar is not FFF; additional operations needed for tfm'
       write(*,*) '                 after this operation, both input and output scalar resides in FFF'
       call trans(s, 'FFF', tfm)
@@ -622,7 +745,8 @@ contains
       enddo
     endif
     deallocate( del2_bnd%e )
-    call MPI_allreduce(so%ln, so%ln, 1, MPI_real8, MPI_sum, comm_glb, MPI_err)
+    call MPI_allreduce(so%ln, ln_global, 1, MPI_real8, MPI_sum, comm_glb, MPI_err)
+    so%ln = ln_global
 
     if (nz .gt. 1) call so%exchange(1, 3) ! resuming to typical FFF configuration (z-data resides locally)
 
@@ -645,7 +769,7 @@ contains
 
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
-    if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
+    if (s%space(1:3) .ne. 'FFF') then
       write(*,*) '[warning] helm: an input scalar is not FFF; additional operations needed for tfm'
       write(*,*) '                after this operation, both input and output scalar resides in FFF'
       call trans(s, 'FFF', tfm)
@@ -676,7 +800,7 @@ contains
 
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
-    if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
+    if (s%space(1:3) .ne. 'FFF') then
       write(*,*) '[warning] ihelm: an input scalar is not FFF; additional operations needed for tfm'
       write(*,*) '                 after this operation, both input and output scalar resides in FFF'
       call trans(s, 'FFF', tfm)
@@ -738,12 +862,12 @@ contains
 
     type(scalar) :: s2, sp, so
 
-    if (.not. (mod(power,2).eq.0) .and. (power.ge.4)) stop 'helmp: even power greater than or equal to 4'
+    if (.not. ((mod(power,2).eq.0) .and. (power.ge.4))) stop 'helmp: even power greater than or equal to 4'
     if (power .gt. 8) stop 'helmp: power must be less than or equal to 8 (supported power = 4, 6 or 8)'
 
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
-    if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
+    if (s%space(1:3) .ne. 'FFF') then
       write(*,*) '[warning] helmp: an input scalar is not FFF; additional operations needed for tfm'
       write(*,*) '                 after this operation, both input and output scalar resides in FFF'
       call trans(s, 'FFF', tfm)
@@ -795,7 +919,7 @@ contains
 
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
-    if ((.not.(so%space(1:3) .eq. 'FFF')) .and. (is_warning)) then
+    if (s%space(1:3) .ne. 'FFF') then
       write(*,*) '[warning] ihelmp: an input scalar is not FFF; additional operations needed for tfm'
       write(*,*) '                  after this operation, both input and output scalar resides in FFF'
       call trans(s, 'FFF', tfm)
@@ -884,7 +1008,6 @@ contains
     integer(i4) :: nrc, npc, nzc, nzcu
     integer(i4), dimension(:), allocatable :: nrcs, m
     real(p8), dimension(:), allocatable :: ak
-    integer(i4) :: mm, kk
 
     call chop_index(s, tfm, nrdim, npdim, nzdim, nrc, npc, nzc, nzcu, nrcs, m, ak)
 
@@ -946,11 +1069,7 @@ contains
     if (s%space(1:3).ne.'FFF') stop 'fefe: all input scalars must be in FFF for time stepping'
     if (s_rhs_nonlin%space(1:3).ne.'FFF') stop 'fefe: all input scalars must be in FFF for time stepping'
 
-    if (curr_n - ni .eq. totaln) then
-      dt_ = totaltime - (totaln-1)*dt ! final timestep's dt adjustment
-    else
-      dt_ = dt ! normally, globally defined dt (in base) must be called
-    endif
+    dt_ = dt
 
     call svis%init(s%glb_sz, s%axis_comm)
     svis = s
@@ -990,11 +1109,7 @@ contains
       is_2nd_svis_p_ = .false. ! by default 2nd arg is s_p
     endif
 
-    if (curr_n - ni .eq. totaln) then
-      dt_ = totaltime - (totaln-1)*dt ! final timestep's dt adjustment
-    else
-      dt_ = dt ! normally, globally defined dt (in base) must be called
-    endif
+    dt_ = dt
 
     call svis%init(s%glb_sz, s%axis_comm)
     svis = s
@@ -1046,11 +1161,7 @@ contains
     if (s%space(1:3).ne.'FFF') stop 'fefe: all input scalars must be in FFF for time stepping'
     if (s_rhs_nonlin%space(1:3).ne.'FFF') stop 'fefe: all input scalars must be in FFF for time stepping'
 
-    if (curr_n - ni .eq. totaln) then
-      dt_ = totaltime - (totaln-1)*dt ! final timestep's dt adjustment
-    else
-      dt_ = dt ! normally, globally defined dt (in base) must be called
-    endif
+    dt_ = dt
 
     call sh%init(s%glb_sz, s%axis_comm)
     sh = s
@@ -1095,11 +1206,7 @@ contains
     if (s_p%space(1:3).ne.'FFF') stop 'fefe: all input scalars must be in FFF for time stepping'
     if (s_rhs_nonlin_p%space(1:3).ne.'FFF') stop 'fefe: all input scalars must be in FFF for time stepping'
 
-    if (curr_n - ni .eq. totaln) then
-      dt_ = totaltime - (totaln-1)*dt ! final timestep's dt adjustment
-    else
-      dt_ = dt ! normally, globally defined dt (in base) must be called
-    endif
+    dt_ = dt
 
     call sh%init(s%glb_sz, s%axis_comm)
     sh = s
@@ -1519,8 +1626,10 @@ contains
 
     s%e = se
 
-    if (.not. all(abs(se(:, npc+1, :)) .lt. 5.D-14)) then
-      if (is_warning) write(*,*) '[warning] horizontal_fft_forward: residues in the chopped region'
+    if (npc .lt. npdim) then
+      if (.not. all(abs(se(:, npc+1:, :)) .lt. 5.D-14)) then
+        if (is_warning) write(*,*) '[warning] horizontal_fft_forward: residues in the chopped region'
+      endif
     endif
 
     deallocate( b )
@@ -1563,11 +1672,13 @@ contains
     npc = npc + s%npchop_offset
     if (npc .gt. npdim) stop 'horizontal_fft_fbackard: chopping in p too large'
 
-    if ((is_warning) .and. (.not. all(abs(se(:, npc+1, :)) .lt. 5.D-14))) then
-      write(*,*) '[warning] horizontal_fft_backward: residues in the chopped region'
+    se = s%e
+    if ((is_warning) .and. (npc .lt. npdim)) then
+      if (.not. all(abs(se(:, npc+1:, :)) .lt. 5.D-14)) then
+        write(*,*) '[warning] horizontal_fft_backward: residues in the chopped region'
+      endif
     endif
 
-    se = s%e
     nph = np/2
 
     allocate( b(npdim, 1) ) ! npdim = np/2+1 = nph + 1
@@ -1657,8 +1768,10 @@ contains
 
     s%e = se
 
-    if (.not. all(abs(se(:, :, nzc+1:nzcu-1)) .lt. 5.D-14)) then
-      if (is_warning) write(*,*) '[warning] vertical_fft_forward: residues in the chopped region'
+    if (nzc .lt. nzcu-1) then
+      if (.not. all(abs(se(:, :, nzc+1:nzcu-1)) .lt. 5.D-14)) then
+        if (is_warning) write(*,*) '[warning] vertical_fft_forward: residues in the chopped region'
+      endif
     endif
 
     deallocate( b )
@@ -1702,11 +1815,12 @@ contains
     nzcu = nzcu - s%nzchop_offset
     if (2*s%nzchop_offset .gt. nzcu - nzc) stop 'vertical_fft_backward: chopping in z too large'
 
-    if (.not. all(abs(se(:, :, nzc+1:nzcu-1)) .lt. 5.D-14)) then
-      if (is_warning) write(*,*) '[warning] vertical_fft_backward: residues in the chopped region'
-    endif
-
     se = s%e
+    if (nzc .lt. nzcu-1) then
+      if (.not. all(abs(se(:, :, nzc+1:nzcu-1)) .lt. 5.D-14)) then
+        if (is_warning) write(*,*) '[warning] vertical_fft_backward: residues in the chopped region'
+      endif
+    endif
 
     allocate( b(nz) ) ! npdim = np/2+1 = nph + 1
     allocate( c(2*nz) )

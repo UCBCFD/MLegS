@@ -122,6 +122,26 @@ module mlegs_scalar
   end interface
   public :: chop
 
+  !> remove quadratic-aliasing modes in the periodic directions
+  interface dealias
+    module subroutine dealias(s, tfm)
+      implicit none
+      class(scalar), intent(inout) :: s
+      class(tfm_kit), intent(in) :: tfm
+    end subroutine
+  end interface
+  public :: dealias
+
+  !> apply the bounded, tail-energy-driven spectral vanishing-viscosity filter
+  interface svv_filter
+    module subroutine svv_filter(s, tfm)
+      implicit none
+      class(scalar), intent(inout) :: s
+      class(tfm_kit), intent(in) :: tfm
+    end subroutine
+  end interface
+  public :: svv_filter
+
   !> perform spectral transformation of a scalar
   interface trans
     module subroutine trans(s, space, tfm)

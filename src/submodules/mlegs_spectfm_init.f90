@@ -126,7 +126,7 @@ contains
 
         this%chopp = npchop
         
-        allocate( this%z(nz) )
+        allocate( this%z(nz+1) )
         this%z = (/ (zlen/nz*i, i = 0, nz) /)
 
         allocate( this%ak(nz) )
@@ -193,6 +193,7 @@ contains
     xl = (x2-x1)/2.D0
     do i = 1, m ! refinement using Newton's method
       z = cos(pi*(i-.25D0)/(n+.5D0))
+      z1 = z + 1.D0
       do while (abs(z-z1) .gt. eps)
         p1 = 1.d0
         p2 = 0.d0

@@ -10,9 +10,9 @@ nav_order: 4
 ## Compilation and Run
 ```bash
 #! bash
-np=$(nproc)
+np=$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu)
 make vortical_flow_3d
-mpirun.openmpi -n $np --oversubscribe ./build/bin/vortical_flow_3d
+mpirun -n $np --oversubscribe ./build/bin/vortical_flow_3d
 # If using IntelMPI
 # mpiexec -n $np ./build/bin/vortical_flow_3d
 ```
@@ -81,8 +81,21 @@ The default parameters are specified in `[root_dir]/input.params`:
                   ./output/dat
 # ---- ISLOGSAV -- LOGSAVINTVL ---(IF ISLOGSAV!=T, LOGS ARE NOT GENERATED)------
               F              1
+!!! STABILITY CONTROL INFO (OPTIONAL) !!!
+# ------- IS_SVV ------- CUTOFF ------- TARGET ------ STRENGTH ------- RELAX ---
+              T          0.75          2.D-2          0.12          0.25
 /* ------------------------------ END OF INPUT ------------------------------ */
 ```
+
+The final optional input block enables the bounded spectral vanishing-viscosity
+filter used by the vortex example.  It applies a 2/3 de-alias mask to the
+periodic directions and increases damping only when the modal tail exceeds
+`svv_target`; set the first value to `F` to disable it.  The vortex example
+also aborts collectively if a non-finite modal value is produced.
+
+On macOS with Homebrew GNU Fortran, install `gfortran`, `open-mpi`, and
+`cmake`, build the external libraries with `FC=gfortran CC=cc
+BUILD_JOBS=2 ./external/CMake_build.sh`, then run the same `make` command.
 
 From these parameters, the simulation is set as follows:
 - Collocation points in physical space: \\( NR = 200 \\), \\( NP = 128 \\), \\( NZ = 128 \\).

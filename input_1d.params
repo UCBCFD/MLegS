@@ -25,4 +25,7 @@
                   ./output/dat
 # ---- ISLOGSAV -- LOGSAVINTVL ---(IF ISLOGSAV!=T, LOGS ARE NOT GENERATED)------
               T            100
+!!! STABILITY CONTROL INFO (OPTIONAL) !!!
+# ------- IS_SVV ------- CUTOFF ------- TARGET ------ STRENGTH ------- RELAX ---
+              T          0.75          2.D-2          0.12          0.25
 /* ------------------------------ END OF INPUT ------------------------------ */
