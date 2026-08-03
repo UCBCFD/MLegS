@@ -13,7 +13,7 @@ authors:
 repository-code: "https://github.com/UCBCFD/MLegS"
 abstract: "Mapped Legendre spectral method code for solving partial differential equations in unbounded domain, modernized and parallelized for high-performance computing applications."
 license: "BSD-2-Clause"
-version: "1.1.1"
+version: "1.1.2"
 date-released: "2026-08-02"
 doi: "10.5281/zenodo.21742655"
 identifiers:
