@@ -54,6 +54,14 @@ unsupported-power, and invalid-SVV inputs must also fail nonzero.
 python3 tools/validate_tutorials.py --ranks 2
 ```
 
+{: .warning }
+> In v1.1 this command always failed. `wave_propagation_1d` is a purely radial
+> program that stops unless it is given exactly one process, and the gate passed
+> its global `--ranks` value to every application, so the case aborted at any
+> rank count above one. Fixed in
+> [v1.1.1]({{ site.baseurl }}/release_notes_v1.1.1.html), which overrides the
+> rank count for that application only. On v1.1, use `--ranks 1`.
+
 Notebook cells can also be executed when `nbformat`, `nbclient`, and a Python
 kernel are installed:
 

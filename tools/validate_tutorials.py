@@ -26,6 +26,7 @@ NOTEBOOK_APPS: Mapping[str, tuple[str, ...]] = {
 
 DOCUMENT_APPS: Mapping[str, tuple[str, ...]] = {
     "docs/release_notes.md": (),
+    "docs/release_notes_v1.1.1.md": (),
     "docs/release_notes_v1.0.x.md": (),
     "docs/tutorial/prerequisites.md": (),
     "docs/sample_programs/1d_radial_wave_propagation.md": (
@@ -45,6 +46,13 @@ DOCUMENT_APPS: Mapping[str, tuple[str, ...]] = {
 }
 
 ALL_APPS = tuple(dict.fromkeys(app for apps in DOCUMENT_APPS.values() for app in apps))
+
+# Applications that must be launched on exactly one process, whatever --ranks says.
+# wave_propagation_1d solves a purely radial problem, so the rank that owns the radial
+# direction has to own all of it; the program stops deliberately when given more than one
+# process. Running the whole gate at --ranks 1 to accommodate it would give up parallel
+# coverage of the other twelve, so the rank count is overridden per application instead.
+SERIAL_ONLY_APPS = frozenset({"wave_propagation_1d"})
 
 
 class ValidationError(RuntimeError):
@@ -369,11 +377,14 @@ def run_executables(root: Path, *, ranks: int, timeout: int, skip_build: bool) -
     try:
         mpi = _mpi_command(mpirun, ranks)
 
+        serial = _mpi_command(mpirun, 1) if ranks != 1 else mpi
+
         def run_case(app: str, config: str) -> None:
             if not (run_dir / config).is_file():
                 raise ValidationError(f"missing input configuration: {config}")
+            launcher = serial if app in SERIAL_ONLY_APPS else mpi
             _run(
-                [*mpi, str(binaries[app])],
+                [*launcher, str(binaries[app])],
                 cwd=run_dir,
                 timeout=timeout,
                 label=f"{app} tutorial",

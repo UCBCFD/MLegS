@@ -5,4 +5,5 @@ nav_order: 4
 
 # Update Notes
 
-Choose a release below for its update notes.
+Choose a release below for its update notes. The current release is
+[v1.1.1]({{ site.baseurl }}/release_notes_v1.1.1.html).

@@ -1,7 +1,7 @@
 ---
 title: Version 1.0 Update Notes
 parent: Update Notes
-nav_order: 1
+nav_order: 3
 ---
 
 # Version 1.0 Update Notes

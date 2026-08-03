@@ -1,6 +1,9 @@
 # directories
 **/build
 **/.vscode
+**/.omo
+**/.manuscript
+**/.ruff_cache
 **/.ipynb_checkpoints
 **/.jekyll-cache
 **/_site
