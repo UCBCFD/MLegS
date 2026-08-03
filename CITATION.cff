@@ -13,9 +13,12 @@ authors:
 repository-code: "https://github.com/UCBCFD/MLegS"
 abstract: "Mapped Legendre spectral method code for solving partial differential equations in unbounded domain, modernized and parallelized for high-performance computing applications."
 license: "BSD-2-Clause"
-version: "1.1.2"
+version: "1.1.3"
 date-released: "2026-08-02"
-doi: "10.5281/zenodo.21742655"
+# The concept DOI, not a version DOI: a release's version DOI is minted from the release
+# itself, so a tag can never contain its own. The concept DOI always resolves to the
+# newest version and is therefore correct in every release.
+doi: "10.5281/zenodo.14976470"
 identifiers:
   - type: doi
     value: "10.5281/zenodo.14976470"
@@ -23,3 +26,9 @@ identifiers:
   - type: doi
     value: "10.5281/zenodo.21742655"
     description: "Immutable archive of the v1.1 release"
+  - type: doi
+    value: "10.5281/zenodo.21765175"
+    description: "Immutable archive of the v1.1.1 release"
+  - type: doi
+    value: "10.5281/zenodo.21765203"
+    description: "Immutable archive of the v1.1.2 release"

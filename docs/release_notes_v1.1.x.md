@@ -81,3 +81,13 @@ input format and solver interfaces wherever possible.
   index to match the merged page.
 - This maintenance patch did not change the numerical solver, input format, or
   documented tutorial commands; the sources under `src/` are identical to v1.1.
+
+## Version 1.1.3
+
+- `CITATION.cff` now records the concept DOI rather than a version DOI. A
+  version DOI is minted from the release it identifies, so no tag can contain
+  its own; the concept DOI always resolves to the newest version and is correct
+  in every release. The version DOIs for v1.1, v1.1.1 and v1.1.2 are listed
+  under `identifiers`.
+- This maintenance patch did not change the numerical solver, input format, or
+  documented tutorial commands; the sources under `src/` are identical to v1.1.
