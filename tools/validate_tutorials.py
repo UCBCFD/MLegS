@@ -25,8 +25,7 @@ NOTEBOOK_APPS: Mapping[str, tuple[str, ...]] = {
 }
 
 DOCUMENT_APPS: Mapping[str, tuple[str, ...]] = {
-    "docs/release_notes.md": (),
-    "docs/release_notes_v1.1.1.md": (),
+    "docs/release_notes_v1.1.x.md": (),
     "docs/release_notes_v1.0.x.md": (),
     "docs/tutorial/prerequisites.md": (),
     "docs/sample_programs/1d_radial_wave_propagation.md": (
