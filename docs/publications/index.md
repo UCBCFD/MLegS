@@ -8,6 +8,8 @@ nav_order: 5
 This section may not encompass the full range of publications related to MLegS. Any input from users to the developers regarding additional relevant publications that should be included in this list would be appreciated.
 
 ## Publications Using MLegS After Open-Source Release
+- **Lee, S., & Wang, J. (2026).** MLegS: A modern mapped Legendre spectral method solver for unbounded domains with parallelization. *arXiv*. [doi.org/10.48550/arXiv.2609.18026](https://doi.org/10.48550/arXiv.2609.18026).
+- **Wang, J., Lee, S., & Marcus, P. S. (2026).** Perturbation analysis of triadic resonance in columnar vortices: Selection rules and the roles of external forcing and critical layers. *Journal of Fluid Mechanics*, Accepted.
 - **Lee, S., & Marcus, P. S. (2025).** Transient growth of a wake vortex and its initiation via inertial particles. *Journal of Fluid Mechanics*, 1014, A16. [doi.org/10.1017/jfm.2025.253](https://doi.org/10.1017/jfm.2025.253).
 
 ## Publications Using In-House, Legacy MLegS

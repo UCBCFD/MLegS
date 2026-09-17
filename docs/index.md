@@ -17,6 +17,8 @@ pages for setup and stability controls. A consolidated list of corrections,
 validation gates, and numerical limitations is available in the
 [Update Notes](update_notes).
 
+The code details are now presented in S. Lee and J. Wang (2026)[^3].
+
 Prior to its open-source release, MLegS was successfully used in several vortex dynamics studies in the context of wake vortices in the atmosphere. One example is S. Lee and P. S. Marcus (2023)[^2], where one can find the detailed mathematical formulation of the mapped Legendre (pseudo-)spectral method.
 
 ---
@@ -30,3 +32,4 @@ Prior to its open-source release, MLegS was successfully used in several vortex 
 
 [^1]: Matsushima, T., & Marcus, P. S. (1997). A spectral method for unbounded domains. Journal of Computational Physics, 137(2), 321–345. [https://doi.org/10.1006/jcph.1997.5804](https://doi.org/10.1006/jcph.1997.5804)
 [^2]: Lee, S., & Marcus, P. S. (2023). Linear stability analysis of wake vortices by a spectral method using mapped Legendre functions. Journal of Fluid Mechanics, 967, A2. [https://doi.org/10.1017/jfm.2023.455](https://doi.org/10.1017/jfm.2023.455)
+[^3]: Lee, S., & Wang, J. (2026). MLegS: A modern mapped Legendre spectral method solver for unbounded domains with parallelization. arXiv. [https://doi.org/10.48550/arXiv.2609.18026](https://doi.org/10.48550/arXiv.2609.18026)
